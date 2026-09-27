@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Match — Phalanx League Soccer</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="container">
+  <h1 id="match-title">Loading…</h1>
+  <p class="muted" id="match-meta"></p>
+  <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+
+  <div class="card">
+    <div class="card-title">Events</div>
+    <div id="events-list"><p class="muted">Loading…</p></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderHeader("matches.html");
+renderFooter();
+
+var matchId = qs("id");
+
+async function loadMatch() {
+  if (!matchId) return;
+  var mRes = await window.sb.from("matches").select("*, home:teams!matches_home_team_id_fkey(*), away:teams!matches_away_team_id_fkey(*)").eq("id", matchId).single();
+  if (!mRes.data) { document.getElementById("match-title").textContent = "Match not found"; return; }
+  var m = mRes.data;
+  var scoreStr = m.status === "completed" ? (m.home_score + " – " + m.away_score) : (m.status === "forfeited" ? "Forfeit" : "vs");
+  document.getElementById("match-title").textContent = m.home.name + " " + scoreStr + " " + m.away.name;
+  document.getElementById("match-meta").innerHTML =
+    "Match Day " + m.match_day + " &middot; Match " + m.match_number +
+    '<span class="pill ' + m.status + '" style="margin-left:8px;">' + m.status + "</span>" +
+    (m.kickoff_at ? " &middot; " + new Date(m.kickoff_at).toLocaleString() : "");
+
+  var eventsRes = await window.sb.from("match_events").select("*, players(*), teams(*)").eq("match_id", matchId).order("minute", { ascending: true });
+  var list = document.getElementById("events-list");
+  if (!eventsRes.data || eventsRes.data.length === 0) {
+    list.innerHTML = '<p class="muted">No events logged for this match yet.</p>';
+    return;
+  }
+  var typeLabel = { goal: "⚽ Goal", assist: "🅰️ Assist", yellow_card: "🟨 Yellow", red_card: "🟥 Red", substitution_in: "⬆ Sub on", substitution_out: "⬇ Sub off" };
+  list.innerHTML = eventsRes.data.map(function (e) {
+    return '<div style="padding:8px 0; border-bottom:1px solid var(--card-edge); display:flex; justify-content:space-between; gap:10px;">' +
+      "<span>" + (typeLabel[e.event_type] || e.event_type) + " &middot; " +
+      '<a href="player.html?id=' + e.players.id + '">' + escapeHtml(e.players.full_name) + "</a> (" + escapeHtml(e.teams.name) + ")</span>" +
+      "<span class=\"muted\">" + (e.minute ? e.minute + "'" : "") + "</span>" +
+      "</div>";
+  }).join("");
+}
+loadMatch();
+if (matchId) {
+  trackPageView("match:" + matchId).then(function (count) {
+    document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
+  });
+}
+</script>
+</body>
+</html>

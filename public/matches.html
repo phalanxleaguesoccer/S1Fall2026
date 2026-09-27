@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Match Schedule — Phalanx League Soccer</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="container">
+  <h1>Match Schedule &amp; Results</h1>
+  <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+  <div id="days-list"><p class="muted">Loading…</p></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderHeader("matches.html");
+renderFooter();
+
+async function loadMatches() {
+  var season = await getCurrentSeason();
+  if (!season) return;
+  var teamsRes = await window.sb.from("teams").select("*");
+  var teams = {};
+  (teamsRes.data || []).forEach(function (t) { teams[t.id] = t; });
+
+  var res = await window.sb
+    .from("matches")
+    .select("*")
+    .eq("season_id", season.id)
+    .order("match_day", { ascending: true })
+    .order("match_number", { ascending: true });
+
+  var container = document.getElementById("days-list");
+  if (!res.data || res.data.length === 0) {
+    container.innerHTML = '<p class="muted">No matches scheduled yet.</p>';
+    return;
+  }
+
+  var byDay = {};
+  res.data.forEach(function (m) {
+    byDay[m.match_day] = byDay[m.match_day] || [];
+    byDay[m.match_day].push(m);
+  });
+
+  container.innerHTML = Object.keys(byDay).sort(function (a, b) { return a - b; }).map(function (day) {
+    var rows = byDay[day].map(function (m) {
+      var home = teams[m.home_team_id] ? teams[m.home_team_id].name : "TBD";
+      var away = teams[m.away_team_id] ? teams[m.away_team_id].name : "TBD";
+      var score = (m.status === "completed")
+        ? '<strong>' + m.home_score + " – " + m.away_score + "</strong>"
+        : (m.status === "forfeited" ? "Forfeit" : "vs");
+      var when = m.kickoff_at ? new Date(m.kickoff_at).toLocaleString() : "";
+      return '<a href="match.html?id=' + m.id + '" style="text-decoration:none; color:inherit;">' +
+        '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--card-edge); gap:10px; flex-wrap:wrap;">' +
+        '<div><span class="pill ' + m.status + '">' + m.status + "</span> " + escapeHtml(home) + " " + score + " " + escapeHtml(away) + "</div>" +
+        '<div class="muted" style="font-size:0.82rem;">' + when + "</div>" +
+        "</div></a>";
+    }).join("");
+    return '<div class="card"><div class="card-title">Match Day ' + day + "</div>" + rows + "</div>";
+  }).join("");
+}
+loadMatches();
+trackPageView("matches").then(function (count) {
+  document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
+});
+</script>
+</body>
+</html>

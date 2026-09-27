@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Standings — Phalanx League Soccer</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div class="container">
+  <h1>League Standings</h1>
+  <p class="muted" id="season-label">Loading season…</p>
+  <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+
+  <div class="card center-watermark">
+    <div class="card-title">Table</div>
+    <div class="table-scroll">
+      <table class="data-table" id="standings-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th class="team-name">Team</th>
+            <th>P</th>
+            <th>W</th>
+            <th>D</th>
+            <th>L</th>
+            <th>GF</th>
+            <th>GA</th>
+            <th>GD</th>
+            <th>Pts</th>
+          </tr>
+        </thead>
+        <tbody id="standings-body">
+          <tr><td colspan="10" class="text-center muted">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="font-size:0.8rem; margin-top:10px;">
+      Tie-break order: goals scored &rarr; goal difference &rarr; goals conceded &rarr; head-to-head result.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Upcoming Matches</div>
+    <div id="upcoming-list"><p class="muted">Loading…</p></div>
+    <p class="mt-16"><a href="matches.html">View full schedule &rarr;</a></p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderHeader("index.html");
+renderFooter();
+
+async function loadStandings() {
+  var season = await getCurrentSeason();
+  if (!season) {
+    document.getElementById("season-label").textContent = "No active season configured yet.";
+    return;
+  }
+  document.getElementById("season-label").textContent = season.name;
+
+  var teamsRes = await window.sb.from("teams").select("*");
+  var teams = {};
+  (teamsRes.data || []).forEach(function (t) { teams[t.id] = t; });
+
+  var standingsRes = await window.sb
+    .from("league_standings")
+    .select("*")
+    .eq("season_id", season.id);
+
+  var rows = (standingsRes.data || []).map(function (r) {
+    return {
+      team: teams[r.team_id] || { name: "Unknown" },
+      played: r.played, wins: r.wins, draws: r.draws, losses: r.losses,
+      gf: r.goals_for, ga: r.goals_against, gd: r.goal_difference, pts: r.points
+    };
+  });
+
+  // Sort: points desc, then tie-break order from the rulebook.
+  rows.sort(function (a, b) {
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    if (b.gf !== a.gf) return b.gf - a.gf;
+    if (b.gd !== a.gd) return b.gd - a.gd;
+    if (a.ga !== b.ga) return a.ga - b.ga; // fewer conceded is better
+    return 0; // 4th tie-break (head-to-head) needs manual review for exact ties
+  });
+
+  var tbody = document.getElementById("standings-body");
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center muted">No results recorded yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function (r, i) {
+    return "<tr>" +
+      "<td>" + (i + 1) + "</td>" +
+      '<td class="team-name"><a href="team.html?id=' + r.team.id + '">' + escapeHtml(r.team.name) + "</a></td>" +
+      "<td>" + r.played + "</td><td>" + r.wins + "</td><td>" + r.draws + "</td><td>" + r.losses + "</td>" +
+      "<td>" + r.gf + "</td><td>" + r.ga + "</td><td>" + r.gd + "</td>" +
+      "<td><strong>" + r.pts + "</strong></td>" +
+      "</tr>";
+  }).join("");
+}
+
+async function loadUpcoming() {
+  var season = await getCurrentSeason();
+  if (!season) return;
+  var teamsRes = await window.sb.from("teams").select("*");
+  var teams = {};
+  (teamsRes.data || []).forEach(function (t) { teams[t.id] = t; });
+
+  var res = await window.sb
+    .from("matches")
+    .select("*")
+    .eq("season_id", season.id)
+    .eq("status", "scheduled")
+    .order("match_day", { ascending: true })
+    .order("match_number", { ascending: true })
+    .limit(4);
+
+  var list = document.getElementById("upcoming-list");
+  if (!res.data || res.data.length === 0) {
+    list.innerHTML = '<p class="muted">No upcoming matches scheduled.</p>';
+    return;
+  }
+  list.innerHTML = res.data.map(function (m) {
+    var home = teams[m.home_team_id] ? teams[m.home_team_id].name : "TBD";
+    var away = teams[m.away_team_id] ? teams[m.away_team_id].name : "TBD";
+    var when = m.kickoff_at ? new Date(m.kickoff_at).toLocaleString() : "Time TBD";
+    return '<div style="padding:8px 0; border-bottom:1px solid var(--card-edge);">' +
+      "<strong>Day " + m.match_day + "</strong> &middot; " + escapeHtml(home) + " vs " + escapeHtml(away) +
+      '<div class="muted" style="font-size:0.82rem;">' + when + "</div></div>";
+  }).join("");
+}
+
+loadStandings();
+loadUpcoming();
+trackPageView("standings").then(function (count) {
+  document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Dashboard — Phalanx League Soccer</title>
+<link rel="stylesheet" href="../css/app.css">
+<style>
+.tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.tabs button { background:transparent; border:1px solid var(--card-edge-2); color:var(--chalk-dim); padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
+.tabs button.active { background:var(--amber); color:var(--pitch-dark); border-color:var(--amber); }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+.list-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--card-edge); gap:10px; flex-wrap:wrap; }
+.list-row .actions button { margin-left:6px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1>Admin Dashboard</h1>
+    <button class="btn secondary" id="logout-btn">Log out</button>
+  </div>
+  <p class="muted" id="whoami"></p>
+
+  <div class="tabs">
+    <button data-tab="teams" class="active">Teams</button>
+    <button data-tab="players">Players</button>
+    <button data-tab="rosters">Season Rosters</button>
+    <button data-tab="matches">Matches &amp; Results</button>
+    <button data-tab="events">Match Events</button>
+  </div>
+
+  <!-- TEAMS -->
+  <div class="tab-panel active" id="tab-teams">
+    <div class="card">
+      <div class="card-title">Add Team</div>
+      <form id="team-form">
+        <div class="row">
+          <div><label>Name</label><input type="text" id="team-name-input" required></div>
+          <div><label>Crest image URL (optional)</label><input type="text" id="team-crest-input"></div>
+        </div>
+        <button class="btn mt-16" type="submit">Add Team</button>
+        <p id="team-msg"></p>
+      </form>
+    </div>
+    <div class="card"><div class="card-title">Existing Teams</div><div id="teams-list"><p class="muted">Loading…</p></div></div>
+  </div>
+
+  <!-- PLAYERS -->
+  <div class="tab-panel" id="tab-players">
+    <div class="card">
+      <div class="card-title">Add Player</div>
+      <form id="player-form">
+        <div class="row">
+          <div><label>Full name</label><input type="text" id="p-name" required></div>
+          <div><label>Age</label><input type="number" id="p-age" min="1"></div>
+        </div>
+        <div class="row">
+          <div><label>Preferred position (detail, e.g. "Mid-field/Defence")</label><input type="text" id="p-position" placeholder="e.g. Winger"></div>
+          <div><label>Preferred foot</label>
+            <select id="p-foot"><option value="">—</option><option>Left</option><option>Right</option><option>Both</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <div><label>Position category (used for Players page filter)</label>
+            <select id="p-position-category">
+              <option value="">—</option>
+              <option>Forward</option>
+              <option>Center</option>
+              <option>Defense</option>
+              <option>Flex</option>
+              <option>Goalkeeper</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div><label>Jersey size</label><input type="text" id="p-jersey-size"></div>
+          <div><label>Photo URL (headshot)</label><input type="text" id="p-photo"></div>
+        </div>
+        <label>Fun fact / tagline (optional)</label><input type="text" id="p-fact">
+        <div class="row">
+          <div><label>Stamina</label>
+            <select id="p-stamina"><option value="">—</option><option>Low</option><option>Medium</option><option>High</option></select>
+          </div>
+          <div><label>Skill rating (1-10)</label><input type="number" id="p-skill-rating" min="1" max="10"></div>
+          <div><label>Skill level</label>
+            <select id="p-skill-level"><option value="">—</option><option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Pro</option></select>
+          </div>
+        </div>
+        <label>Playing experience (free text)</label><input type="text" id="p-experience">
+        <label>Fitness / injury notes (free text)</label><input type="text" id="p-fitness">
+        <label>Leave plan / known unavailable dates (free text)</label><input type="text" id="p-leave">
+        <button class="btn mt-16" type="submit">Add Player</button>
+        <p id="player-msg"></p>
+      </form>
+    </div>
+    <div class="card"><div class="card-title">Existing Players</div><div id="players-list"><p class="muted">Loading…</p></div></div>
+  </div>
+
+  <!-- ROSTERS -->
+  <div class="tab-panel" id="tab-rosters">
+    <div class="card">
+      <div class="card-title">Assign Player to Team (Current Season)</div>
+      <form id="roster-form">
+        <div class="row">
+          <div><label>Player</label><select id="r-player" required></select></div>
+          <div><label>Team</label><select id="r-team" required></select></div>
+        </div>
+        <div class="row">
+          <div><label>Jersey number</label><input type="number" id="r-jersey" min="0"></div>
+          <div><label>Auction price (points)</label><input type="number" id="r-price" min="0"></div>
+          <div style="display:flex; align-items:flex-end;"><label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="r-owner" style="width:auto;"> Team owner (not auctioned)</label></div>
+        </div>
+        <button class="btn mt-16" type="submit">Assign to Roster</button>
+        <p id="roster-msg"></p>
+      </form>
+    </div>
+    <div class="card"><div class="card-title">Current Season Rosters</div><div id="rosters-list"><p class="muted">Loading…</p></div></div>
+  </div>
+
+  <!-- MATCHES -->
+  <div class="tab-panel" id="tab-matches">
+    <div class="card">
+      <div class="card-title">Add Match</div>
+      <form id="match-form">
+        <div class="row">
+          <div><label>Match day (1-6)</label><input type="number" id="m-day" min="1" max="6" required></div>
+          <div><label>Match number (1-4)</label><input type="number" id="m-number" min="1" max="4" required></div>
+        </div>
+        <div class="row">
+          <div><label>Home team</label><select id="m-home" required></select></div>
+          <div><label>Away team</label><select id="m-away" required></select></div>
+        </div>
+        <label>Kickoff date/time (optional)</label><input type="datetime-local" id="m-kickoff">
+        <button class="btn mt-16" type="submit">Add Match</button>
+        <p id="match-msg"></p>
+      </form>
+    </div>
+    <div class="card"><div class="card-title">Matches — Update Result / Status</div><div id="matches-list"><p class="muted">Loading…</p></div></div>
+  </div>
+
+  <!-- EVENTS -->
+  <div class="tab-panel" id="tab-events">
+    <div class="card">
+      <div class="card-title">Log Match Event (goal / assist / card / substitution)</div>
+      <form id="event-form">
+        <label>Match</label><select id="e-match" required></select>
+        <div class="row">
+          <div><label>Team</label><select id="e-team" required></select></div>
+          <div><label>Player</label><select id="e-player" required></select></div>
+        </div>
+        <div class="row">
+          <div><label>Event type</label>
+            <select id="e-type" required>
+              <option value="goal">Goal</option>
+              <option value="assist">Assist</option>
+              <option value="yellow_card">Yellow card</option>
+              <option value="red_card">Red card</option>
+              <option value="substitution_in">Substitution — in</option>
+              <option value="substitution_out">Substitution — out</option>
+            </select>
+          </div>
+          <div><label>Half</label><select id="e-half"><option value="1">1st (0-7')</option><option value="2">2nd (8-14')</option></select></div>
+          <div><label>Minute</label><input type="number" id="e-minute" min="1" max="14"></div>
+        </div>
+        <button class="btn mt-16" type="submit">Log Event</button>
+        <p id="event-msg"></p>
+      </form>
+    </div>
+    <div class="card"><div class="card-title">Recent Events (select a match above to filter)</div><div id="events-list"><p class="muted">Pick a match to see its events.</p></div></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/supabase-client.js"></script>
+<script src="../js/common.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>

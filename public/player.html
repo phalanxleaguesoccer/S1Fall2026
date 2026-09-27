@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Player — Phalanx League Soccer</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="container">
+  <div class="card" style="display:flex; gap:20px; flex-wrap:wrap;">
+    <div style="width:140px; height:140px; flex-shrink:0;">
+      <div class="photo-wrap" style="width:140px; height:140px; border-radius:12px; overflow:hidden;" id="photo-wrap">
+        <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--chalk-dim);">Loading…</div>
+      </div>
+    </div>
+    <div style="flex:1; min-width:220px;">
+      <h1 id="player-name">Loading…</h1>
+      <p class="muted" id="player-meta"></p>
+      <p id="player-team"></p>
+      <p id="player-fact" class="muted"></p>
+      <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+    </div>
+  </div>
+
+  <div class="card" id="attributes-card" style="display:none;">
+    <div class="card-title">Player Attributes</div>
+    <div id="attributes-body"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Current Season Stats</div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>GP</th><th>Goals</th><th>Assists</th><th>Yellow</th><th>Red</th></tr></thead>
+        <tbody id="stats-body"><tr><td colspan="5" class="text-center muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" id="history-toggle">
+      <span>All Stats</span>
+      <span id="history-toggle-icon" class="muted">▸ Maximize</span>
+    </div>
+
+    <div id="history-body" style="display:none; margin-top:14px;">
+      <p class="muted" style="font-size:0.82rem; margin-bottom:6px;">Career totals across all seasons:</p>
+      <div class="table-scroll">
+        <table class="data-table" style="margin-bottom:20px;">
+          <thead><tr><th>GP</th><th>Goals</th><th>Assists</th><th>Yellow</th><th>Red</th></tr></thead>
+          <tbody id="career-totals-body"><tr><td colspan="5" class="text-center muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="row" style="display:flex; gap:10px; align-items:center; margin-bottom:14px;">
+        <label style="margin:0;" for="history-mode">Filter</label>
+        <select id="history-mode" style="max-width:220px;">
+          <option value="seasons" selected>Season-by-Season</option>
+          <option value="matches">Match-by-Match</option>
+        </select>
+      </div>
+
+      <div id="history-matches-view" style="display:none;">
+        <div id="events-list"><p class="muted">Loading…</p></div>
+      </div>
+
+      <div id="history-seasons-view">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th class="team-name">Season</th><th class="team-name">Team</th><th>GP</th><th>Goals</th><th>Assists</th><th>Yellow</th><th>Red</th></tr></thead>
+            <tbody id="career-by-season-body"><tr><td colspan="7" class="text-center muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderHeader("players.html");
+renderFooter();
+
+var playerId = qs("id");
+
+async function loadPlayer() {
+  if (!playerId) return;
+  var pRes = await window.sb.from("players").select("*").eq("id", playerId).single();
+  if (!pRes.data) { document.getElementById("player-name").textContent = "Player not found"; return; }
+  var p = pRes.data;
+  document.getElementById("player-name").textContent = p.full_name;
+  document.getElementById("player-meta").textContent =
+    [p.preferred_position, p.preferred_foot ? p.preferred_foot + "-footed" : null, p.age ? p.age + " yrs" : null]
+      .filter(Boolean).join(" · ");
+  if (p.fun_fact) document.getElementById("player-fact").textContent = "“" + p.fun_fact + "”";
+
+  var attrRows = [];
+  if (p.age !== null && p.age !== undefined) attrRows.push(["Age", p.age]);
+  if (p.position_category) attrRows.push(["Position Category", p.position_category]);
+  if (p.stamina_level) attrRows.push(["Stamina", p.stamina_level]);
+  if (p.skill_rating !== null && p.skill_rating !== undefined) attrRows.push(["Skill Rating", p.skill_rating + "/10"]);
+  if (p.skill_level) attrRows.push(["Skill Level", p.skill_level]);
+  if (p.playing_experience) attrRows.push(["Playing Experience", p.playing_experience]);
+  if (p.fitness_notes) attrRows.push(["Fitness / Injury Notes", p.fitness_notes]);
+  if (p.leave_plan) attrRows.push(["Leave Plan", p.leave_plan]);
+  if (attrRows.length) {
+    document.getElementById("attributes-card").style.display = "block";
+    document.getElementById("attributes-body").innerHTML = attrRows.map(function (r) {
+      return '<p style="margin:4px 0;"><span class="muted">' + escapeHtml(r[0]) + ':</span> ' + escapeHtml(String(r[1])) + "</p>";
+    }).join("");
+  }
+
+  document.getElementById("photo-wrap").innerHTML = p.photo_url
+    ? '<img src="' + escapeHtml(p.photo_url) + '" alt="' + escapeHtml(p.full_name) + '" style="width:100%;height:100%;object-fit:cover;display:block;">'
+    : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--chalk-dim);">No photo</div>';
+
+  // Always resolve stats-body, even if there's no current season or no roster row —
+  // never leave it stuck on "Loading…".
+  var statsFallback = { games_played: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0 };
+  try {
+    var season = await getCurrentSeason();
+    if (season) {
+      var rosterRes = await window.sb.from("team_season_rosters").select("*, teams(*)").eq("player_id", playerId).eq("season_id", season.id).maybeSingle();
+      if (rosterRes.data && rosterRes.data.teams) {
+        document.getElementById("player-team").innerHTML = 'Plays for <a href="team.html?id=' + rosterRes.data.teams.id + '">' + escapeHtml(rosterRes.data.teams.name) + "</a>";
+      }
+      var statsRes = await window.sb.from("player_season_stats").select("*").eq("player_id", playerId).eq("season_id", season.id).maybeSingle();
+      if (statsRes.data) statsFallback = statsRes.data;
+    }
+  } catch (err) {
+    // Swallow and fall through to the zeroed stats below — a data hiccup here
+    // should never leave the page stuck loading.
+  }
+  var s = statsFallback;
+  document.getElementById("stats-body").innerHTML =
+    "<tr><td>" + s.games_played + "</td><td>" + s.goals + "</td><td>" + s.assists + "</td>" +
+    '<td><span class="badge yellow">' + s.yellow_cards + "</span></td><td><span class=\"badge red\">" + s.red_cards + "</span></td></tr>";
+}
+
+async function loadCareerHistory() {
+  // player_season_stats has one row per season this player was rostered in.
+  var res = await window.sb
+    .from("player_season_stats")
+    .select("*, seasons(name)")
+    .eq("player_id", playerId);
+
+  var rows = res.data || [];
+
+  // Also need team name per season (player_season_stats has team_id, not team name).
+  var teamIds = rows.map(function (r) { return r.team_id; }).filter(Boolean);
+  var teamsById = {};
+  if (teamIds.length) {
+    var teamsRes = await window.sb.from("teams").select("*").in("id", teamIds);
+    (teamsRes.data || []).forEach(function (t) { teamsById[t.id] = t; });
+  }
+
+  var totals = rows.reduce(function (acc, r) {
+    acc.games_played += r.games_played || 0;
+    acc.goals += r.goals || 0;
+    acc.assists += r.assists || 0;
+    acc.yellow_cards += r.yellow_cards || 0;
+    acc.red_cards += r.red_cards || 0;
+    return acc;
+  }, { games_played: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0 });
+
+  document.getElementById("career-totals-body").innerHTML =
+    "<tr><td>" + totals.games_played + "</td><td>" + totals.goals + "</td><td>" + totals.assists + "</td>" +
+    '<td><span class="badge yellow">' + totals.yellow_cards + "</span></td><td><span class=\"badge red\">" + totals.red_cards + "</span></td></tr>";
+
+  var seasonBody = document.getElementById("career-by-season-body");
+  if (rows.length === 0) {
+    seasonBody.innerHTML = '<tr><td colspan="7" class="text-center muted">No season history yet.</td></tr>';
+  } else {
+    rows.sort(function (a, b) { return (a.seasons ? a.seasons.name : "").localeCompare(b.seasons ? b.seasons.name : ""); });
+    seasonBody.innerHTML = rows.map(function (r) {
+      var team = teamsById[r.team_id];
+      return "<tr>" +
+        '<td class="team-name">' + escapeHtml(r.seasons ? r.seasons.name : "—") + "</td>" +
+        '<td class="team-name">' + (team ? '<a href="team.html?id=' + team.id + '">' + escapeHtml(team.name) + "</a>" : "—") + "</td>" +
+        "<td>" + (r.games_played || 0) + "</td><td>" + (r.goals || 0) + "</td><td>" + (r.assists || 0) + "</td>" +
+        "<td>" + (r.yellow_cards || 0) + "</td><td>" + (r.red_cards || 0) + "</td>" +
+        "</tr>";
+    }).join("");
+  }
+}
+
+var historyLoaded = { matches: false, seasons: false };
+
+document.getElementById("history-toggle").addEventListener("click", function () {
+  var panel = document.getElementById("history-body");
+  var icon = document.getElementById("history-toggle-icon");
+  var isOpen = panel.style.display !== "none";
+  panel.style.display = isOpen ? "none" : "block";
+  icon.textContent = isOpen ? "▸ Maximize" : "▾ Minimize";
+  if (!isOpen) loadCurrentHistoryView();
+});
+
+document.getElementById("history-mode").addEventListener("change", function () {
+  var mode = this.value;
+  document.getElementById("history-matches-view").style.display = mode === "matches" ? "block" : "none";
+  document.getElementById("history-seasons-view").style.display = mode === "seasons" ? "block" : "none";
+  loadCurrentHistoryView();
+});
+
+function loadCurrentHistoryView() {
+  // Career totals are always visible once maximized, regardless of filter,
+  // so load them (and the season table) right away.
+  if (!historyLoaded.seasons) {
+    historyLoaded.seasons = true;
+    loadCareerHistory();
+  }
+  var mode = document.getElementById("history-mode").value;
+  if (mode === "matches" && !historyLoaded.matches) {
+    historyLoaded.matches = true;
+    loadMatchByMatch();
+  }
+}
+
+async function loadMatchByMatch() {
+  var eventsRes = await window.sb
+    .from("match_events")
+    .select("*, matches(*)")
+    .eq("player_id", playerId)
+    .order("created_at", { ascending: false });
+
+  var list = document.getElementById("events-list");
+  if (!eventsRes.data || eventsRes.data.length === 0) {
+    list.innerHTML = '<p class="muted">No events logged yet.</p>';
+    return;
+  }
+  var typeLabel = { goal: "Goal", assist: "Assist", yellow_card: "Yellow card", red_card: "Red card", substitution_in: "Sub on", substitution_out: "Sub off" };
+  list.innerHTML = eventsRes.data.map(function (e) {
+    var m = e.matches;
+    return '<div style="padding:8px 0; border-bottom:1px solid var(--card-edge); display:flex; justify-content:space-between; gap:10px;">' +
+      "<span>" + (typeLabel[e.event_type] || e.event_type) + (e.minute ? " &middot; " + e.minute + "'" : "") + "</span>" +
+      '<a class="muted" href="match.html?id=' + m.id + '">Day ' + m.match_day + " Match " + m.match_number + "</a>" +
+      "</div>";
+  }).join("");
+}
+
+loadPlayer();
+if (playerId) {
+  trackPageView("player:" + playerId).then(function (count) {
+    document.getElementById("page-views").textContent = "Profile viewed " + formatViewCount(count);
+  });
+}
+</script>
+</body>
+</html>

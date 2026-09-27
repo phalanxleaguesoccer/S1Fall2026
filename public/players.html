@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Players — Phalanx League Soccer</title>
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .sort-filter-card { background: var(--card-charcoal); border: 1px solid var(--card-edge); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px; }
+  .sf-toggle { display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:700; font-size:0.95rem; }
+  .sf-body { margin-top: 12px; }
+  .sf-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .sf-row > * { flex:1; min-width:150px; }
+  .sf-label { font-size:0.78rem; color: var(--chalk-dim); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px; display:block; }
+  .sf-chain-item { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+  .sf-chain-item .sf-level { width:26px; height:26px; border-radius:50%; background: var(--pitch-dark); border:1px solid var(--card-edge-2); display:flex; align-items:center; justify-content:center; font-size:0.75rem; color: var(--chalk-dim); flex-shrink:0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Players</h1>
+  <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+  <div class="row" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+    <input type="text" id="search-box" placeholder="Search players by name…" style="max-width:320px;">
+    <select id="team-filter" style="max-width:220px;">
+      <option value="">All teams</option>
+      <option value="__unassigned__">Unassigned</option>
+    </select>
+  </div>
+
+  <div class="sort-filter-card">
+    <div class="sf-toggle" id="sf-toggle">
+      <span>Sort &amp; Filter</span>
+      <span id="sf-toggle-icon" class="muted">▸ Show</span>
+    </div>
+    <div class="sf-body" id="sf-body" style="display:none;">
+      <p class="muted" style="font-size:0.82rem; margin-bottom:10px;">
+        Sort by up to 4 fields — each one breaks ties left by the one before it.
+      </p>
+      <div id="sf-chain">
+        <div class="sf-chain-item">
+          <span class="sf-level">1</span>
+          <select class="sf-field" data-level="0">
+            <option value="">— none —</option>
+            <option value="name" selected>Name</option>
+            <option value="age">Age</option>
+            <option value="skill_rating">Skill Rating</option>
+            <option value="skill_level">Skill Level</option>
+          </select>
+          <select class="sf-dir" data-level="0"></select>
+        </div>
+        <div class="sf-chain-item">
+          <span class="sf-level">2</span>
+          <select class="sf-field" data-level="1">
+            <option value="">— none (tiebreaker) —</option>
+            <option value="age">Age</option>
+            <option value="skill_rating">Skill Rating</option>
+            <option value="skill_level">Skill Level</option>
+          </select>
+          <select class="sf-dir" data-level="1"></select>
+        </div>
+        <div class="sf-chain-item">
+          <span class="sf-level">3</span>
+          <select class="sf-field" data-level="2">
+            <option value="">— none (tiebreaker) —</option>
+            <option value="age">Age</option>
+            <option value="skill_rating">Skill Rating</option>
+            <option value="skill_level">Skill Level</option>
+          </select>
+          <select class="sf-dir" data-level="2"></select>
+        </div>
+        <div class="sf-chain-item">
+          <span class="sf-level">4</span>
+          <select class="sf-field" data-level="3">
+            <option value="">— none (tiebreaker) —</option>
+            <option value="age">Age</option>
+            <option value="skill_rating">Skill Rating</option>
+            <option value="skill_level">Skill Level</option>
+          </select>
+          <select class="sf-dir" data-level="3"></select>
+        </div>
+      </div>
+
+      <p class="muted" style="font-size:0.82rem; margin:14px 0 6px;">Filters — narrow the list down to an exact group:</p>
+      <div class="sf-row">
+        <div>
+          <span class="sf-label">Position</span>
+          <select id="filter-position">
+            <option value="">All positions</option>
+            <option value="Forward">Forward</option>
+            <option value="Center">Center</option>
+            <option value="Defense">Defense</option>
+            <option value="Flex">Flex</option>
+            <option value="Goalkeeper">Goalkeeper</option>
+          </select>
+        </div>
+        <div>
+          <span class="sf-label">Preferred Foot</span>
+          <select id="filter-foot">
+            <option value="">Any foot</option>
+            <option value="Right">Right</option>
+            <option value="Left">Left</option>
+            <option value="Both">Both</option>
+          </select>
+        </div>
+        <div>
+          <span class="sf-label">Stamina</span>
+          <select id="filter-stamina">
+            <option value="">Any</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+      </div>
+      <div class="sf-row">
+        <div>
+          <span class="sf-label">Has leave plan noted</span>
+          <select id="filter-leave-plan">
+            <option value="">Any</option>
+            <option value="yes">Has a leave plan on file</option>
+            <option value="no">No leave plan / none noted</option>
+          </select>
+        </div>
+        <div>
+          <span class="sf-label">Fitness / injury notes</span>
+          <select id="filter-fitness">
+            <option value="">Any</option>
+            <option value="yes">Has fitness/injury notes</option>
+            <option value="no">No notes on file</option>
+          </select>
+        </div>
+        <div>
+          <span class="sf-label">Search experience / fitness / leave notes</span>
+          <input type="text" id="filter-notes-text" placeholder="e.g. corporate league, knee, June…">
+        </div>
+      </div>
+      <button class="btn secondary" id="sf-reset" type="button">Reset Sort &amp; Filters</button>
+    </div>
+  </div>
+
+  <p class="muted" id="players-count" style="margin:0 0 12px;">Loading…</p>
+  <div class="grid" id="players-grid"><p class="muted">Loading…</p></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderHeader("players.html");
+renderFooter();
+
+var ALL_PLAYERS = []; // [{ player, team }]
+
+// Fixed order map so Skill Level sorts correctly rather than alphabetically.
+var SKILL_LEVEL_RANK = { beginner: 1, intermediate: 2, advanced: 3, pro: 4 };
+
+// Meaningful direction labels per field — no generic Ascending/Descending.
+var DIRECTION_LABELS = {
+  name: [["asc", "A → Z"], ["desc", "Z → A"]],
+  age: [["asc", "Youngest first"], ["desc", "Oldest first"]],
+  skill_rating: [["asc", "Lowest rating first"], ["desc", "Highest rating first"]],
+  skill_level: [["asc", "Beginner → Pro"], ["desc", "Pro → Beginner"]]
+};
+
+function populateDirectionOptions(level) {
+  var fieldSel = document.querySelector('.sf-field[data-level="' + level + '"]');
+  var dirSel = document.querySelector('.sf-dir[data-level="' + level + '"]');
+  var field = fieldSel.value;
+  var labels = DIRECTION_LABELS[field] || [["asc", "Ascending"], ["desc", "Descending"]];
+  dirSel.innerHTML = labels.map(function (l) { return '<option value="' + l[0] + '">' + l[1] + "</option>"; }).join("");
+  dirSel.style.display = field ? "" : "none";
+}
+
+function fieldValue(row, field) {
+  var p = row.player;
+  switch (field) {
+    case "name": return (p.full_name || "").toLowerCase();
+    case "age": return p.age === null || p.age === undefined ? null : p.age;
+    case "skill_rating": return p.skill_rating === null || p.skill_rating === undefined ? null : p.skill_rating;
+    case "skill_level": return p.skill_level_rank !== null && p.skill_level_rank !== undefined
+      ? p.skill_level_rank
+      : (SKILL_LEVEL_RANK[(p.skill_level || "").toLowerCase()] || null);
+    default: return null;
+  }
+}
+
+function compareValues(a, b) {
+  // Missing values always sort to the end, regardless of direction.
+  if (a === null || a === undefined || a === "") { if (b === null || b === undefined || b === "") return 0; return 1; }
+  if (b === null || b === undefined || b === "") return -1;
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a).localeCompare(String(b));
+}
+
+function getSortChain() {
+  var chain = [];
+  document.querySelectorAll(".sf-field").forEach(function (sel) {
+    var field = sel.value;
+    if (!field) return;
+    var dir = document.querySelector('.sf-dir[data-level="' + sel.dataset.level + '"]').value;
+    chain.push({ field: field, dir: dir });
+  });
+  return chain;
+}
+
+function applySort(rows) {
+  var chain = getSortChain();
+  if (chain.length === 0) return rows;
+  var sorted = rows.slice();
+  sorted.sort(function (rowA, rowB) {
+    for (var i = 0; i < chain.length; i++) {
+      var step = chain[i];
+      var cmp = compareValues(fieldValue(rowA, step.field), fieldValue(rowB, step.field));
+      if (step.dir === "desc") cmp = -cmp;
+      if (cmp !== 0) return cmp;
+    }
+    return 0;
+  });
+  return sorted;
+}
+
+function render(rows) {
+  var grid = document.getElementById("players-grid");
+
+  var countEl = document.getElementById("players-count");
+  var total = ALL_PLAYERS.length;
+  countEl.textContent = rows.length === total
+    ? "Showing all " + total + " player" + (total === 1 ? "" : "s")
+    : "Showing " + rows.length + " of " + total + " players";
+
+  if (rows.length === 0) {
+    grid.innerHTML = '<p class="muted">No players found.</p>';
+    return;
+  }
+  grid.innerHTML = rows.map(function (row) {
+    var p = row.player;
+    var team = row.team;
+    return '<a class="player-card" href="player.html?id=' + p.id + '" style="text-decoration:none;">' +
+      '<div class="photo-wrap">' +
+        (p.photo_url ? '<img src="' + escapeHtml(p.photo_url) + '" alt="' + escapeHtml(p.full_name) + '">' :
+          '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--chalk-dim);">No photo</div>') +
+      "</div>" +
+      '<div class="info"><div class="name">' + escapeHtml(p.full_name) + "</div>" +
+      '<div class="meta">' + escapeHtml(p.preferred_position || "") +
+        (team ? " &middot; " + escapeHtml(team.name) : ' &middot; <span class="pill scheduled">Unassigned</span>') +
+      "</div></div>" +
+      "</a>";
+  }).join("");
+}
+
+// Values that mean "nothing to report" — covers every phrasing seen across
+// the profiles so far (Minti: "None.", Ketan Shilimkar: "NA", Preetesh: "No
+// leave plan.", Vivek/Sagar: "No plans yet", Ketan Gaikwad: "None known",
+// Nuhu: "N/A", etc.) so these never get mistaken for an actual note.
+var NO_INFO_VALUES = [
+  "", "none", "na", "n/a", "not applicable", "nothing",
+  "no", "no leave plan", "no plans", "no plans yet", "no leaves",
+  "none known", "none noted", "no known conflicts"
+];
+
+function hasText(val) {
+  if (!val) return false;
+  // Trim, lowercase, and drop a trailing period so "None." / "NA." match too.
+  var v = val.trim().toLowerCase().replace(/\.+$/, "");
+  return NO_INFO_VALUES.indexOf(v) === -1;
+}
+
+function applyFilters() {
+  var q = document.getElementById("search-box").value.trim().toLowerCase();
+  var teamFilter = document.getElementById("team-filter").value;
+  var positionFilter = document.getElementById("filter-position").value;
+  var footFilter = document.getElementById("filter-foot").value;
+  var staminaFilter = document.getElementById("filter-stamina").value;
+  var leaveFilter = document.getElementById("filter-leave-plan").value;
+  var fitnessFilter = document.getElementById("filter-fitness").value;
+  var notesQuery = document.getElementById("filter-notes-text").value.trim().toLowerCase();
+
+  var filtered = ALL_PLAYERS.filter(function (row) {
+    var p = row.player;
+    if (q && p.full_name.toLowerCase().indexOf(q) === -1) return false;
+    if (teamFilter === "__unassigned__" && row.team) return false;
+    if (teamFilter && teamFilter !== "__unassigned__" && (!row.team || row.team.id !== teamFilter)) return false;
+
+    if (positionFilter && p.position_category !== positionFilter) return false;
+    if (footFilter && (p.preferred_foot || "").toLowerCase() !== footFilter.toLowerCase()) return false;
+    if (staminaFilter && (p.stamina_level || "").toLowerCase() !== staminaFilter.toLowerCase()) return false;
+
+    if (leaveFilter === "yes" && !hasText(p.leave_plan)) return false;
+    if (leaveFilter === "no" && hasText(p.leave_plan)) return false;
+
+    if (fitnessFilter === "yes" && !hasText(p.fitness_notes)) return false;
+    if (fitnessFilter === "no" && hasText(p.fitness_notes)) return false;
+
+    if (notesQuery) {
+      var haystack = [p.playing_experience, p.fitness_notes, p.leave_plan].filter(Boolean).join(" ").toLowerCase();
+      if (haystack.indexOf(notesQuery) === -1) return false;
+    }
+    return true;
+  });
+
+  render(applySort(filtered));
+}
+
+async function loadPlayers() {
+  var season = await getCurrentSeason();
+
+  var playersRes = await window.sb.from("players").select("*").order("full_name");
+  var players = playersRes.data || [];
+
+  var rosterByPlayerId = {};
+  if (season) {
+    var rosterRes = await window.sb
+      .from("team_season_rosters")
+      .select("*, teams(*)")
+      .eq("season_id", season.id);
+    (rosterRes.data || []).forEach(function (r) { rosterByPlayerId[r.player_id] = r.teams; });
+  }
+
+  ALL_PLAYERS = players.map(function (p) {
+    return { player: p, team: rosterByPlayerId[p.id] || null };
+  });
+
+  // Populate team filter dropdown with teams that actually exist.
+  var teamsRes = await window.sb.from("teams").select("*").order("name");
+  var teamSelect = document.getElementById("team-filter");
+  (teamsRes.data || []).forEach(function (t) {
+    var opt = document.createElement("option");
+    opt.value = t.id;
+    opt.textContent = t.name;
+    teamSelect.appendChild(opt);
+  });
+
+  applyFilters();
+}
+
+document.getElementById("search-box").addEventListener("input", applyFilters);
+document.getElementById("team-filter").addEventListener("change", applyFilters);
+document.getElementById("filter-position").addEventListener("change", applyFilters);
+document.getElementById("filter-foot").addEventListener("change", applyFilters);
+document.getElementById("filter-stamina").addEventListener("change", applyFilters);
+document.getElementById("filter-leave-plan").addEventListener("change", applyFilters);
+document.getElementById("filter-fitness").addEventListener("change", applyFilters);
+document.getElementById("filter-notes-text").addEventListener("input", applyFilters);
+document.querySelectorAll(".sf-field").forEach(function (el) {
+  el.addEventListener("change", function () {
+    populateDirectionOptions(el.dataset.level);
+    applyFilters();
+  });
+});
+document.querySelectorAll(".sf-dir").forEach(function (el) {
+  el.addEventListener("change", applyFilters);
+});
+// Set up direction dropdowns for their default field selections on first load.
+document.querySelectorAll(".sf-field").forEach(function (el) {
+  populateDirectionOptions(el.dataset.level);
+});
+
+document.getElementById("sf-toggle").addEventListener("click", function () {
+  var body = document.getElementById("sf-body");
+  var icon = document.getElementById("sf-toggle-icon");
+  var isOpen = body.style.display !== "none";
+  body.style.display = isOpen ? "none" : "block";
+  icon.textContent = isOpen ? "▸ Show" : "▾ Hide";
+});
+
+document.getElementById("sf-reset").addEventListener("click", function () {
+  document.getElementById("search-box").value = "";
+  document.getElementById("team-filter").value = "";
+  document.getElementById("filter-position").value = "";
+  document.getElementById("filter-foot").value = "";
+  document.getElementById("filter-stamina").value = "";
+  document.getElementById("filter-leave-plan").value = "";
+  document.getElementById("filter-fitness").value = "";
+  document.getElementById("filter-notes-text").value = "";
+  document.querySelectorAll(".sf-field").forEach(function (sel) {
+    sel.value = sel.dataset.level === "0" ? "name" : "";
+    populateDirectionOptions(sel.dataset.level);
+  });
+  applyFilters();
+});
+
+loadPlayers();
+trackPageView("players").then(function (count) {
+  document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
+});
+</script>
+</body>
+</html>

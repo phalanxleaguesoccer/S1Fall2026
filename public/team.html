@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team — Phalanx League Soccer</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="container">
+  <h1 id="team-name">Loading…</h1>
+  <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+
+  <div class="card">
+    <div class="card-title">Roster (Current Season)</div>
+    <div class="grid" id="roster-grid"><p class="muted">Loading…</p></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Season Team Totals</div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
+        <tbody id="team-totals-body"><tr><td colspan="8" class="text-center muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderHeader("teams.html");
+renderFooter();
+
+var teamId = qs("id");
+
+async function loadTeam() {
+  if (!teamId) { document.getElementById("team-name").textContent = "Team not found"; return; }
+  var teamRes = await window.sb.from("teams").select("*").eq("id", teamId).single();
+  if (!teamRes.data) { document.getElementById("team-name").textContent = "Team not found"; return; }
+  document.getElementById("team-name").textContent = teamRes.data.name;
+
+  var season = await getCurrentSeason();
+  if (!season) return;
+
+  var rosterRes = await window.sb
+    .from("team_season_rosters")
+    .select("*, players(*)")
+    .eq("team_id", teamId)
+    .eq("season_id", season.id);
+
+  var grid = document.getElementById("roster-grid");
+  if (!rosterRes.data || rosterRes.data.length === 0) {
+    grid.innerHTML = '<p class="muted">No roster set for this season yet.</p>';
+  } else {
+    grid.innerHTML = rosterRes.data.map(function (r) {
+      var p = r.players;
+      return '<a class="player-card" href="player.html?id=' + p.id + '" style="text-decoration:none;">' +
+        '<div class="photo-wrap">' +
+          (p.photo_url ? '<img src="' + escapeHtml(p.photo_url) + '" alt="' + escapeHtml(p.full_name) + '">' :
+            '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--chalk-dim);">No photo</div>') +
+          (r.jersey_number ? '<div class="rating-badge">#' + r.jersey_number + "</div>" : "") +
+        "</div>" +
+        '<div class="info"><div class="name">' + escapeHtml(p.full_name) + (r.is_owner ? ' <span class="pill completed">Owner</span>' : "") + "</div>" +
+        '<div class="meta">' + escapeHtml(p.preferred_position || "") + "</div></div>" +
+        "</a>";
+    }).join("");
+  }
+
+  var standingsRes = await window.sb.from("league_standings").select("*").eq("season_id", season.id).eq("team_id", teamId).single();
+  var tbody = document.getElementById("team-totals-body");
+  if (standingsRes.data) {
+    var r = standingsRes.data;
+    tbody.innerHTML = "<tr><td>" + r.played + "</td><td>" + r.wins + "</td><td>" + r.draws + "</td><td>" + r.losses +
+      "</td><td>" + r.goals_for + "</td><td>" + r.goals_against + "</td><td>" + r.goal_difference + "</td><td><strong>" + r.points + "</strong></td></tr>";
+  } else {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">No matches played yet.</td></tr>';
+  }
+}
+loadTeam();
+if (teamId) {
+  trackPageView("team:" + teamId).then(function (count) {
+    document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
+  });
+}
+</script>
+</body>
+</html>
