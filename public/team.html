@@ -31,7 +31,13 @@
   </div>
 
   <div class="card">
-    <div class="card-title">Team Stats</div>
+    <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <span>Team Stats</span>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label for="season-filter" class="muted" style="margin:0; font-size:0.82rem; font-weight:400;">Season</label>
+        <select id="season-filter" style="max-width:220px;"></select>
+      </div>
+    </div>
     <div class="table-scroll">
       <table class="data-table">
         <thead><tr><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
@@ -44,14 +50,32 @@
         <tbody id="squad-totals-body"><tr><td colspan="5" class="text-center muted">Loading…</td></tr></tbody>
       </table>
     </div>
-    <div style="margin-top:14px; display:flex; gap:24px; flex-wrap:wrap;">
-      <p class="muted" style="margin:0;">Top scorer: <span id="top-scorer" style="color:var(--chalk);">—</span></p>
-      <p class="muted" style="margin:0;">Most Player of the Match: <span id="top-potm" style="color:var(--chalk);">—</span></p>
+    <div style="margin-top:14px; display:flex; flex-direction:column; gap:6px;">
+      <p class="muted" style="margin:0;">Top scorer (<span id="season-label-1">selected season</span>): <span id="top-scorer-season" style="color:var(--chalk);">—</span></p>
+      <p class="muted" style="margin:0;">Top scorer (all seasons): <span id="top-scorer-alltime" style="color:var(--chalk);">—</span></p>
+      <p class="muted" style="margin:0;">Most Player of the Match (<span id="season-label-2">selected season</span>): <span id="top-potm-season" style="color:var(--chalk);">—</span></p>
+      <p class="muted" style="margin:0;">Most Player of the Match (all seasons): <span id="top-potm-alltime" style="color:var(--chalk);">—</span></p>
     </div>
   </div>
 
   <div class="card">
-    <div class="card-title">Squad (Current Season)</div>
+    <div class="card-title">Schedule &amp; Results</div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Day</th><th class="team-name">Match</th><th>Result</th></tr></thead>
+        <tbody id="schedule-body"><tr><td colspan="4" class="text-center muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <span>Squad</span>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label for="squad-season-filter" class="muted" style="margin:0; font-size:0.82rem; font-weight:400;">Viewing season</label>
+        <select id="squad-season-filter" style="max-width:220px;"></select>
+      </div>
+    </div>
     <div class="grid" id="roster-grid"><p class="muted">Loading…</p></div>
   </div>
 </div>
@@ -66,6 +90,8 @@ renderFooter();
 renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Teams", href: "teams.html" }, { label: "…" }]);
 
 var teamId = qs("id");
+var allSeasons = [];   // every season row, oldest first
+var currentSeason = null;
 
 function crestOrInitials(url, name, size) {
   return url
@@ -73,24 +99,130 @@ function crestOrInitials(url, name, size) {
     : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:Anton;font-size:' + (size || '1.6rem') + ';color:var(--chalk-dim);">' + escapeHtml(name.slice(0,2).toUpperCase()) + '</div>';
 }
 
-async function loadTeam() {
-  if (!teamId) { document.getElementById("team-name").textContent = "Team not found"; return; }
-  var teamRes = await window.sb.from("teams").select("*").eq("id", teamId).single();
-  if (!teamRes.data) { document.getElementById("team-name").textContent = "Team not found"; return; }
-  var team = teamRes.data;
-  document.getElementById("team-name").textContent = team.name;
-  document.getElementById("crumb-current").textContent = team.name;
-  document.getElementById("team-identity").href = "team.html?id=" + team.id;
-  document.getElementById("team-crest").innerHTML = crestOrInitials(team.crest_url, team.name);
+// Aggregates player_season_stats rows by player (a player can have one row
+// per season on this team, so "all seasons" totals need to be summed rather
+// than just picking a single row).
+function aggregateByPlayer(rows) {
+  var byPlayer = {};
+  rows.forEach(function (s) {
+    var key = s.player_id;
+    if (!byPlayer[key]) {
+      byPlayer[key] = { player_id: s.player_id, full_name: s.full_name, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0 };
+    }
+    byPlayer[key].goals += s.goals || 0;
+    byPlayer[key].assists += s.assists || 0;
+    byPlayer[key].yellow_cards += s.yellow_cards || 0;
+    byPlayer[key].red_cards += s.red_cards || 0;
+    byPlayer[key].potm_awards += s.potm_awards || 0;
+  });
+  return Object.keys(byPlayer).map(function (k) { return byPlayer[k]; });
+}
 
-  var season = await getCurrentSeason();
-  if (!season) return;
+function topBy(rows, field) {
+  var best = null;
+  rows.forEach(function (s) {
+    if ((s[field] || 0) > 0 && (!best || s[field] > best[field])) best = s;
+  });
+  return best;
+}
 
+async function renderStatsAndSchedule() {
+  var filterVal = document.getElementById("season-filter").value; // "all" or a season id
+  var isAll = filterVal === "all";
+  var seasonLabel = isAll ? "all seasons" : (allSeasons.find(function (s) { return s.id === filterVal; }) || {}).name;
+  document.getElementById("season-label-1").textContent = isAll ? "all seasons" : seasonLabel;
+  document.getElementById("season-label-2").textContent = isAll ? "all seasons" : seasonLabel;
+
+  // ---- Team win/loss/goals table (league_standings), summed across seasons if "All" ----
+  var standingsQuery = window.sb.from("league_standings").select("*").eq("team_id", teamId);
+  if (!isAll) standingsQuery = standingsQuery.eq("season_id", filterVal);
+  var standingsRes = await standingsQuery;
+  var standingsRows = standingsRes.data || [];
+  var tbody = document.getElementById("team-totals-body");
+  if (standingsRows.length) {
+    var st = standingsRows.reduce(function (acc, r) {
+      acc.played += r.played; acc.wins += r.wins; acc.draws += r.draws; acc.losses += r.losses;
+      acc.goals_for += r.goals_for; acc.goals_against += r.goals_against; acc.goal_difference += r.goal_difference; acc.points += r.points;
+      return acc;
+    }, { played: 0, wins: 0, draws: 0, losses: 0, goals_for: 0, goals_against: 0, goal_difference: 0, points: 0 });
+    tbody.innerHTML = "<tr><td>" + st.played + "</td><td>" + st.wins + "</td><td>" + st.draws + "</td><td>" + st.losses +
+      "</td><td>" + st.goals_for + "</td><td>" + st.goals_against + "</td><td>" + st.goal_difference + "</td><td><strong>" + st.points + "</strong></td></tr>";
+  } else {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">No matches played yet.</td></tr>';
+  }
+
+  // ---- Player-level totals + top scorer / top POTM (selected season) ----
+  var statsQuery = window.sb.from("player_season_stats").select("*").eq("team_id", teamId);
+  if (!isAll) statsQuery = statsQuery.eq("season_id", filterVal);
+  var statsRes = await statsQuery;
+  var statRows = statsRes.data || [];
+  var perPlayerSelected = isAll ? aggregateByPlayer(statRows) : statRows;
+
+  var totals = perPlayerSelected.reduce(function (acc, s) {
+    acc.goals += s.goals || 0; acc.assists += s.assists || 0;
+    acc.yellow_cards += s.yellow_cards || 0; acc.red_cards += s.red_cards || 0;
+    acc.potm_awards += s.potm_awards || 0;
+    return acc;
+  }, { goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0 });
+
+  document.getElementById("squad-totals-body").innerHTML =
+    "<tr><td>" + totals.goals + "</td><td>" + totals.assists + "</td>" +
+    '<td><span class="badge yellow">' + totals.yellow_cards + "</span></td><td><span class=\"badge red\">" + totals.red_cards + "</span></td>" +
+    "<td>" + totals.potm_awards + "</td></tr>";
+
+  var topScorerSeason = topBy(perPlayerSelected, "goals");
+  var topPotmSeason = topBy(perPlayerSelected, "potm_awards");
+  document.getElementById("top-scorer-season").textContent = topScorerSeason ? topScorerSeason.full_name + " (" + topScorerSeason.goals + ")" : "—";
+  document.getElementById("top-potm-season").textContent = topPotmSeason ? topPotmSeason.full_name + " (" + topPotmSeason.potm_awards + ")" : "—";
+
+  // ---- Top scorer / top POTM (all seasons, this team, regardless of filter) ----
+  var allStatsRes = await window.sb.from("player_season_stats").select("*").eq("team_id", teamId);
+  var perPlayerAll = aggregateByPlayer(allStatsRes.data || []);
+  var topScorerAll = topBy(perPlayerAll, "goals");
+  var topPotmAll = topBy(perPlayerAll, "potm_awards");
+  document.getElementById("top-scorer-alltime").textContent = topScorerAll ? topScorerAll.full_name + " (" + topScorerAll.goals + ")" : "—";
+  document.getElementById("top-potm-alltime").textContent = topPotmAll ? topPotmAll.full_name + " (" + topPotmAll.potm_awards + ")" : "—";
+
+  // ---- Schedule & Results ----
+  var matchQuery = window.sb
+    .from("matches")
+    .select("*, home:teams!matches_home_team_id_fkey(*), away:teams!matches_away_team_id_fkey(*)")
+    .or("home_team_id.eq." + teamId + ",away_team_id.eq." + teamId)
+    .order("match_day", { ascending: true })
+    .order("match_number", { ascending: true });
+  if (!isAll) matchQuery = matchQuery.eq("season_id", filterVal);
+  var matchRes = await matchQuery;
+  var matches = matchRes.data || [];
+  var schedBody = document.getElementById("schedule-body");
+  if (matches.length === 0) {
+    schedBody.innerHTML = '<tr><td colspan="4" class="text-center muted">No matches scheduled yet.</td></tr>';
+  } else {
+    schedBody.innerHTML = matches.map(function (m) {
+      var dateStr = m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString() : "TBD";
+      var resultStr = m.status === "completed" ? (m.home_score + " – " + m.away_score)
+        : m.status === "forfeited" ? "Forfeit"
+        : m.status === "postponed" ? "Postponed"
+        : "Scheduled";
+      return '<tr class="row-link" data-href="match.html?id=' + m.id + '" style="cursor:pointer;">' +
+        "<td>" + escapeHtml(dateStr) + "</td>" +
+        "<td>Day " + m.match_day + "</td>" +
+        '<td class="team-name">' + escapeHtml(m.home.name) + " vs " + escapeHtml(m.away.name) + "</td>" +
+        "<td>" + escapeHtml(resultStr) + "</td>" +
+        "</tr>";
+    }).join("");
+    schedBody.querySelectorAll(".row-link").forEach(function (tr) {
+      tr.addEventListener("click", function () { window.location.href = tr.getAttribute("data-href"); });
+    });
+  }
+}
+
+async function renderSquad() {
+  var squadSeasonId = document.getElementById("squad-season-filter").value;
   var rosterRes = await window.sb
     .from("team_season_rosters")
     .select("*, players(*)")
     .eq("team_id", teamId)
-    .eq("season_id", season.id);
+    .eq("season_id", squadSeasonId);
 
   var rows = rosterRes.data || [];
   var owner = rows.find(function (r) { return r.is_owner; });
@@ -102,6 +234,8 @@ async function loadTeam() {
     document.getElementById("owner-photo").innerHTML = p.photo_url
       ? '<img src="' + escapeHtml(p.photo_url) + '" alt="' + escapeHtml(p.full_name) + '" style="width:100%;height:100%;object-fit:cover;display:block;">'
       : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--chalk-dim);font-size:0.7rem;">No photo</div>';
+  } else {
+    document.getElementById("owner-link").style.display = "none";
   }
 
   var squadRows = rows.filter(function (r) { return !r.is_owner; });
@@ -122,46 +256,36 @@ async function loadTeam() {
         "</a>";
     }).join("");
   }
+}
 
-  var standingsRes = await window.sb.from("league_standings").select("*").eq("season_id", season.id).eq("team_id", teamId).single();
-  var tbody = document.getElementById("team-totals-body");
-  if (standingsRes.data) {
-    var r = standingsRes.data;
-    tbody.innerHTML = "<tr><td>" + r.played + "</td><td>" + r.wins + "</td><td>" + r.draws + "</td><td>" + r.losses +
-      "</td><td>" + r.goals_for + "</td><td>" + r.goals_against + "</td><td>" + r.goal_difference + "</td><td><strong>" + r.points + "</strong></td></tr>";
-  } else {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">No matches played yet.</td></tr>';
-  }
+async function loadTeam() {
+  if (!teamId) { document.getElementById("team-name").textContent = "Team not found"; return; }
+  var teamRes = await window.sb.from("teams").select("*").eq("id", teamId).single();
+  if (!teamRes.data) { document.getElementById("team-name").textContent = "Team not found"; return; }
+  var team = teamRes.data;
+  document.getElementById("team-name").textContent = team.name;
+  document.getElementById("crumb-current").textContent = team.name;
+  document.getElementById("team-identity").href = "team.html?id=" + team.id;
+  document.getElementById("team-crest").innerHTML = crestOrInitials(team.crest_url, team.name);
 
-  // Player-level totals (goals/assists/cards/POTM) for everyone on this
-  // team's roster this season, including the owner if they also play.
-  var statsRes = await window.sb.from("player_season_stats").select("*").eq("team_id", teamId).eq("season_id", season.id);
-  var statRows = statsRes.data || [];
-  var totals = statRows.reduce(function (acc, s) {
-    acc.goals += s.goals || 0;
-    acc.assists += s.assists || 0;
-    acc.yellow_cards += s.yellow_cards || 0;
-    acc.red_cards += s.red_cards || 0;
-    acc.potm_awards += s.potm_awards || 0;
-    return acc;
-  }, { goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0 });
+  var seasonsRes = await window.sb.from("seasons").select("*").order("created_at", { ascending: true });
+  allSeasons = seasonsRes.data || [];
+  currentSeason = allSeasons.find(function (s) { return s.is_current; }) || allSeasons[0];
+  if (!currentSeason) return;
 
-  document.getElementById("squad-totals-body").innerHTML =
-    "<tr><td>" + totals.goals + "</td><td>" + totals.assists + "</td>" +
-    '<td><span class="badge yellow">' + totals.yellow_cards + "</span></td><td><span class=\"badge red\">" + totals.red_cards + "</span></td>" +
-    "<td>" + totals.potm_awards + "</td></tr>";
+  var seasonFilter = document.getElementById("season-filter");
+  seasonFilter.innerHTML = '<option value="all">All Seasons</option>' +
+    allSeasons.map(function (s) { return '<option value="' + s.id + '">' + escapeHtml(s.name) + "</option>"; }).join("");
+  seasonFilter.value = currentSeason.id;
+  seasonFilter.addEventListener("change", renderStatsAndSchedule);
 
-  function topBy(field) {
-    var best = null;
-    statRows.forEach(function (s) {
-      if ((s[field] || 0) > 0 && (!best || s[field] > best[field])) best = s;
-    });
-    return best;
-  }
-  var topScorer = topBy("goals");
-  var topPotm = topBy("potm_awards");
-  document.getElementById("top-scorer").textContent = topScorer ? topScorer.full_name + " (" + topScorer.goals + ")" : "—";
-  document.getElementById("top-potm").textContent = topPotm ? topPotm.full_name + " (" + topPotm.potm_awards + ")" : "—";
+  var squadFilter = document.getElementById("squad-season-filter");
+  squadFilter.innerHTML = allSeasons.map(function (s) { return '<option value="' + s.id + '">' + escapeHtml(s.name) + "</option>"; }).join("");
+  squadFilter.value = currentSeason.id;
+  squadFilter.addEventListener("change", renderSquad);
+
+  renderStatsAndSchedule();
+  renderSquad();
 }
 loadTeam();
 if (teamId) {
