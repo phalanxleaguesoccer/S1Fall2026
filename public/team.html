@@ -221,13 +221,27 @@ async function renderStatsAndSchedule() {
 
 async function renderSquad() {
   var squadSeasonId = document.getElementById("squad-season-filter").value;
-  var rosterRes = await window.sb
-    .from("team_season_rosters")
-    .select("*, players(*)")
-    .eq("team_id", teamId)
-    .eq("season_id", squadSeasonId);
+  var isAllSquad = squadSeasonId === "all";
+
+  var rosterQuery = window.sb.from("team_season_rosters").select("*, players(*)").eq("team_id", teamId);
+  if (!isAllSquad) rosterQuery = rosterQuery.eq("season_id", squadSeasonId);
+  var rosterRes = await rosterQuery;
 
   var rows = rosterRes.data || [];
+  if (isAllSquad) {
+    // A player can have one roster row per season on this team — collapse to
+    // one row per player (most recent season's row wins) so "All Seasons"
+    // shows each squad member once instead of once per season played.
+    var bySeasonRecency = allSeasons.reduce(function (acc, s, i) { acc[s.id] = i; return acc; }, {});
+    var byPlayer = {};
+    rows.forEach(function (r) {
+      var existing = byPlayer[r.player_id];
+      if (!existing || (bySeasonRecency[r.season_id] || 0) > (bySeasonRecency[existing.season_id] || 0)) {
+        byPlayer[r.player_id] = r;
+      }
+    });
+    rows = Object.keys(byPlayer).map(function (k) { return byPlayer[k]; });
+  }
   var owner = rows.find(function (r) { return r.is_owner; });
   if (owner && owner.players) {
     var p = owner.players;
@@ -244,7 +258,7 @@ async function renderSquad() {
   var squadRows = rows.filter(function (r) { return !r.is_owner; });
   var grid = document.getElementById("roster-grid");
   if (squadRows.length === 0) {
-    grid.innerHTML = '<p class="muted">No squad members added for this season yet.</p>';
+    grid.innerHTML = '<p class="muted">No squad members added ' + (isAllSquad ? "yet" : "for this season yet") + '.</p>';
   } else {
     grid.innerHTML = squadRows.map(function (r) {
       var p = r.players;
@@ -283,7 +297,8 @@ async function loadTeam() {
   seasonFilter.addEventListener("change", renderStatsAndSchedule);
 
   var squadFilter = document.getElementById("squad-season-filter");
-  squadFilter.innerHTML = allSeasons.map(function (s) { return '<option value="' + s.id + '">' + escapeHtml(s.name) + "</option>"; }).join("");
+  squadFilter.innerHTML = allSeasons.map(function (s) { return '<option value="' + s.id + '">' + escapeHtml(s.name) + "</option>"; }).join("") +
+    '<option value="all">All Seasons</option>';
   squadFilter.value = currentSeason.id;
   squadFilter.addEventListener("change", renderSquad);
 
