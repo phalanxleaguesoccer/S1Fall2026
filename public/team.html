@@ -8,22 +8,51 @@
 </head>
 <body>
 <div class="container">
-  <h1 id="team-name">Loading…</h1>
-  <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+  <div class="card" style="display:flex; gap:20px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+    <a id="team-identity" href="#" style="text-decoration:none; color:inherit; display:flex; gap:16px; align-items:center;">
+      <div style="width:90px; height:90px; flex-shrink:0; border-radius:12px; overflow:hidden; background:var(--pitch-dark);">
+        <div id="team-crest" style="width:100%;height:100%;"></div>
+      </div>
+      <div>
+        <h1 id="team-name" style="margin:0;">Loading…</h1>
+        <p class="muted" id="page-views" style="font-size:0.82rem; margin:2px 0 0;"></p>
+      </div>
+    </a>
 
-  <div class="card">
-    <div class="card-title">Roster (Current Season)</div>
-    <div class="grid" id="roster-grid"><p class="muted">Loading…</p></div>
+    <a id="owner-link" href="#" style="display:none; text-decoration:none; color:inherit; gap:12px; align-items:center;">
+      <div style="text-align:right;">
+        <div class="muted" style="font-size:0.78rem;">Owner</div>
+        <div style="font-weight:700;" id="owner-name"></div>
+      </div>
+      <div style="width:56px; height:56px; flex-shrink:0; border-radius:50%; overflow:hidden; background:var(--pitch-dark);">
+        <div id="owner-photo" style="width:100%;height:100%;"></div>
+      </div>
+    </a>
   </div>
 
   <div class="card">
-    <div class="card-title">Season Team Totals</div>
+    <div class="card-title">Team Stats</div>
     <div class="table-scroll">
       <table class="data-table">
         <thead><tr><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
         <tbody id="team-totals-body"><tr><td colspan="8" class="text-center muted">Loading…</td></tr></tbody>
       </table>
     </div>
+    <div class="table-scroll" style="margin-top:14px;">
+      <table class="data-table">
+        <thead><tr><th>Goals</th><th>Assists</th><th>Yellow</th><th>Red</th><th>POTM</th></tr></thead>
+        <tbody id="squad-totals-body"><tr><td colspan="5" class="text-center muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:24px; flex-wrap:wrap;">
+      <p class="muted" style="margin:0;">Top scorer: <span id="top-scorer" style="color:var(--chalk);">—</span></p>
+      <p class="muted" style="margin:0;">Most Player of the Match: <span id="top-potm" style="color:var(--chalk);">—</span></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Squad (Current Season)</div>
+    <div class="grid" id="roster-grid"><p class="muted">Loading…</p></div>
   </div>
 </div>
 
@@ -37,11 +66,20 @@ renderFooter();
 
 var teamId = qs("id");
 
+function crestOrInitials(url, name, size) {
+  return url
+    ? '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(name) + '" style="width:100%;height:100%;object-fit:cover;display:block;">'
+    : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:Anton;font-size:' + (size || '1.6rem') + ';color:var(--chalk-dim);">' + escapeHtml(name.slice(0,2).toUpperCase()) + '</div>';
+}
+
 async function loadTeam() {
   if (!teamId) { document.getElementById("team-name").textContent = "Team not found"; return; }
   var teamRes = await window.sb.from("teams").select("*").eq("id", teamId).single();
   if (!teamRes.data) { document.getElementById("team-name").textContent = "Team not found"; return; }
-  document.getElementById("team-name").textContent = teamRes.data.name;
+  var team = teamRes.data;
+  document.getElementById("team-name").textContent = team.name;
+  document.getElementById("team-identity").href = "team.html?id=" + team.id;
+  document.getElementById("team-crest").innerHTML = crestOrInitials(team.crest_url, team.name);
 
   var season = await getCurrentSeason();
   if (!season) return;
@@ -52,11 +90,24 @@ async function loadTeam() {
     .eq("team_id", teamId)
     .eq("season_id", season.id);
 
+  var rows = rosterRes.data || [];
+  var owner = rows.find(function (r) { return r.is_owner; });
+  if (owner && owner.players) {
+    var p = owner.players;
+    document.getElementById("owner-link").style.display = "flex";
+    document.getElementById("owner-link").href = "player.html?id=" + p.id;
+    document.getElementById("owner-name").textContent = p.full_name;
+    document.getElementById("owner-photo").innerHTML = p.photo_url
+      ? '<img src="' + escapeHtml(p.photo_url) + '" alt="' + escapeHtml(p.full_name) + '" style="width:100%;height:100%;object-fit:cover;display:block;">'
+      : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--chalk-dim);font-size:0.7rem;">No photo</div>';
+  }
+
+  var squadRows = rows.filter(function (r) { return !r.is_owner; });
   var grid = document.getElementById("roster-grid");
-  if (!rosterRes.data || rosterRes.data.length === 0) {
-    grid.innerHTML = '<p class="muted">No roster set for this season yet.</p>';
+  if (squadRows.length === 0) {
+    grid.innerHTML = '<p class="muted">No squad members added for this season yet.</p>';
   } else {
-    grid.innerHTML = rosterRes.data.map(function (r) {
+    grid.innerHTML = squadRows.map(function (r) {
       var p = r.players;
       return '<a class="player-card" href="player.html?id=' + p.id + '" style="text-decoration:none;">' +
         '<div class="photo-wrap">' +
@@ -64,7 +115,7 @@ async function loadTeam() {
             '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--chalk-dim);">No photo</div>') +
           (r.jersey_number ? '<div class="rating-badge">#' + r.jersey_number + "</div>" : "") +
         "</div>" +
-        '<div class="info"><div class="name">' + escapeHtml(p.full_name) + (r.is_owner ? ' <span class="pill completed">Owner</span>' : "") + "</div>" +
+        '<div class="info"><div class="name">' + escapeHtml(p.full_name) + "</div>" +
         '<div class="meta">' + escapeHtml(p.preferred_position || "") + "</div></div>" +
         "</a>";
     }).join("");
@@ -79,6 +130,36 @@ async function loadTeam() {
   } else {
     tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">No matches played yet.</td></tr>';
   }
+
+  // Player-level totals (goals/assists/cards/POTM) for everyone on this
+  // team's roster this season, including the owner if they also play.
+  var statsRes = await window.sb.from("player_season_stats").select("*").eq("team_id", teamId).eq("season_id", season.id);
+  var statRows = statsRes.data || [];
+  var totals = statRows.reduce(function (acc, s) {
+    acc.goals += s.goals || 0;
+    acc.assists += s.assists || 0;
+    acc.yellow_cards += s.yellow_cards || 0;
+    acc.red_cards += s.red_cards || 0;
+    acc.potm_awards += s.potm_awards || 0;
+    return acc;
+  }, { goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0 });
+
+  document.getElementById("squad-totals-body").innerHTML =
+    "<tr><td>" + totals.goals + "</td><td>" + totals.assists + "</td>" +
+    '<td><span class="badge yellow">' + totals.yellow_cards + "</span></td><td><span class=\"badge red\">" + totals.red_cards + "</span></td>" +
+    "<td>" + totals.potm_awards + "</td></tr>";
+
+  function topBy(field) {
+    var best = null;
+    statRows.forEach(function (s) {
+      if ((s[field] || 0) > 0 && (!best || s[field] > best[field])) best = s;
+    });
+    return best;
+  }
+  var topScorer = topBy("goals");
+  var topPotm = topBy("potm_awards");
+  document.getElementById("top-scorer").textContent = topScorer ? topScorer.full_name + " (" + topScorer.goals + ")" : "—";
+  document.getElementById("top-potm").textContent = topPotm ? topPotm.full_name + " (" + topPotm.potm_awards + ")" : "—";
 }
 loadTeam();
 if (teamId) {
