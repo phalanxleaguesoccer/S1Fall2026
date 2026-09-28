@@ -30,15 +30,35 @@ async function loadTeams() {
     grid.innerHTML = '<p class="muted">No teams added yet.</p>';
     return;
   }
+
+  var owners = {};
+  var season = await getCurrentSeason();
+  if (season) {
+    var ownerRes = await window.sb
+      .from("team_season_rosters")
+      .select("team_id, players(id, full_name)")
+      .eq("season_id", season.id)
+      .eq("is_owner", true);
+    (ownerRes.data || []).forEach(function (r) {
+      if (r.players) owners[r.team_id] = r.players;
+    });
+  }
+
   grid.innerHTML = res.data.map(function (t) {
-    return '<a class="player-card" href="team.html?id=' + t.id + '" style="text-decoration:none;">' +
+    var owner = owners[t.id];
+    return '<div class="player-card" style="cursor:default;">' +
+      '<a href="team.html?id=' + t.id + '" style="text-decoration:none; color:inherit; display:block;">' +
       '<div class="photo-wrap">' +
         (t.crest_url
           ? '<img src="' + escapeHtml(t.crest_url) + '" alt="' + escapeHtml(t.name) + ' crest">'
           : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:Anton;font-size:2rem;color:var(--chalk-dim);">' + escapeHtml(t.name.slice(0,2).toUpperCase()) + '</div>') +
       "</div>" +
       '<div class="info"><div class="name">' + escapeHtml(t.name) + "</div></div>" +
-      "</a>";
+      "</a>" +
+      (owner
+        ? '<div class="info" style="padding-top:0;"><a class="meta" href="player.html?id=' + owner.id + '" style="text-decoration:none;">Owner: <strong style="color:inherit;">' + escapeHtml(owner.full_name) + "</strong></a></div>"
+        : "") +
+      "</div>";
   }).join("");
 }
 loadTeams();
