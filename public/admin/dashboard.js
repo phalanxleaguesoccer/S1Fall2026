@@ -54,6 +54,19 @@ async function init() {
   document.getElementById("match-form").addEventListener("submit", onAddMatch);
   document.getElementById("event-form").addEventListener("submit", onLogEvent);
   document.getElementById("e-match").addEventListener("change", loadEventsForSelectedMatch);
+
+  // Records tab: season selects that don't need "All Seasons"
+  ["rating-season", "susp-season", "award-season"].forEach(function (id) {
+    var sel = document.getElementById(id);
+    sel.innerHTML = ALL_SEASONS.map(function (s) { return '<option value="' + s.id + '">' + escapeHtml(s.name) + "</option>"; }).join("");
+    sel.value = CURRENT_SEASON.id;
+  });
+  populateAppearanceMatchDropdown();
+  document.getElementById("appearance-form").addEventListener("submit", onLogAppearance);
+  document.getElementById("note-form").addEventListener("submit", onLogNote);
+  document.getElementById("rating-form").addEventListener("submit", onLogRating);
+  document.getElementById("suspension-form").addEventListener("submit", onLogSuspension);
+  document.getElementById("award-form").addEventListener("submit", onLogAward);
 }
 
 // ---------- TEAMS ----------
@@ -61,8 +74,21 @@ async function refreshTeams() {
   var res = await window.sb.from("teams").select("*").order("name");
   TEAMS_CACHE = res.data || [];
   document.getElementById("teams-list").innerHTML = TEAMS_CACHE.length
-    ? TEAMS_CACHE.map(function (t) { return '<div class="list-row"><span>' + escapeHtml(t.name) + "</span></div>"; }).join("")
+    ? TEAMS_CACHE.map(function (t) {
+        return '<div class="list-row"><span>' + escapeHtml(t.name) + (t.is_active === false ? ' <span class="pill">Archived</span>' : "") + "</span>" +
+          '<button class="btn secondary" data-team-id="' + t.id + '" data-active="' + (t.is_active !== false) + '" onclick="toggleTeamActive(this)">' +
+          (t.is_active === false ? "Reactivate" : "Archive") + "</button></div>";
+      }).join("")
     : '<p class="muted">No teams yet.</p>';
+
+  var awardTeamSel = document.getElementById("award-team");
+  if (awardTeamSel) {
+    var prevAwardTeam = awardTeamSel.value;
+    awardTeamSel.innerHTML = '<option value="">—</option>' + TEAMS_CACHE.map(function (t) {
+      return '<option value="' + t.id + '">' + escapeHtml(t.name) + "</option>";
+    }).join("");
+    awardTeamSel.value = prevAwardTeam;
+  }
 
   // m-home/m-away/e-team are tied to actual scheduled matches, which still
   // reference the generic Team A/B/C/D slots until the draw happens — those
@@ -86,6 +112,25 @@ async function refreshTeams() {
     '<option value="unassigned">Unassigned (remove from roster)</option>' +
     finalizedTeams.map(function (t) { return '<option value="' + t.id + '">' + escapeHtml(t.name) + "</option>"; }).join("");
   rTeamSel.value = rTeamPrev;
+
+  // Match Appearance form's Team select mirrors m-home/m-away (every team,
+  // since appearances are logged against the actual scheduled match).
+  var apTeamSel = document.getElementById("ap-team");
+  if (apTeamSel) {
+    var apTeamPrev = apTeamSel.value;
+    apTeamSel.innerHTML = '<option value="">— select —</option>' + TEAMS_CACHE.map(function (t) {
+      return '<option value="' + t.id + '">' + escapeHtml(t.name) + "</option>";
+    }).join("");
+    apTeamSel.value = apTeamPrev;
+  }
+}
+
+async function toggleTeamActive(btn) {
+  var teamId = btn.dataset.teamId;
+  var isActive = btn.dataset.active === "true";
+  var res = await window.sb.from("teams").update({ is_active: !isActive }).eq("id", teamId);
+  if (res.error) { alert(res.error.message); return; }
+  await refreshTeams();
 }
 
 async function onAddTeam(e) {
@@ -105,17 +150,40 @@ async function refreshPlayers() {
   var res = await window.sb.from("players").select("*").order("full_name");
   PLAYERS_CACHE = res.data || [];
   document.getElementById("players-list").innerHTML = PLAYERS_CACHE.length
-    ? PLAYERS_CACHE.map(function (p) { return '<div class="list-row"><span>' + escapeHtml(p.full_name) + '</span><span class="muted">' + escapeHtml(p.preferred_position || "") + "</span></div>"; }).join("")
+    ? PLAYERS_CACHE.map(function (p) {
+        return '<div class="list-row"><span>' + escapeHtml(p.full_name) + (p.is_active === false ? ' <span class="pill">Archived</span>' : "") +
+          '</span><span class="muted">' + escapeHtml(p.preferred_position || "") + "</span>" +
+          '<button class="btn secondary" data-player-id="' + p.id + '" data-active="' + (p.is_active !== false) + '" onclick="togglePlayerActive(this)">' +
+          (p.is_active === false ? "Reactivate" : "Archive") + "</button></div>";
+      }).join("")
     : '<p class="muted">No players yet.</p>';
 
-  ["r-player", "e-player"].forEach(function (id) {
+  ["r-player", "e-player", "ap-player", "note-player", "rating-player", "susp-player"].forEach(function (id) {
     var sel = document.getElementById(id);
+    if (!sel) return;
     var prev = sel.value;
     sel.innerHTML = '<option value="">— select —</option>' + PLAYERS_CACHE.map(function (p) {
       return '<option value="' + p.id + '">' + escapeHtml(p.full_name) + "</option>";
     }).join("");
     sel.value = prev;
   });
+
+  var awardPlayerSel = document.getElementById("award-player");
+  if (awardPlayerSel) {
+    var prevAwardPlayer = awardPlayerSel.value;
+    awardPlayerSel.innerHTML = '<option value="">—</option>' + PLAYERS_CACHE.map(function (p) {
+      return '<option value="' + p.id + '">' + escapeHtml(p.full_name) + "</option>";
+    }).join("");
+    awardPlayerSel.value = prevAwardPlayer;
+  }
+}
+
+async function togglePlayerActive(btn) {
+  var playerId = btn.dataset.playerId;
+  var isActive = btn.dataset.active === "true";
+  var res = await window.sb.from("players").update({ is_active: !isActive }).eq("id", playerId);
+  if (res.error) { alert(res.error.message); return; }
+  await refreshPlayers();
 }
 
 async function onAddPlayer(e) {
@@ -310,4 +378,119 @@ async function deleteEvent(btn) {
   if (!confirm("Delete this event?")) return;
   await window.sb.from("match_events").delete().eq("id", btn.dataset.eventId);
   loadEventsForSelectedMatch();
+}
+
+// ---------- RECORDS: appearances, notes/ratings, suspensions, awards ----------
+async function populateAppearanceMatchDropdown() {
+  var res = await window.sb.from("matches").select("*").eq("season_id", CURRENT_SEASON.id).order("match_day").order("match_number");
+  var teamsById = {};
+  TEAMS_CACHE.forEach(function (t) { teamsById[t.id] = t; });
+  var sel = document.getElementById("ap-match");
+  sel.innerHTML = '<option value="">— select match —</option>' + (res.data || []).map(function (m) {
+    var home = teamsById[m.home_team_id] ? teamsById[m.home_team_id].name : "?";
+    var away = teamsById[m.away_team_id] ? teamsById[m.away_team_id].name : "?";
+    return '<option value="' + m.id + '">Day ' + m.match_day + " M" + m.match_number + ": " + home + " vs " + away + "</option>";
+  }).join("");
+}
+
+async function onLogAppearance(e) {
+  e.preventDefault();
+  var msg = document.getElementById("appearance-msg");
+  var payload = {
+    match_id: document.getElementById("ap-match").value,
+    player_id: document.getElementById("ap-player").value,
+    team_id: document.getElementById("ap-team").value,
+    started: document.getElementById("ap-started").checked,
+    is_captain: document.getElementById("ap-captain").checked,
+    position_played: document.getElementById("ap-position").value.trim() || null,
+    minutes_played: document.getElementById("ap-minutes").value || null
+  };
+  if (!payload.match_id || !payload.player_id || !payload.team_id) { showError(msg, "Match, player, and team are all required."); return; }
+  var res = await window.sb.from("match_appearances").upsert(payload, { onConflict: "match_id,player_id" });
+  if (res.error) { showError(msg, res.error.message); return; }
+  showSuccess(msg, "Appearance logged.");
+  document.getElementById("appearance-form").reset();
+  document.getElementById("ap-started").checked = true;
+}
+
+async function onLogNote(e) {
+  e.preventDefault();
+  var msg = document.getElementById("note-msg");
+  var playerId = document.getElementById("note-player").value;
+  var noteType = document.getElementById("note-type").value;
+  var noteText = document.getElementById("note-text").value.trim();
+  if (!playerId || !noteText) { showError(msg, "Player and note text are required."); return; }
+
+  var logRes = await window.sb.from("player_notes_log").insert({ player_id: playerId, note_type: noteType, note: noteText });
+  if (logRes.error) { showError(msg, logRes.error.message); return; }
+
+  // Keep the player's current-snapshot field (shown on their profile) in sync.
+  var column = noteType === "fitness" ? "fitness_notes" : "leave_plan";
+  var updatePayload = {};
+  updatePayload[column] = noteText;
+  await window.sb.from("players").update(updatePayload).eq("id", playerId);
+
+  showSuccess(msg, "Note logged and profile updated.");
+  document.getElementById("note-form").reset();
+}
+
+async function onLogRating(e) {
+  e.preventDefault();
+  var msg = document.getElementById("rating-msg");
+  var playerId = document.getElementById("rating-player").value;
+  var seasonId = document.getElementById("rating-season").value;
+  var ratingValue = document.getElementById("rating-value").value || null;
+  var levelValue = document.getElementById("rating-level").value || null;
+  if (!playerId || !seasonId) { showError(msg, "Player and season are required."); return; }
+  if (!ratingValue && !levelValue) { showError(msg, "Enter a rating and/or a skill level."); return; }
+
+  var logRes = await window.sb.from("player_rating_log").insert({
+    player_id: playerId, season_id: seasonId,
+    skill_rating: ratingValue, skill_level: levelValue,
+    notes: document.getElementById("rating-notes").value.trim() || null
+  });
+  if (logRes.error) { showError(msg, logRes.error.message); return; }
+
+  var updatePayload = {};
+  if (ratingValue) updatePayload.skill_rating = ratingValue;
+  if (levelValue) updatePayload.skill_level = levelValue;
+  await window.sb.from("players").update(updatePayload).eq("id", playerId);
+
+  showSuccess(msg, "Rating logged and profile updated.");
+  document.getElementById("rating-form").reset();
+  document.getElementById("rating-season").value = seasonId;
+}
+
+async function onLogSuspension(e) {
+  e.preventDefault();
+  var msg = document.getElementById("suspension-msg");
+  var payload = {
+    player_id: document.getElementById("susp-player").value,
+    season_id: document.getElementById("susp-season").value,
+    reason: document.getElementById("susp-reason").value.trim(),
+    matches_banned: parseInt(document.getElementById("susp-matches").value, 10) || 1
+  };
+  if (!payload.player_id || !payload.season_id || !payload.reason) { showError(msg, "Player, season, and reason are all required."); return; }
+  var res = await window.sb.from("suspensions").insert(payload);
+  if (res.error) { showError(msg, res.error.message); return; }
+  showSuccess(msg, "Suspension logged.");
+  document.getElementById("suspension-form").reset();
+}
+
+async function onLogAward(e) {
+  e.preventDefault();
+  var msg = document.getElementById("award-msg");
+  var payload = {
+    season_id: document.getElementById("award-season").value,
+    award_type: document.getElementById("award-type").value,
+    player_id: document.getElementById("award-player").value || null,
+    team_id: document.getElementById("award-team").value || null,
+    notes: document.getElementById("award-notes").value.trim() || null
+  };
+  if (!payload.season_id || !payload.award_type) { showError(msg, "Season and award type are required."); return; }
+  if (!payload.player_id && !payload.team_id) { showError(msg, "Pick a player or a team for this award."); return; }
+  var res = await window.sb.from("season_awards").insert(payload);
+  if (res.error) { showError(msg, res.error.message); return; }
+  showSuccess(msg, "Award logged.");
+  document.getElementById("award-form").reset();
 }

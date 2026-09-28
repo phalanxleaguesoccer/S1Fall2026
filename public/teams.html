@@ -25,7 +25,7 @@ renderFooter();
 renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Teams" }]);
 
 async function loadTeams() {
-  var res = await window.sb.from("teams").select("*").order("name");
+  var res = await window.sb.from("teams").select("*").eq("is_active", true).order("name");
   var grid = document.getElementById("teams-grid");
 
   // Generic schedule placeholders ("Team A", "Team B", ...) aren't real team

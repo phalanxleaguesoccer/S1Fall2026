@@ -29,6 +29,7 @@
     <button data-tab="rosters">Season Rosters</button>
     <button data-tab="matches">Matches &amp; Results</button>
     <button data-tab="events">Match Events</button>
+    <button data-tab="records">Appearances, Notes &amp; Awards</button>
   </div>
 
   <!-- TEAMS -->
@@ -44,7 +45,7 @@
         <p id="team-msg"></p>
       </form>
     </div>
-    <div class="card"><div class="card-title">Existing Teams</div><div id="teams-list"><p class="muted">Loading…</p></div></div>
+    <div class="card"><div class="card-title">Existing Teams</div><p class="muted" style="font-size:0.82rem;">Archived teams are hidden from the public site but never deleted, so history stays intact.</p><div id="teams-list"><p class="muted">Loading…</p></div></div>
   </div>
 
   <!-- PLAYERS -->
@@ -95,7 +96,7 @@
         <p id="player-msg"></p>
       </form>
     </div>
-    <div class="card"><div class="card-title">Existing Players</div><div id="players-list"><p class="muted">Loading…</p></div></div>
+    <div class="card"><div class="card-title">Existing Players</div><p class="muted" style="font-size:0.82rem;">Archived players are hidden from the public site but never deleted, so history stays intact.</p><div id="players-list"><p class="muted">Loading…</p></div></div>
   </div>
 
   <!-- ROSTERS -->
@@ -173,6 +174,106 @@
       </form>
     </div>
     <div class="card"><div class="card-title">Recent Events (select a match above to filter)</div><div id="events-list"><p class="muted">Pick a match to see its events.</p></div></div>
+  </div>
+
+  <!-- RECORDS: appearances, historized notes/ratings, suspensions, awards -->
+  <div class="tab-panel" id="tab-records">
+    <div class="card">
+      <div class="card-title">Log Match Appearance (accurate Games Played)</div>
+      <form id="appearance-form">
+        <div class="row">
+          <div><label>Match</label><select id="ap-match" required></select></div>
+          <div><label>Player</label><select id="ap-player" required></select></div>
+          <div><label>Team</label><select id="ap-team" required></select></div>
+        </div>
+        <div class="row">
+          <div><label>Position played (this match)</label><input type="text" id="ap-position"></div>
+          <div><label>Minutes played (optional)</label><input type="number" id="ap-minutes" min="0" max="14"></div>
+          <div style="display:flex; gap:16px; align-items:flex-end;">
+            <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="ap-started" checked style="width:auto;"> Started</label>
+            <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="ap-captain" style="width:auto;"> Captain</label>
+          </div>
+        </div>
+        <button class="btn mt-16" type="submit">Log Appearance</button>
+        <p id="appearance-msg"></p>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Log Player Note (fitness / leave plan history)</div>
+      <p class="muted" style="font-size:0.82rem; margin-top:-6px;">Also updates the player's current profile text; past notes stay in history.</p>
+      <form id="note-form">
+        <div class="row">
+          <div><label>Player</label><select id="note-player" required></select></div>
+          <div><label>Type</label><select id="note-type" required><option value="fitness">Fitness / Injury</option><option value="leave_plan">Leave Plan</option></select></div>
+        </div>
+        <label>Note</label><input type="text" id="note-text" required>
+        <button class="btn mt-16" type="submit">Log Note</button>
+        <p id="note-msg"></p>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Log Rating Change (skill rating / level history)</div>
+      <p class="muted" style="font-size:0.82rem; margin-top:-6px;">Also updates the player's current profile rating; past ratings stay in history.</p>
+      <form id="rating-form">
+        <div class="row">
+          <div><label>Player</label><select id="rating-player" required></select></div>
+          <div><label>Season</label><select id="rating-season" required></select></div>
+        </div>
+        <div class="row">
+          <div><label>Skill rating (1-10)</label><input type="number" id="rating-value" min="1" max="10"></div>
+          <div><label>Skill level</label>
+            <select id="rating-level"><option value="">—</option><option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Pro</option></select>
+          </div>
+        </div>
+        <label>Notes (optional)</label><input type="text" id="rating-notes">
+        <button class="btn mt-16" type="submit">Log Rating</button>
+        <p id="rating-msg"></p>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Log Suspension</div>
+      <form id="suspension-form">
+        <div class="row">
+          <div><label>Player</label><select id="susp-player" required></select></div>
+          <div><label>Season</label><select id="susp-season" required></select></div>
+          <div><label>Matches banned</label><input type="number" id="susp-matches" min="1" value="1" required></div>
+        </div>
+        <label>Reason</label><input type="text" id="susp-reason" required>
+        <button class="btn mt-16" type="submit">Log Suspension</button>
+        <p id="suspension-msg"></p>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Log Season Award</div>
+      <form id="award-form">
+        <div class="row">
+          <div><label>Season</label><select id="award-season" required></select></div>
+          <div><label>Award</label>
+            <select id="award-type" required>
+              <option value="top_scorer">Top Scorer</option>
+              <option value="most_assists">Most Assists</option>
+              <option value="golden_glove">Golden Glove (GK)</option>
+              <option value="fair_play">Fair Play</option>
+              <option value="most_improved">Most Improved</option>
+              <option value="champion">Champion (team)</option>
+              <option value="runner_up">Runner-up (team)</option>
+              <option value="player_of_tournament">Player of the Tournament</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div><label>Player (for player awards)</label><select id="award-player"><option value="">—</option></select></div>
+          <div><label>Team (for Champion/Runner-up)</label><select id="award-team"><option value="">—</option></select></div>
+        </div>
+        <label>Notes (optional)</label><input type="text" id="award-notes">
+        <button class="btn mt-16" type="submit">Log Award</button>
+        <p id="award-msg"></p>
+      </form>
+    </div>
   </div>
 </div>
 
