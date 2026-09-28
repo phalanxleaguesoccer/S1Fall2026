@@ -26,6 +26,7 @@
       <option value="">All teams</option>
       <option value="__unassigned__">Unassigned</option>
     </select>
+    <select id="season-filter" style="max-width:220px;"></select>
   </div>
 
   <div class="sort-filter-card">
@@ -304,36 +305,53 @@ function applyFilters() {
   render(applySort(filtered));
 }
 
-async function loadPlayers() {
-  var season = await getCurrentSeason();
+var ALL_PLAYERS_RAW = []; // players table rows, independent of season
 
-  var playersRes = await window.sb.from("players").select("*").order("full_name");
-  var players = playersRes.data || [];
-
+// Loads roster assignments for one season and re-derives ALL_PLAYERS' team
+// field from it, so the Team filter and each card's team badge reflect
+// whichever season is selected.
+async function loadRosterForSeason(seasonId) {
   var rosterByPlayerId = {};
-  if (season) {
+  if (seasonId) {
     var rosterRes = await window.sb
       .from("team_season_rosters")
       .select("*, teams(*)")
-      .eq("season_id", season.id);
+      .eq("season_id", seasonId);
     (rosterRes.data || []).forEach(function (r) { rosterByPlayerId[r.player_id] = r.teams; });
   }
-
-  ALL_PLAYERS = players.map(function (p) {
+  ALL_PLAYERS = ALL_PLAYERS_RAW.map(function (p) {
     return { player: p, team: rosterByPlayerId[p.id] || null };
   });
+  applyFilters();
+}
 
-  // Populate team filter dropdown with teams that actually exist.
+async function loadPlayers() {
+  var playersRes = await window.sb.from("players").select("*").order("full_name");
+  ALL_PLAYERS_RAW = playersRes.data || [];
+
+  // Season filter — real seasons only, no "All Seasons" option, defaulting
+  // to the current season.
+  var seasonsRes = await window.sb.from("seasons").select("*").order("created_at", { ascending: true });
+  var seasons = seasonsRes.data || [];
+  var currentSeason = seasons.find(function (s) { return s.is_current; }) || seasons[0];
+  var seasonSelect = document.getElementById("season-filter");
+  seasonSelect.innerHTML = seasons.map(function (s) { return '<option value="' + s.id + '">' + escapeHtml(s.name) + "</option>"; }).join("");
+  if (currentSeason) seasonSelect.value = currentSeason.id;
+  seasonSelect.addEventListener("change", function () { loadRosterForSeason(this.value); });
+
+  // Populate team filter with only the finalized teams shown on the Teams
+  // page — the schedule's generic "Team A/B/C/D" slots aren't real team
+  // identities yet (draw pending), so they're left out here too.
   var teamsRes = await window.sb.from("teams").select("*").order("name");
   var teamSelect = document.getElementById("team-filter");
-  (teamsRes.data || []).forEach(function (t) {
+  (teamsRes.data || []).filter(function (t) { return !/^Team [A-Z]$/.test(t.name); }).forEach(function (t) {
     var opt = document.createElement("option");
     opt.value = t.id;
     opt.textContent = t.name;
     teamSelect.appendChild(opt);
   });
 
-  applyFilters();
+  await loadRosterForSeason(currentSeason ? currentSeason.id : null);
 }
 
 document.getElementById("search-box").addEventListener("input", applyFilters);
