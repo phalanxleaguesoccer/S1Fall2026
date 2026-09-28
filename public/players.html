@@ -326,7 +326,7 @@ async function loadRosterForSeason(seasonId) {
 }
 
 async function loadPlayers() {
-  var playersRes = await window.sb.from("players").select("*").eq("is_active", true).order("full_name");
+  var playersRes = await window.sb.from("players").select("*").order("full_name");
   ALL_PLAYERS_RAW = playersRes.data || [];
 
   // Season filter — real seasons only, no "All Seasons" option, defaulting
@@ -342,7 +342,7 @@ async function loadPlayers() {
   // Populate team filter with only the finalized teams shown on the Teams
   // page — the schedule's generic "Team A/B/C/D" slots aren't real team
   // identities yet (draw pending), so they're left out here too.
-  var teamsRes = await window.sb.from("teams").select("*").eq("is_active", true).order("name");
+  var teamsRes = await window.sb.from("teams").select("*").order("name");
   var teamSelect = document.getElementById("team-filter");
   (teamsRes.data || []).filter(function (t) { return !/^Team [A-Z]$/.test(t.name); }).forEach(function (t) {
     var opt = document.createElement("option");

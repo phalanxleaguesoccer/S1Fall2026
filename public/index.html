@@ -91,7 +91,7 @@ async function loadStandings() {
   // aren't assigned to a real team yet (draw pending), so they're left out
   // of this public-facing table; still list every real team we have so far,
   // even ones with 0 games played.
-  var teamsRes = await window.sb.from("teams").select("*").eq("is_active", true).order("name");
+  var teamsRes = await window.sb.from("teams").select("*").order("name");
   var teams = (teamsRes.data || []).filter(function (t) { return !/^Team [A-Z]$/.test(t.name); });
 
   var standingsQuery = window.sb.from("league_standings").select("*");
