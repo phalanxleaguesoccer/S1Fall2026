@@ -1,5 +1,6 @@
 window.IN_ADMIN_DIR = true;
 var CURRENT_SEASON = null;
+var ALL_SEASONS = [];
 var TEAMS_CACHE = [];
 var PLAYERS_CACHE = [];
 
@@ -34,6 +35,13 @@ async function init() {
     alert("No current season found. Run the schema.sql seed, or add one in Supabase directly.");
     return;
   }
+  var seasonsRes = await window.sb.from("seasons").select("*").order("created_at", { ascending: true });
+  ALL_SEASONS = seasonsRes.data || [];
+  var rSeasonSel = document.getElementById("r-season");
+  rSeasonSel.innerHTML = ALL_SEASONS.map(function (s) { return '<option value="' + s.id + '">' + escapeHtml(s.name) + "</option>"; }).join("");
+  rSeasonSel.value = CURRENT_SEASON.id;
+  rSeasonSel.addEventListener("change", refreshRosters);
+
   await refreshTeams();
   await refreshPlayers();
   await refreshRosters();
@@ -56,7 +64,10 @@ async function refreshTeams() {
     ? TEAMS_CACHE.map(function (t) { return '<div class="list-row"><span>' + escapeHtml(t.name) + "</span></div>"; }).join("")
     : '<p class="muted">No teams yet.</p>';
 
-  ["r-team", "m-home", "m-away", "e-team"].forEach(function (id) {
+  // m-home/m-away/e-team are tied to actual scheduled matches, which still
+  // reference the generic Team A/B/C/D slots until the draw happens — those
+  // dropdowns need every team, placeholders included.
+  ["m-home", "m-away", "e-team"].forEach(function (id) {
     var sel = document.getElementById(id);
     var prev = sel.value;
     sel.innerHTML = '<option value="">— select —</option>' + TEAMS_CACHE.map(function (t) {
@@ -64,6 +75,17 @@ async function refreshTeams() {
     }).join("");
     sel.value = prev;
   });
+
+  // r-team (roster/squad assignment) is about building squads for the real,
+  // finalized teams — so it only lists those (not the generic Team A/B/C/D
+  // schedule placeholders), plus "Unassigned" to take a player off a roster.
+  var finalizedTeams = TEAMS_CACHE.filter(function (t) { return !/^Team [A-Z]$/.test(t.name); });
+  var rTeamSel = document.getElementById("r-team");
+  var rTeamPrev = rTeamSel.value;
+  rTeamSel.innerHTML = '<option value="">— select —</option>' +
+    '<option value="unassigned">Unassigned (remove from roster)</option>' +
+    finalizedTeams.map(function (t) { return '<option value="' + t.id + '">' + escapeHtml(t.name) + "</option>"; }).join("");
+  rTeamSel.value = rTeamPrev;
 }
 
 async function onAddTeam(e) {
@@ -124,7 +146,8 @@ async function onAddPlayer(e) {
 
 // ---------- ROSTERS ----------
 async function refreshRosters() {
-  var res = await window.sb.from("team_season_rosters").select("*, players(*), teams(*)").eq("season_id", CURRENT_SEASON.id);
+  var seasonId = document.getElementById("r-season").value || CURRENT_SEASON.id;
+  var res = await window.sb.from("team_season_rosters").select("*, players(*), teams(*)").eq("season_id", seasonId);
   var list = document.getElementById("rosters-list");
   if (!res.data || res.data.length === 0) { list.innerHTML = '<p class="muted">No rosters set yet.</p>'; return; }
   list.innerHTML = res.data.map(function (r) {
@@ -136,19 +159,34 @@ async function refreshRosters() {
 async function onAssignRoster(e) {
   e.preventDefault();
   var msg = document.getElementById("roster-msg");
+  var seasonId = document.getElementById("r-season").value;
+  var playerId = document.getElementById("r-player").value;
+  var teamChoice = document.getElementById("r-team").value;
+  if (!seasonId || !playerId || !teamChoice) { showError(msg, "Pick a season, player, and team."); return; }
+
+  if (teamChoice === "unassigned") {
+    var delRes = await window.sb.from("team_season_rosters").delete().eq("season_id", seasonId).eq("player_id", playerId);
+    if (delRes.error) { showError(msg, delRes.error.message); return; }
+    showSuccess(msg, "Removed from roster for that season.");
+    document.getElementById("roster-form").reset();
+    document.getElementById("r-season").value = seasonId;
+    await refreshRosters();
+    return;
+  }
+
   var payload = {
-    season_id: CURRENT_SEASON.id,
-    player_id: document.getElementById("r-player").value,
-    team_id: document.getElementById("r-team").value,
+    season_id: seasonId,
+    player_id: playerId,
+    team_id: teamChoice,
     jersey_number: document.getElementById("r-jersey").value || null,
     auction_price: document.getElementById("r-price").value || null,
     is_owner: document.getElementById("r-owner").checked
   };
-  if (!payload.player_id || !payload.team_id) { showError(msg, "Pick both a player and a team."); return; }
   var res = await window.sb.from("team_season_rosters").upsert(payload, { onConflict: "season_id,player_id" });
   if (res.error) { showError(msg, res.error.message); return; }
   showSuccess(msg, "Roster updated.");
   document.getElementById("roster-form").reset();
+  document.getElementById("r-season").value = seasonId;
   await refreshRosters();
 }
 
