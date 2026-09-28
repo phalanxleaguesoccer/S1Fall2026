@@ -55,6 +55,7 @@
 <script>
 renderHeader("index.html");
 renderFooter();
+renderBreadcrumbs([{ label: "Home" }]);
 
 async function loadStandings() {
   var season = await getCurrentSeason();

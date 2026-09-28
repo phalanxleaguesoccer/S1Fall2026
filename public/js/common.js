@@ -41,6 +41,34 @@ function renderFooter() {
   }
 }
 
+// Renders a breadcrumb trail right under the header so people can jump back
+// to any ancestor page without relying on the browser's back button.
+// `crumbs` is an array of { label, href } — href is omitted (or null) on the
+// last entry, which renders as plain (non-link) text for the current page.
+function renderBreadcrumbs(crumbs) {
+  var html = crumbs.map(function (c, i) {
+    var isLast = i === crumbs.length - 1;
+    var piece = (!isLast && c.href)
+      ? '<a href="' + escapeHtml(c.href) + '">' + escapeHtml(c.label) + "</a>"
+      : '<span class="current"' + (isLast ? ' id="crumb-current"' : '') + '>' + escapeHtml(c.label) + "</span>";
+    return i === 0 ? piece : '<span class="sep">/</span>' + piece;
+  }).join("");
+
+  document.body.insertAdjacentHTML(
+    "afterbegin",
+    '<nav class="breadcrumbs">' + html + "</nav>"
+  );
+
+  // Header is inserted afterbegin too (see renderHeader), and is always
+  // called before renderBreadcrumbs on every page, so the breadcrumb nav
+  // (inserted after the header exists) ends up directly below it.
+  var header = document.querySelector(".site-header");
+  var nav = document.querySelector(".breadcrumbs");
+  if (header && nav && header.nextSibling !== nav) {
+    header.insertAdjacentElement("afterend", nav);
+  }
+}
+
 function formatViewCount(count) {
   if (count === null || count === undefined) return "—";
   return count.toLocaleString() + (count === 1 ? " view" : " views");

@@ -63,6 +63,7 @@
 <script>
 renderHeader("teams.html");
 renderFooter();
+renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Teams", href: "teams.html" }, { label: "…" }]);
 
 var teamId = qs("id");
 
@@ -78,6 +79,7 @@ async function loadTeam() {
   if (!teamRes.data) { document.getElementById("team-name").textContent = "Team not found"; return; }
   var team = teamRes.data;
   document.getElementById("team-name").textContent = team.name;
+  document.getElementById("crumb-current").textContent = team.name;
   document.getElementById("team-identity").href = "team.html?id=" + team.id;
   document.getElementById("team-crest").innerHTML = crestOrInitials(team.crest_url, team.name);
 

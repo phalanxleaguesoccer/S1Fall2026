@@ -20,6 +20,7 @@
 <script>
 renderHeader("matches.html");
 renderFooter();
+renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Matches" }]);
 
 async function loadMatches() {
   var season = await getCurrentSeason();

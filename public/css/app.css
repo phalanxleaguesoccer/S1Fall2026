@@ -53,6 +53,18 @@ h1, h2, h3, .display {
 a { color: var(--amber); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+.breadcrumbs {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 10px 16px 0;
+  font-size: 0.82rem;
+  color: var(--chalk-dim);
+}
+.breadcrumbs a { color: var(--chalk-dim); }
+.breadcrumbs a:hover { color: var(--amber); }
+.breadcrumbs .current { color: var(--chalk-white); }
+.breadcrumbs .sep { margin: 0 6px; opacity: 0.5; }
+
 .container {
   max-width: var(--max-width);
   margin: 0 auto;

@@ -25,6 +25,7 @@
 <script>
 renderHeader("matches.html");
 renderFooter();
+renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Matches", href: "matches.html" }, { label: "…" }]);
 
 var matchId = qs("id");
 
@@ -35,6 +36,7 @@ async function loadMatch() {
   var m = mRes.data;
   var scoreStr = m.status === "completed" ? (m.home_score + " – " + m.away_score) : (m.status === "forfeited" ? "Forfeit" : "vs");
   document.getElementById("match-title").textContent = m.home.name + " " + scoreStr + " " + m.away.name;
+  document.getElementById("crumb-current").textContent = "Day " + m.match_day + " Match " + m.match_number;
   document.getElementById("match-meta").innerHTML =
     "Match Day " + m.match_day + " &middot; Match " + m.match_number +
     '<span class="pill ' + m.status + '" style="margin-left:8px;">' + m.status + "</span>" +

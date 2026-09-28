@@ -84,6 +84,7 @@
 <script>
 renderHeader("players.html");
 renderFooter();
+renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Players", href: "players.html" }, { label: "…" }]);
 
 var playerId = qs("id");
 
@@ -93,6 +94,7 @@ async function loadPlayer() {
   if (!pRes.data) { document.getElementById("player-name").textContent = "Player not found"; return; }
   var p = pRes.data;
   document.getElementById("player-name").textContent = p.full_name;
+  document.getElementById("crumb-current").textContent = p.full_name;
   document.getElementById("player-meta").textContent =
     [p.preferred_position, p.preferred_foot ? p.preferred_foot + "-footed" : null, p.age ? p.age + " yrs" : null]
       .filter(Boolean).join(" · ");
