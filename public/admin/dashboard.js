@@ -260,7 +260,7 @@ async function loadEventsForSelectedMatch() {
   if (!matchId) { list.innerHTML = '<p class="muted">Pick a match to see its events.</p>'; return; }
   var res = await window.sb.from("match_events").select("*, players(*)").eq("match_id", matchId).order("minute");
   if (!res.data || res.data.length === 0) { list.innerHTML = '<p class="muted">No events logged for this match yet.</p>'; return; }
-  var typeLabel = { goal: "Goal", assist: "Assist", yellow_card: "Yellow", red_card: "Red", substitution_in: "Sub on", substitution_out: "Sub off", player_of_match: "Player of the Match" };
+  var typeLabel = { goal: "Goal", assist: "Assist", yellow_card: "Yellow", red_card: "Red", substitution_in: "Sub on", substitution_out: "Sub off", player_of_match: "Player of the Match", save: "Goal Saved", player_of_tournament: "Player of the Tournament" };
   list.innerHTML = res.data.map(function (ev) {
     return '<div class="list-row"><span>' + (typeLabel[ev.event_type] || ev.event_type) + " — " + escapeHtml(ev.players.full_name) +
       (ev.minute ? " (" + ev.minute + "')" : "") + "</span>" +
