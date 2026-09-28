@@ -27,7 +27,14 @@ renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Teams" }]);
 async function loadTeams() {
   var res = await window.sb.from("teams").select("*").order("name");
   var grid = document.getElementById("teams-grid");
-  if (!res.data || res.data.length === 0) {
+
+  // Generic schedule placeholders ("Team A", "Team B", ...) aren't real team
+  // identities yet — they're only the schedule's slots until the draw
+  // assigns a real team to each one. Hide them from this listing; the
+  // schedule itself (Matches/Team pages tied to fixtures) is untouched.
+  var rows = (res.data || []).filter(function (t) { return !/^Team [A-Z]$/.test(t.name); });
+
+  if (rows.length === 0) {
     grid.innerHTML = '<p class="muted">No teams added yet.</p>';
     return;
   }
@@ -45,7 +52,7 @@ async function loadTeams() {
     });
   }
 
-  grid.innerHTML = res.data.map(function (t) {
+  grid.innerHTML = rows.map(function (t) {
     var owner = owners[t.id];
     return '<div class="player-card" style="cursor:default;">' +
       '<a href="team.html?id=' + t.id + '" style="text-decoration:none; color:inherit; display:block;">' +
