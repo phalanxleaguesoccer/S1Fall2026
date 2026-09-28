@@ -46,7 +46,7 @@ async function loadMatch() {
     list.innerHTML = '<p class="muted">No events logged for this match yet.</p>';
     return;
   }
-  var typeLabel = { goal: "⚽ Goal", assist: "🅰️ Assist", yellow_card: "🟨 Yellow", red_card: "🟥 Red", substitution_in: "⬆ Sub on", substitution_out: "⬇ Sub off" };
+  var typeLabel = { goal: "⚽ Goal", assist: "🅰️ Assist", yellow_card: "🟨 Yellow", red_card: "🟥 Red", substitution_in: "⬆ Sub on", substitution_out: "⬇ Sub off", player_of_match: "⭐ Player of the Match" };
   list.innerHTML = eventsRes.data.map(function (e) {
     return '<div style="padding:8px 0; border-bottom:1px solid var(--card-edge); display:flex; justify-content:space-between; gap:10px;">' +
       "<span>" + (typeLabel[e.event_type] || e.event_type) + " &middot; " +
