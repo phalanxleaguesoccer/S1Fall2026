@@ -125,7 +125,7 @@ async function loadStandings() {
     return a.ga - b.ga; // fewer conceded is better
   });
 
-  var mq = window.sb.from("matches").select("*").in("status", ["completed"]);
+  var mq = window.sb.from("matches").select("*").in("status", ["completed", "forfeited"]);
   if (!isAll) mq = mq.eq("season_id", filterVal);
   var mres = await mq;
   rows = resolveTies(rows, mres.data || []);
@@ -163,6 +163,12 @@ function resolveTies(rows, matches) {
       ids.forEach(function (id) { h[id] = { pts: 0, gd: 0, so: 0 }; });
       matches.forEach(function (m) {
         if (!h[m.home_team_id] || !h[m.away_team_id]) return;
+        if (m.status === "forfeited") {
+          // Forfeit: the other team gets the win (2 pts); no goals recorded.
+          if (m.forfeited_by_team_id === m.home_team_id) h[m.away_team_id].pts += 2;
+          else if (m.forfeited_by_team_id === m.away_team_id) h[m.home_team_id].pts += 2;
+          return;
+        }
         if (m.home_score == null || m.away_score == null) return;
         var hs = m.home_score, as = m.away_score;
         h[m.home_team_id].gd += hs - as;

@@ -302,6 +302,10 @@ async function refreshMatches() {
       if (status === "completed") {
         payload.home_score = f.home_score.value === "" ? null : parseInt(f.home_score.value, 10);
         payload.away_score = f.away_score.value === "" ? null : parseInt(f.away_score.value, 10);
+        if (payload.home_score === null || payload.away_score === null || isNaN(payload.home_score) || isNaN(payload.away_score)) {
+          alert("Enter both scores before marking a match completed (otherwise both teams would be given a draw).");
+          return;
+        }
         if (f.shootout) {
           var drawn = payload.home_score !== null && payload.home_score === payload.away_score;
           payload.shootout_winner_team_id = drawn && f.shootout.value ? f.shootout.value : null;
@@ -310,6 +314,7 @@ async function refreshMatches() {
         payload.home_score = null;
         payload.away_score = null;
       }
+      if (status !== "completed" && f.shootout) payload.shootout_winner_team_id = null;
       var res = await window.sb.from("matches").update(payload).eq("id", matchId);
       if (res.error) { alert(res.error.message); return; }
       await refreshMatches();
