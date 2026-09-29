@@ -6,6 +6,7 @@ function renderHeader(activePage) {
     ["teams.html", "Teams"],
     ["players.html", "Players"],
     ["matches.html", "Matches"],
+    ["auction.html", "Auction"],
     ["admin/login.html", "Admin"]
   ];
   var nav = links.map(function (l) {

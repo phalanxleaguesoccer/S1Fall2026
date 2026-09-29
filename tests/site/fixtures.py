@@ -43,6 +43,12 @@ def scenario_post_tie():
     return finish(b)
 def finish(b):
     db={'seasons':b['seasons'],'teams':b['teams'],'players':b['players'],'team_season_rosters':b['rosters'],'matches':b['matches'],
-        'match_events':[],'match_appearances':[],'page_views':[],'season_awards':[],'suspensions':[],'player_notes_log':[],'player_rating_log':[],'admins':[{'user_id':'admin-1'}],'tiebreak_shootout_order':[]}
+        'match_events':[],'match_appearances':[],'page_views':[],'season_awards':[],'suspensions':[],'player_notes_log':[],'player_rating_log':[],'admins':[{'user_id':'admin-1'}],'auction_unsold':[],'auction_state':[],'tiebreak_shootout_order':[]}
     db['_ids']={'T':b['T'],'P':b['P']}
     return db
+def scenario_auction():
+    d=scenario_pre()
+    owners=[r for r in d['team_season_rosters'] if r['is_owner']]
+    for r in owners: r['auction_price']=None; r['sold_at']='2026-10-01T00:00:00Z'
+    d['team_season_rosters']=owners
+    return d

@@ -138,7 +138,9 @@ async function loadPlayer() {
     if (season) {
       var rosterRes = await window.sb.from("team_season_rosters").select("*, teams(*)").eq("player_id", playerId).eq("season_id", season.id).maybeSingle();
       if (rosterRes.data && rosterRes.data.teams) {
-        document.getElementById("player-team").innerHTML = 'Plays for <a href="team.html?id=' + rosterRes.data.teams.id + '">' + escapeHtml(rosterRes.data.teams.name) + "</a>";
+        var auc = rosterRes.data.is_owner ? " &middot; Team owner"
+          : (rosterRes.data.auction_price != null ? " &middot; Auction: sold for " + rosterRes.data.auction_price + " pts" : "");
+        document.getElementById("player-team").innerHTML = 'Plays for <a href="team.html?id=' + rosterRes.data.teams.id + '">' + escapeHtml(rosterRes.data.teams.name) + "</a>" + auc;
       }
       var statsRes = await window.sb.from("player_season_stats").select("*").eq("player_id", playerId).eq("season_id", season.id).maybeSingle();
       if (statsRes.data) statsFallback = statsRes.data;

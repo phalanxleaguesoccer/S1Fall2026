@@ -39,16 +39,19 @@ async function loadTeams() {
     return;
   }
 
-  var owners = {};
+  var owners = {}, squadCount = {}, spent = {};
   var season = await getCurrentSeason();
+  var budget = 200;
   if (season) {
-    var ownerRes = await window.sb
+    if (season.auction_budget != null) budget = season.auction_budget;
+    var rosterRes = await window.sb
       .from("team_season_rosters")
-      .select("team_id, players(id, full_name)")
-      .eq("season_id", season.id)
-      .eq("is_owner", true);
-    (ownerRes.data || []).forEach(function (r) {
-      if (r.players) owners[r.team_id] = r.players;
+      .select("team_id, is_owner, auction_price, players(id, full_name)")
+      .eq("season_id", season.id);
+    (rosterRes.data || []).forEach(function (r) {
+      squadCount[r.team_id] = (squadCount[r.team_id] || 0) + 1;
+      if (r.is_owner) { if (r.players) owners[r.team_id] = r.players; }
+      else spent[r.team_id] = (spent[r.team_id] || 0) + (r.auction_price || 0);
     });
   }
 
@@ -66,6 +69,8 @@ async function loadTeams() {
       (owner
         ? '<div class="info" style="padding-top:0;"><a class="meta" href="player.html?id=' + owner.id + '" style="text-decoration:none;">Owner: <strong style="color:inherit;">' + escapeHtml(owner.full_name) + "</strong></a></div>"
         : "") +
+      '<div class="info" style="padding-top:0;"><div class="meta">' + (squadCount[t.id] || 0) + " player" + ((squadCount[t.id] || 0) === 1 ? "" : "s") +
+        " &middot; " + (budget - (spent[t.id] || 0)) + " pts left</div></div>" +
       "</div>";
   }).join("");
 }

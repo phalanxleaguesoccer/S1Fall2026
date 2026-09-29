@@ -74,20 +74,20 @@
       if(DB.__readonly_views && (name==='league_standings'||name==='player_season_stats')) return {data:null,error:{message:'view not writable'}};
       if(DB.__missing && DB.__missing.indexOf(name)>=0) return {data:null,error:{message:'relation "'+name+'" does not exist'}};
       var tt=DB[name]||(DB[name]=[]);
-      if(q.mode==='insert'){var arr=[].concat(q.payload).map(function(x){return Object.assign({id:uid()},x);});
+      if(q.mode==='insert'){ if(name==='team_season_rosters'&&[].concat(q.payload).some(function(x){return tt.some(function(r){return r.season_id===x.season_id&&r.player_id===x.player_id;});}))return {data:null,error:{message:'duplicate key value violates unique constraint'}}; var arr=[].concat(q.payload).map(function(x){return Object.assign({id:uid()},x);});
         // unique checks
         if(name==='tiebreak_shootout_order'){for(var i=0;i<arr.length;i++){if(tt.concat(arr.slice(0,i)).some(function(r){return r.season_id===arr[i].season_id&&r.position===arr[i].position;}))return {data:null,error:{message:'duplicate key value violates unique constraint'}};}}
         arr.forEach(function(x){tt.push(x);});return {data:arr,error:null};}
       if(q.mode==='update'){tt.filter(match).forEach(function(r){Object.assign(r,q.payload);});return {data:null,error:null};}
       if(q.mode==='delete'){var keep=tt.filter(function(r){return !match(r);});tt.length=0;keep.forEach(function(r){tt.push(r);});return {data:null,error:null};}
-      if(q.mode==='upsert'){[].concat(q.payload).forEach(function(x){tt.push(Object.assign({id:uid()},x));});return {data:null,error:null};}
+      if(q.mode==='upsert'){[].concat(q.payload).forEach(function(x){var keys=q.onConflict?q.onConflict.split(','):null;var ex=keys&&tt.find(function(r){return keys.every(function(k){return r[k]===x[k];});});if(ex)Object.assign(ex,x);else tt.push(Object.assign({id:uid()},x));});return {data:null,error:null};}
     }
     var api={
       select:function(s,o){ if(q.mode==='select'){q.sel=s||'*';q.opts=o||{};} return api;},
       insert:function(p){q.mode='insert';q.payload=p;return api;},
       update:function(p){q.mode='update';q.payload=p;return api;},
       delete:function(){q.mode='delete';return api;},
-      upsert:function(p){q.mode='upsert';q.payload=p;return api;},
+      upsert:function(p,o){q.mode='upsert';q.payload=p;q.onConflict=(o&&o.onConflict)||null;return api;},
       eq:function(c,v){q.filters.push(['eq',c,v]);return api;},
       neq:function(c,v){q.filters.push(['neq',c,v]);return api;},
       or:function(x){q.filters.push(['or',null,x]);return api;},
