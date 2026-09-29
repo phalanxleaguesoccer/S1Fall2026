@@ -141,17 +141,12 @@
     </div>
     <div class="card">
       <div class="card-title">Tie-break Penalty Shoot-out (last resort only)</div>
-      <p class="muted" style="font-size:0.82rem;">Penalties are never played in matches. Allowed only after every match of the season is completed, and only when two teams are level on points, goal difference, goals scored, goals conceded and head-to-head — nothing else can separate them.</p>
+      <p class="muted" style="font-size:0.82rem;">Penalties are never played in matches. Use this only after every match of the season is completed, for teams that are level on points, goal difference, goals scored, goals conceded and head-to-head. Enter the shoot-out finishing order for those teams (1 = best); leave the others blank. Each number can be used once.</p>
       <form id="shootout-form">
-        <div class="row">
-          <div><label>Team 1</label><select id="so-a" required></select></div>
-          <div><label>Team 2</label><select id="so-b" required></select></div>
-          <div><label>Winner</label><select id="so-winner" required></select></div>
-        </div>
-        <button class="btn mt-16" type="submit">Save Shoot-out Result</button>
+        <div id="shootout-teams"></div>
+        <button class="btn mt-16" type="submit">Save Shoot-out Order</button>
         <p id="shootout-msg"></p>
       </form>
-      <div id="shootout-list" class="mt-16"></div>
     </div>
     <div class="card"><div class="card-title">Matches — Update Result / Status</div><div id="matches-list"><p class="muted">Loading…</p></div></div>
   </div>

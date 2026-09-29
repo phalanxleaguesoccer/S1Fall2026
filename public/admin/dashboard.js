@@ -500,57 +500,46 @@ async function onLogAward(e) {
   document.getElementById("award-form").reset();
 }
 
-// ---------- TIE-BREAK SHOOT-OUTS (last-resort standings tie-break) ----------
-function initShootoutForm() {
+// ---------- TIE-BREAK SHOOT-OUT ORDER (last-resort standings tie-break) ----------
+async function initShootoutForm() {
   var real = TEAMS_CACHE.filter(function (t) { return !/^Team [A-Z]$/.test(t.name) && t.is_active !== false; });
-  var opts = real.map(function (t) { return '<option value="' + t.id + '">' + escapeHtml(t.name) + "</option>"; }).join("");
-  var a = document.getElementById("so-a"), b = document.getElementById("so-b"), w = document.getElementById("so-winner");
-  a.innerHTML = opts; b.innerHTML = opts;
-  if (real.length > 1) b.selectedIndex = 1;
-  function syncWinner() {
-    var an = a.options[a.selectedIndex], bn = b.options[b.selectedIndex];
-    w.innerHTML = (an ? '<option value="' + an.value + '">' + an.text + "</option>" : "") +
-                  (bn ? '<option value="' + bn.value + '">' + bn.text + "</option>" : "");
-  }
-  a.addEventListener("change", syncWinner); b.addEventListener("change", syncWinner);
-  syncWinner();
-  document.getElementById("shootout-form").addEventListener("submit", async function (ev) {
+  var box = document.getElementById("shootout-teams");
+  var res = await window.sb.from("tiebreak_shootout_order").select("*").eq("season_id", CURRENT_SEASON.id);
+  var existing = {};
+  (res.data || []).forEach(function (r) { existing[r.team_id] = r.position; });
+  if (res.error) { box.innerHTML = '<p class="muted">Run sql/migration_tiebreak_shootouts.sql to enable this.</p>'; return; }
+  box.innerHTML = real.map(function (t) {
+    return '<div style="display:flex; align-items:center; gap:10px; margin:6px 0;">' +
+      '<input type="number" min="1" max="' + real.length + '" data-team-id="' + t.id + '" value="' + (existing[t.id] || "") + '" style="width:80px;">' +
+      "<span>" + escapeHtml(t.name) + "</span></div>";
+  }).join("");
+  var form = document.getElementById("shootout-form");
+  if (form.dataset.bound) return;
+  form.dataset.bound = "1";
+  form.addEventListener("submit", async function (ev) {
     ev.preventDefault();
     var msg = document.getElementById("shootout-msg");
-    var x = a.value, y = b.value;
-    if (x === y) { msg.textContent = "Pick two different teams."; return; }
     var open = await window.sb.from("matches").select("id", { count: "exact", head: true })
       .eq("season_id", CURRENT_SEASON.id).in("status", ["scheduled", "postponed"]);
     if (open.count > 0) {
       msg.textContent = "Not allowed yet: " + open.count + " match(es) are still scheduled/postponed. A tie-break shoot-out is only allowed once the tournament is complete.";
       return;
     }
-    var pair = x < y ? [x, y] : [y, x];
-    var res = await window.sb.from("tiebreak_shootouts").upsert(
-      { season_id: CURRENT_SEASON.id, team_a_id: pair[0], team_b_id: pair[1], winner_team_id: w.value },
-      { onConflict: "season_id,team_a_id,team_b_id" });
-    msg.textContent = res.error ? "Error: " + res.error.message : "Saved.";
-    refreshShootouts();
-  });
-  refreshShootouts();
-}
-
-async function refreshShootouts() {
-  var list = document.getElementById("shootout-list");
-  var res = await window.sb.from("tiebreak_shootouts").select("*").eq("season_id", CURRENT_SEASON.id);
-  if (res.error) { list.innerHTML = '<p class="muted">Run sql/migration_tiebreak_shootouts.sql to enable this.</p>'; return; }
-  var byId = {}; TEAMS_CACHE.forEach(function (t) { byId[t.id] = t.name; });
-  list.innerHTML = (res.data || []).length === 0 ? '<p class="muted">No tie-break shoot-outs recorded.</p>' :
-    res.data.map(function (r) {
-      return '<div style="padding:6px 0; border-bottom:1px solid var(--card-edge);">' +
-        escapeHtml(byId[r.team_a_id] || "?") + " vs " + escapeHtml(byId[r.team_b_id] || "?") +
-        " — winner: <strong>" + escapeHtml(byId[r.winner_team_id] || "?") + "</strong> " +
-        '<button class="btn secondary" type="button" data-so-id="' + r.id + '" style="padding:2px 8px;">Delete</button></div>';
-    }).join("");
-  list.querySelectorAll("[data-so-id]").forEach(function (btn) {
-    btn.addEventListener("click", async function () {
-      await window.sb.from("tiebreak_shootouts").delete().eq("id", btn.dataset.soId);
-      refreshShootouts();
+    var entries = [];
+    document.querySelectorAll("#shootout-teams input").forEach(function (inp) {
+      if (inp.value !== "") entries.push({ season_id: CURRENT_SEASON.id, team_id: inp.dataset.teamId, position: parseInt(inp.value, 10) });
     });
+    var seen = {};
+    for (var i = 0; i < entries.length; i++) {
+      if (!(entries[i].position >= 1) || seen[entries[i].position]) { msg.textContent = "Each shoot-out position must be a unique number (1, 2, 3 …)."; return; }
+      seen[entries[i].position] = true;
+    }
+    var del = await window.sb.from("tiebreak_shootout_order").delete().eq("season_id", CURRENT_SEASON.id);
+    if (del.error) { msg.textContent = "Error: " + del.error.message; return; }
+    if (entries.length) {
+      var ins = await window.sb.from("tiebreak_shootout_order").insert(entries);
+      if (ins.error) { msg.textContent = "Error: " + ins.error.message; return; }
+    }
+    msg.textContent = "Saved.";
   });
 }

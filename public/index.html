@@ -21,6 +21,7 @@
         <select id="standings-season-filter" style="max-width:220px;"></select>
       </div>
     </div>
+    <p id="tie-note" style="display:none; background:rgba(255,193,7,0.15); border:1px solid rgba(255,193,7,0.5); padding:8px 12px; border-radius:6px; font-size:0.85rem;"></p>
     <div class="table-scroll">
       <table class="data-table" id="standings-table">
         <thead>
@@ -43,7 +44,7 @@
       </table>
     </div>
     <p class="muted" style="font-size:0.8rem; margin-top:10px;">
-      Win = 2 pts, Draw = 1 pt, Loss = 0 pts. Ranking updates automatically after every result. Tie-break order: goal difference &rarr; goals scored &rarr; goals conceded &rarr; head-to-head &rarr; penalty shoot-out.
+      Win = 2 pts, Draw = 1 pt, Loss = 0 pts. Ranking updates automatically after every result. Tie-break order: goal difference &rarr; goals scored &rarr; goals conceded &rarr; head-to-head &rarr; penalty shoot-out (last resort, only once the tournament is complete, so every team ends with a unique rank).
     </p>
   </div>
 
@@ -135,13 +136,26 @@ async function loadStandings() {
     if (m.status === "scheduled" || m.status === "postponed") openSeasons[m.season_id] = true;
   });
   var played = allMatches.filter(function (m) { return m.status === "completed" || m.status === "forfeited"; });
-  var sq = window.sb.from("tiebreak_shootouts").select("*");
-  if (!isAll) sq = sq.eq("season_id", filterVal);
-  var sres = await sq; // table may not exist yet -> treated as none
-  // Penalty shoot-outs count ONLY once the tournament is complete, and only as
-  // the very last resort for teams that nothing else can separate.
-  var shootouts = (sres.error ? [] : (sres.data || [])).filter(function (s) { return !openSeasons[s.season_id]; });
-  rows = resolveTies(rows, played, shootouts);
+  // Penalty shoot-out is the LAST resort and only counts once the tournament
+  // (every match of the season) is complete, for one specific season.
+  var shootoutPos = null;
+  var seasonComplete = !isAll && allMatches.length > 0 && !openSeasons[filterVal];
+  if (seasonComplete) {
+    var sres = await window.sb.from("tiebreak_shootout_order").select("*").eq("season_id", filterVal);
+    shootoutPos = {};
+    (sres.error ? [] : (sres.data || [])).forEach(function (r) { shootoutPos[r.team_id] = r.position; });
+  }
+  rows = resolveTies(rows, played, shootoutPos);
+
+  var noteEl = document.getElementById("tie-note");
+  var unresolved = rows.filter(function (r) { return r.unresolved; });
+  if (seasonComplete && unresolved.length) {
+    noteEl.style.display = "";
+    noteEl.textContent = "Penalty shoot-out needed: " + unresolved.map(function (r) { return r.team.name; }).join(", ") +
+      " are level on every criterion. Their final order is set by a penalty shoot-out.";
+  } else {
+    noteEl.style.display = "none";
+  }
 
   var tbody = document.getElementById("standings-body");
   if (rows.length === 0) {
@@ -150,7 +164,7 @@ async function loadStandings() {
   }
   tbody.innerHTML = rows.map(function (r, i) {
     return "<tr>" +
-      "<td>" + (i + 1) + "</td>" +
+      "<td>" + (i + 1) + (r.unresolved && seasonComplete ? "=" : "") + "</td>" +
       '<td class="team-name"><a href="team.html?id=' + r.team.id + '">' + escapeHtml(r.team.name) + "</a></td>" +
       "<td>" + r.played + "</td><td>" + r.wins + "</td><td>" + r.draws + "</td><td>" + r.losses + "</td>" +
       "<td>" + r.gf + "</td><td>" + r.ga + "</td><td>" + r.gd + "</td>" +
@@ -160,9 +174,12 @@ async function loadStandings() {
 }
 
 // Rows tied on pts, gd, gf and ga are ordered by head-to-head (points, then
-// goal difference, in the matches played between just those teams), then by
-// penalty shoot-out wins between them.
-function resolveTies(rows, matches, shootouts) {
+// goal difference, in the matches played between just those teams). If they
+// are STILL level, the admin-recorded penalty shoot-out order decides (only
+// available once the tournament is complete). Anything nothing can separate
+// is flagged r.unresolved so the page can ask for a shoot-out.
+// shootoutPos: { teamId: position } (1 = best), or null when not allowed yet.
+function resolveTies(rows, matches, shootoutPos) {
   function key(r) { return [r.pts, r.gd, r.gf, r.ga].join("|"); }
   var out = [];
   var i = 0;
@@ -173,7 +190,7 @@ function resolveTies(rows, matches, shootouts) {
     if (group.length > 1) {
       var ids = group.map(function (r) { return r.team.id; });
       var h = {};
-      ids.forEach(function (id) { h[id] = { pts: 0, gd: 0, so: 0 }; });
+      ids.forEach(function (id) { h[id] = { pts: 0, gd: 0 }; });
       matches.forEach(function (m) {
         if (!h[m.home_team_id] || !h[m.away_team_id]) return;
         if (m.status === "forfeited") {
@@ -190,17 +207,24 @@ function resolveTies(rows, matches, shootouts) {
         else if (as > hs) h[m.away_team_id].pts += 2;
         else { h[m.home_team_id].pts += 1; h[m.away_team_id].pts += 1; }
       });
-      // Penalty shoot-outs are never played in matches — only recorded as a
-      // last-resort tie-break between teams level on everything else.
-      (shootouts || []).forEach(function (s) {
-        if (h[s.team_a_id] && h[s.team_b_id] && h[s.winner_team_id]) h[s.winner_team_id].so += 1;
-      });
-      group.sort(function (a, b) {
+      function pos(r) {
+        var v = shootoutPos && shootoutPos[r.team.id];
+        return v == null ? Infinity : v;
+      }
+      function cmp(a, b) {
         var x = h[a.team.id], y = h[b.team.id];
         if (y.pts !== x.pts) return y.pts - x.pts;
         if (y.gd !== x.gd) return y.gd - x.gd;
-        return y.so - x.so;
-      });
+        var pa = pos(a), pb = pos(b);
+        if (pa === pb) return 0;
+        return pa < pb ? -1 : 1;
+      }
+      group.sort(cmp);
+      for (var k = 0; k < group.length; k++) {
+        var same = (k > 0 && cmp(group[k - 1], group[k]) === 0) ||
+                   (k < group.length - 1 && cmp(group[k], group[k + 1]) === 0);
+        if (same) group[k].unresolved = true;
+      }
     }
     out = out.concat(group);
     i = j;
