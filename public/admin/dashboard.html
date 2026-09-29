@@ -139,6 +139,20 @@
         <p id="match-msg"></p>
       </form>
     </div>
+    <div class="card">
+      <div class="card-title">Tie-break Penalty Shoot-out (last resort only)</div>
+      <p class="muted" style="font-size:0.82rem;">Penalties are never played in matches. Record one here only when two teams are level on points, goal difference, goals scored, goals conceded and head-to-head.</p>
+      <form id="shootout-form">
+        <div class="row">
+          <div><label>Team 1</label><select id="so-a" required></select></div>
+          <div><label>Team 2</label><select id="so-b" required></select></div>
+          <div><label>Winner</label><select id="so-winner" required></select></div>
+        </div>
+        <button class="btn mt-16" type="submit">Save Shoot-out Result</button>
+        <p id="shootout-msg"></p>
+      </form>
+      <div id="shootout-list" class="mt-16"></div>
+    </div>
     <div class="card"><div class="card-title">Matches — Update Result / Status</div><div id="matches-list"><p class="muted">Loading…</p></div></div>
   </div>
 

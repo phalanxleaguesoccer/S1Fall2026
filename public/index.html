@@ -128,7 +128,10 @@ async function loadStandings() {
   var mq = window.sb.from("matches").select("*").in("status", ["completed", "forfeited"]);
   if (!isAll) mq = mq.eq("season_id", filterVal);
   var mres = await mq;
-  rows = resolveTies(rows, mres.data || []);
+  var sq = window.sb.from("tiebreak_shootouts").select("*");
+  if (!isAll) sq = sq.eq("season_id", filterVal);
+  var sres = await sq; // table may not exist yet -> treated as none
+  rows = resolveTies(rows, mres.data || [], sres.error ? [] : (sres.data || []));
 
   var tbody = document.getElementById("standings-body");
   if (rows.length === 0) {
@@ -149,7 +152,7 @@ async function loadStandings() {
 // Rows tied on pts, gd, gf and ga are ordered by head-to-head (points, then
 // goal difference, in the matches played between just those teams), then by
 // penalty shoot-out wins between them.
-function resolveTies(rows, matches) {
+function resolveTies(rows, matches, shootouts) {
   function key(r) { return [r.pts, r.gd, r.gf, r.ga].join("|"); }
   var out = [];
   var i = 0;
@@ -176,7 +179,11 @@ function resolveTies(rows, matches) {
         if (hs > as) h[m.home_team_id].pts += 2;
         else if (as > hs) h[m.away_team_id].pts += 2;
         else { h[m.home_team_id].pts += 1; h[m.away_team_id].pts += 1; }
-        if (m.shootout_winner_team_id && h[m.shootout_winner_team_id]) h[m.shootout_winner_team_id].so += 1;
+      });
+      // Penalty shoot-outs are never played in matches — only recorded as a
+      // last-resort tie-break between teams level on everything else.
+      (shootouts || []).forEach(function (s) {
+        if (h[s.team_a_id] && h[s.team_b_id] && h[s.winner_team_id]) h[s.winner_team_id].so += 1;
       });
       group.sort(function (a, b) {
         var x = h[a.team.id], y = h[b.team.id];

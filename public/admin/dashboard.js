@@ -52,6 +52,7 @@ async function init() {
   document.getElementById("player-form").addEventListener("submit", onAddPlayer);
   document.getElementById("roster-form").addEventListener("submit", onAssignRoster);
   document.getElementById("match-form").addEventListener("submit", onAddMatch);
+  initShootoutForm();
   document.getElementById("event-form").addEventListener("submit", onLogEvent);
   document.getElementById("e-match").addEventListener("change", loadEventsForSelectedMatch);
 
@@ -282,13 +283,6 @@ async function refreshMatches() {
       '<div><label>' + escapeHtml(home) + ' score</label><input type="number" name="home_score" value="' + (m.home_score ?? "") + '" min="0"></div>' +
       '<div><label>' + escapeHtml(away) + ' score</label><input type="number" name="away_score" value="' + (m.away_score ?? "") + '" min="0"></div>' +
       "</div>" +
-      ("shootout_winner_team_id" in m
-        ? '<div class="row"><div><label>Penalty shoot-out winner (only if a drawn match went to penalties)</label><select name="shootout">' +
-          '<option value="">— none —</option>' +
-          '<option value="' + m.home_team_id + '"' + (m.shootout_winner_team_id === m.home_team_id ? " selected" : "") + ">" + escapeHtml(home) + "</option>" +
-          '<option value="' + m.away_team_id + '"' + (m.shootout_winner_team_id === m.away_team_id ? " selected" : "") + ">" + escapeHtml(away) + "</option>" +
-          "</select></div></div>"
-        : "") +
       '<button class="btn secondary mt-16" type="submit">Save Result</button>' +
       "</form></div>";
   }).join("");
@@ -306,15 +300,10 @@ async function refreshMatches() {
           alert("Enter both scores before marking a match completed (otherwise both teams would be given a draw).");
           return;
         }
-        if (f.shootout) {
-          var drawn = payload.home_score !== null && payload.home_score === payload.away_score;
-          payload.shootout_winner_team_id = drawn && f.shootout.value ? f.shootout.value : null;
-        }
       } else if (status === "forfeited") {
         payload.home_score = null;
         payload.away_score = null;
       }
-      if (status !== "completed" && f.shootout) payload.shootout_winner_team_id = null;
       var res = await window.sb.from("matches").update(payload).eq("id", matchId);
       if (res.error) { alert(res.error.message); return; }
       await refreshMatches();
@@ -509,4 +498,53 @@ async function onLogAward(e) {
   if (res.error) { showError(msg, res.error.message); return; }
   showSuccess(msg, "Award logged.");
   document.getElementById("award-form").reset();
+}
+
+// ---------- TIE-BREAK SHOOT-OUTS (last-resort standings tie-break) ----------
+function initShootoutForm() {
+  var real = TEAMS_CACHE.filter(function (t) { return !/^Team [A-Z]$/.test(t.name) && t.is_active !== false; });
+  var opts = real.map(function (t) { return '<option value="' + t.id + '">' + escapeHtml(t.name) + "</option>"; }).join("");
+  var a = document.getElementById("so-a"), b = document.getElementById("so-b"), w = document.getElementById("so-winner");
+  a.innerHTML = opts; b.innerHTML = opts;
+  if (real.length > 1) b.selectedIndex = 1;
+  function syncWinner() {
+    var an = a.options[a.selectedIndex], bn = b.options[b.selectedIndex];
+    w.innerHTML = (an ? '<option value="' + an.value + '">' + an.text + "</option>" : "") +
+                  (bn ? '<option value="' + bn.value + '">' + bn.text + "</option>" : "");
+  }
+  a.addEventListener("change", syncWinner); b.addEventListener("change", syncWinner);
+  syncWinner();
+  document.getElementById("shootout-form").addEventListener("submit", async function (ev) {
+    ev.preventDefault();
+    var msg = document.getElementById("shootout-msg");
+    var x = a.value, y = b.value;
+    if (x === y) { msg.textContent = "Pick two different teams."; return; }
+    var pair = x < y ? [x, y] : [y, x];
+    var res = await window.sb.from("tiebreak_shootouts").upsert(
+      { season_id: CURRENT_SEASON.id, team_a_id: pair[0], team_b_id: pair[1], winner_team_id: w.value },
+      { onConflict: "season_id,team_a_id,team_b_id" });
+    msg.textContent = res.error ? "Error: " + res.error.message : "Saved.";
+    refreshShootouts();
+  });
+  refreshShootouts();
+}
+
+async function refreshShootouts() {
+  var list = document.getElementById("shootout-list");
+  var res = await window.sb.from("tiebreak_shootouts").select("*").eq("season_id", CURRENT_SEASON.id);
+  if (res.error) { list.innerHTML = '<p class="muted">Run sql/migration_tiebreak_shootouts.sql to enable this.</p>'; return; }
+  var byId = {}; TEAMS_CACHE.forEach(function (t) { byId[t.id] = t.name; });
+  list.innerHTML = (res.data || []).length === 0 ? '<p class="muted">No tie-break shoot-outs recorded.</p>' :
+    res.data.map(function (r) {
+      return '<div style="padding:6px 0; border-bottom:1px solid var(--card-edge);">' +
+        escapeHtml(byId[r.team_a_id] || "?") + " vs " + escapeHtml(byId[r.team_b_id] || "?") +
+        " — winner: <strong>" + escapeHtml(byId[r.winner_team_id] || "?") + "</strong> " +
+        '<button class="btn secondary" type="button" data-so-id="' + r.id + '" style="padding:2px 8px;">Delete</button></div>';
+    }).join("");
+  list.querySelectorAll("[data-so-id]").forEach(function (btn) {
+    btn.addEventListener("click", async function () {
+      await window.sb.from("tiebreak_shootouts").delete().eq("id", btn.dataset.soId);
+      refreshShootouts();
+    });
+  });
 }

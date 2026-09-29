@@ -5,9 +5,7 @@ alter table seasons alter column points_draw set default 1;
 alter table seasons alter column points_loss set default 0;
 update seasons set points_win = 2, points_draw = 1, points_loss = 0;
 
--- Last tie-break: penalty shoot-out winner (only filled for drawn matches
--- that were settled by a shoot-out).
-alter table matches add column if not exists shootout_winner_team_id uuid references teams(id);
+-- (Penalty shoot-out tie-break lives in migration_tiebreak_shootouts.sql)
 
 -- Safety: a match marked "completed" with blank scores must not hand both
 -- teams a draw. Only count completed matches that actually have scores.
