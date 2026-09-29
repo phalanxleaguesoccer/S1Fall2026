@@ -519,6 +519,12 @@ function initShootoutForm() {
     var msg = document.getElementById("shootout-msg");
     var x = a.value, y = b.value;
     if (x === y) { msg.textContent = "Pick two different teams."; return; }
+    var open = await window.sb.from("matches").select("id", { count: "exact", head: true })
+      .eq("season_id", CURRENT_SEASON.id).in("status", ["scheduled", "postponed"]);
+    if (open.count > 0) {
+      msg.textContent = "Not allowed yet: " + open.count + " match(es) are still scheduled/postponed. A tie-break shoot-out is only allowed once the tournament is complete.";
+      return;
+    }
     var pair = x < y ? [x, y] : [y, x];
     var res = await window.sb.from("tiebreak_shootouts").upsert(
       { season_id: CURRENT_SEASON.id, team_a_id: pair[0], team_b_id: pair[1], winner_team_id: w.value },

@@ -125,13 +125,23 @@ async function loadStandings() {
     return a.ga - b.ga; // fewer conceded is better
   });
 
-  var mq = window.sb.from("matches").select("*").in("status", ["completed", "forfeited"]);
+  var mq = window.sb.from("matches").select("*");
   if (!isAll) mq = mq.eq("season_id", filterVal);
   var mres = await mq;
+  var allMatches = mres.data || [];
+  // A season is "complete" only when no match is still scheduled/postponed.
+  var openSeasons = {};
+  allMatches.forEach(function (m) {
+    if (m.status === "scheduled" || m.status === "postponed") openSeasons[m.season_id] = true;
+  });
+  var played = allMatches.filter(function (m) { return m.status === "completed" || m.status === "forfeited"; });
   var sq = window.sb.from("tiebreak_shootouts").select("*");
   if (!isAll) sq = sq.eq("season_id", filterVal);
   var sres = await sq; // table may not exist yet -> treated as none
-  rows = resolveTies(rows, mres.data || [], sres.error ? [] : (sres.data || []));
+  // Penalty shoot-outs count ONLY once the tournament is complete, and only as
+  // the very last resort for teams that nothing else can separate.
+  var shootouts = (sres.error ? [] : (sres.data || [])).filter(function (s) { return !openSeasons[s.season_id]; });
+  rows = resolveTies(rows, played, shootouts);
 
   var tbody = document.getElementById("standings-body");
   if (rows.length === 0) {
