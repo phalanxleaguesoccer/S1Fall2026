@@ -65,6 +65,7 @@ dashboard to add:
   you agreed this can come later. For now, players are added one at a time
   in the admin dashboard.
 - No activity/audit log yet (also deferred per your answer).
-- Head-to-head tie-break (4th tie-breaker) isn't automatically resolved by
-  the standings table when 3+ metrics are tied — that edge case needs a
-  manual look since it depends on which specific teams are tied.
+- Tie-break order is: goal difference -> goals scored -> goals conceded ->
+  head-to-head -> penalty shoot-out. The last two aren't automatically
+  resolved by the standings table when the first three are tied — that edge
+  case needs a manual look since it depends on which specific teams are tied.

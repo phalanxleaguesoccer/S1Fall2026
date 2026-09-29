@@ -110,8 +110,8 @@ left join match_events me on me.player_id = p.id and me.match_id = m.id
 group by p.id, p.full_name, tsr.season_id, tsr.team_id;
 
 -- League standings per season, with the doc's tie-breaker order:
--- points -> goals scored -> goal difference -> goals conceded
--- (head-to-head tie-breaker is 4th and applied manually/at the UI level for ties this view can't resolve)
+-- points -> goal difference -> goals scored -> goals conceded -> head-to-head -> penalty shoot-out
+-- (head-to-head and penalty shoot-out are applied manually/at the UI level for ties this view can't resolve)
 create or replace view league_standings as
 with raw_team_matches as (
   select

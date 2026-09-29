@@ -43,7 +43,7 @@
       </table>
     </div>
     <p class="muted" style="font-size:0.8rem; margin-top:10px;">
-      Tie-break order: goals scored &rarr; goal difference &rarr; goals conceded &rarr; head-to-head result.
+      Tie-break order: goal difference &rarr; goals scored &rarr; goals conceded &rarr; head-to-head &rarr; penalty shoot-out.
     </p>
   </div>
 
@@ -118,10 +118,10 @@ async function loadStandings() {
   // Sort: points desc, then tie-break order from the rulebook.
   rows.sort(function (a, b) {
     if (b.pts !== a.pts) return b.pts - a.pts;
-    if (b.gf !== a.gf) return b.gf - a.gf;
     if (b.gd !== a.gd) return b.gd - a.gd;
+    if (b.gf !== a.gf) return b.gf - a.gf;
     if (a.ga !== b.ga) return a.ga - b.ga; // fewer conceded is better
-    return 0; // 4th tie-break (head-to-head) needs manual review for exact ties
+    return 0; // 4th (head-to-head) and 5th (penalty shoot-out) are resolved manually for exact ties
   });
 
   var tbody = document.getElementById("standings-body");
