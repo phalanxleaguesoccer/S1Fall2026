@@ -40,7 +40,7 @@ async function loadMatch() {
   document.getElementById("match-meta").innerHTML =
     "Match Day " + m.match_day + " &middot; Match " + m.match_number +
     '<span class="pill ' + m.status + '" style="margin-left:8px;">' + m.status + "</span>" +
-    (m.kickoff_at ? " &middot; " + new Date(m.kickoff_at).toLocaleString() : "");
+    (m.kickoff_at ? " &middot; " + formatKickoff(m.kickoff_at) : "");
 
   var eventsRes = await window.sb.from("match_events").select("*, players(*), teams(*)").eq("match_id", matchId).order("minute", { ascending: true });
   var list = document.getElementById("events-list");

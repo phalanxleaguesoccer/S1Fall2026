@@ -256,7 +256,7 @@ async function loadUpcoming() {
   list.innerHTML = res.data.map(function (m) {
     var home = teams[m.home_team_id] ? teams[m.home_team_id].name : "TBD";
     var away = teams[m.away_team_id] ? teams[m.away_team_id].name : "TBD";
-    var when = m.kickoff_at ? new Date(m.kickoff_at).toLocaleString() : "Time TBD";
+    var when = m.kickoff_at ? formatKickoff(m.kickoff_at) : "Time TBD";
     return '<div style="padding:8px 0; border-bottom:1px solid var(--card-edge);">' +
       "<strong>Day " + m.match_day + "</strong> &middot; " + escapeHtml(home) + " vs " + escapeHtml(away) +
       '<div class="muted" style="font-size:0.82rem;">' + when + "</div></div>";

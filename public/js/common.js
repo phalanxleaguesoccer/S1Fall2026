@@ -135,3 +135,18 @@ async function getCurrentSeason() {
   var res = await window.sb.from("seasons").select("*").eq("is_current", true).limit(1).single();
   return res.data;
 }
+
+// Kickoff times are always shown in Eastern time (EST/EDT as applicable),
+// no matter where the viewer's browser is, so "9:00 PM" means the same thing
+// for everyone and a late-evening match never shows up on the wrong date.
+function formatKickoff(iso) {
+  return new Date(iso).toLocaleString("en-US", {
+    timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric",
+    year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short"
+  });
+}
+function formatKickoffDate(iso) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    timeZone: "America/New_York", month: "short", day: "numeric", year: "numeric"
+  });
+}

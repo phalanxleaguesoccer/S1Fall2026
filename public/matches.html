@@ -55,7 +55,7 @@ async function loadMatches() {
       var score = (m.status === "completed")
         ? '<strong>' + m.home_score + " – " + m.away_score + "</strong>"
         : (m.status === "forfeited" ? "Forfeit" : "vs");
-      var when = m.kickoff_at ? new Date(m.kickoff_at).toLocaleString() : "";
+      var when = m.kickoff_at ? formatKickoff(m.kickoff_at) : "";
       return '<a href="match.html?id=' + m.id + '" style="text-decoration:none; color:inherit;">' +
         '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--card-edge); gap:10px; flex-wrap:wrap;">' +
         '<div><span class="pill ' + m.status + '">' + m.status + "</span> " + escapeHtml(home) + " " + score + " " + escapeHtml(away) + "</div>" +

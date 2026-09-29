@@ -202,7 +202,7 @@ async function renderStatsAndSchedule() {
     schedBody.innerHTML = '<tr><td colspan="4" class="text-center muted">No matches scheduled yet.</td></tr>';
   } else {
     schedBody.innerHTML = matches.map(function (m) {
-      var dateStr = m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString() : "TBD";
+      var dateStr = m.kickoff_at ? formatKickoffDate(m.kickoff_at) : "TBD";
       var resultStr = m.status === "completed" ? (m.home_score + " – " + m.away_score)
         : m.status === "forfeited" ? "Forfeit"
         : m.status === "postponed" ? "Postponed"
