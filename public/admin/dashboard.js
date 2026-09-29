@@ -282,6 +282,13 @@ async function refreshMatches() {
       '<div><label>' + escapeHtml(home) + ' score</label><input type="number" name="home_score" value="' + (m.home_score ?? "") + '" min="0"></div>' +
       '<div><label>' + escapeHtml(away) + ' score</label><input type="number" name="away_score" value="' + (m.away_score ?? "") + '" min="0"></div>' +
       "</div>" +
+      ("shootout_winner_team_id" in m
+        ? '<div class="row"><div><label>Penalty shoot-out winner (only if a drawn match went to penalties)</label><select name="shootout">' +
+          '<option value="">— none —</option>' +
+          '<option value="' + m.home_team_id + '"' + (m.shootout_winner_team_id === m.home_team_id ? " selected" : "") + ">" + escapeHtml(home) + "</option>" +
+          '<option value="' + m.away_team_id + '"' + (m.shootout_winner_team_id === m.away_team_id ? " selected" : "") + ">" + escapeHtml(away) + "</option>" +
+          "</select></div></div>"
+        : "") +
       '<button class="btn secondary mt-16" type="submit">Save Result</button>' +
       "</form></div>";
   }).join("");
@@ -295,6 +302,10 @@ async function refreshMatches() {
       if (status === "completed") {
         payload.home_score = f.home_score.value === "" ? null : parseInt(f.home_score.value, 10);
         payload.away_score = f.away_score.value === "" ? null : parseInt(f.away_score.value, 10);
+        if (f.shootout) {
+          var drawn = payload.home_score !== null && payload.home_score === payload.away_score;
+          payload.shootout_winner_team_id = drawn && f.shootout.value ? f.shootout.value : null;
+        }
       } else if (status === "forfeited") {
         payload.home_score = null;
         payload.away_score = null;

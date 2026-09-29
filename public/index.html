@@ -43,7 +43,7 @@
       </table>
     </div>
     <p class="muted" style="font-size:0.8rem; margin-top:10px;">
-      Tie-break order: goal difference &rarr; goals scored &rarr; goals conceded &rarr; head-to-head &rarr; penalty shoot-out.
+      Win = 2 pts, Draw = 1 pt, Loss = 0 pts. Ranking updates automatically after every result. Tie-break order: goal difference &rarr; goals scored &rarr; goals conceded &rarr; head-to-head &rarr; penalty shoot-out.
     </p>
   </div>
 
@@ -115,14 +115,20 @@ async function loadStandings() {
       gf: st.gf, ga: st.ga, gd: st.gd, pts: st.pts };
   });
 
-  // Sort: points desc, then tie-break order from the rulebook.
+  // Sort: points (Win 2 / Draw 1 / Loss 0, computed by the league_standings
+  // view), then goal difference -> goals scored -> goals conceded, then
+  // head-to-head, then penalty shoot-out for whatever is still tied.
   rows.sort(function (a, b) {
     if (b.pts !== a.pts) return b.pts - a.pts;
     if (b.gd !== a.gd) return b.gd - a.gd;
     if (b.gf !== a.gf) return b.gf - a.gf;
-    if (a.ga !== b.ga) return a.ga - b.ga; // fewer conceded is better
-    return 0; // 4th (head-to-head) and 5th (penalty shoot-out) are resolved manually for exact ties
+    return a.ga - b.ga; // fewer conceded is better
   });
+
+  var mq = window.sb.from("matches").select("*").in("status", ["completed"]);
+  if (!isAll) mq = mq.eq("season_id", filterVal);
+  var mres = await mq;
+  rows = resolveTies(rows, mres.data || []);
 
   var tbody = document.getElementById("standings-body");
   if (rows.length === 0) {
@@ -138,6 +144,45 @@ async function loadStandings() {
       "<td><strong>" + r.pts + "</strong></td>" +
       "</tr>";
   }).join("");
+}
+
+// Rows tied on pts, gd, gf and ga are ordered by head-to-head (points, then
+// goal difference, in the matches played between just those teams), then by
+// penalty shoot-out wins between them.
+function resolveTies(rows, matches) {
+  function key(r) { return [r.pts, r.gd, r.gf, r.ga].join("|"); }
+  var out = [];
+  var i = 0;
+  while (i < rows.length) {
+    var j = i + 1;
+    while (j < rows.length && key(rows[j]) === key(rows[i])) j++;
+    var group = rows.slice(i, j);
+    if (group.length > 1) {
+      var ids = group.map(function (r) { return r.team.id; });
+      var h = {};
+      ids.forEach(function (id) { h[id] = { pts: 0, gd: 0, so: 0 }; });
+      matches.forEach(function (m) {
+        if (!h[m.home_team_id] || !h[m.away_team_id]) return;
+        if (m.home_score == null || m.away_score == null) return;
+        var hs = m.home_score, as = m.away_score;
+        h[m.home_team_id].gd += hs - as;
+        h[m.away_team_id].gd += as - hs;
+        if (hs > as) h[m.home_team_id].pts += 2;
+        else if (as > hs) h[m.away_team_id].pts += 2;
+        else { h[m.home_team_id].pts += 1; h[m.away_team_id].pts += 1; }
+        if (m.shootout_winner_team_id && h[m.shootout_winner_team_id]) h[m.shootout_winner_team_id].so += 1;
+      });
+      group.sort(function (a, b) {
+        var x = h[a.team.id], y = h[b.team.id];
+        if (y.pts !== x.pts) return y.pts - x.pts;
+        if (y.gd !== x.gd) return y.gd - x.gd;
+        return y.so - x.so;
+      });
+    }
+    out = out.concat(group);
+    i = j;
+  }
+  return out;
 }
 
 async function loadUpcoming() {
