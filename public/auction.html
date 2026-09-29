@@ -6,8 +6,8 @@
 <title>Live Auction — Phalanx League Soccer</title>
 <link rel="stylesheet" href="css/app.css">
 <style>
-  .auc-top { display:grid; grid-template-columns: 1fr; gap:16px; }
-  @media (min-width: 900px) { .auc-top.admin { grid-template-columns: 1fr 1fr; } }
+  .auc-top { display:grid; grid-template-columns: 1fr; gap:16px; margin-bottom:16px; }
+  @media (min-width: 900px) { .auc-top { grid-template-columns: 1fr 1fr; } }
   .block-card { text-align:center; }
   .block-name { font-family: Anton, sans-serif; font-size: 2rem; letter-spacing: .02em; margin: 6px 0; }
   .block-photo { width:120px; height:120px; border-radius:50%; overflow:hidden; margin:0 auto; background:var(--pitch-dark); border:2px solid var(--amber); }
@@ -45,34 +45,36 @@
   <p id="setup-note" class="error-msg" style="display:none;"></p>
 
   <div class="auc-top" id="auc-top">
+    <div class="card">
+      <div class="card-title">Player wheel <span class="muted" id="wheel-round-label" style="font-weight:400;font-size:.8rem;"></span></div>
+      <div class="wheel-wrap"><div class="wheel-pointer"></div><canvas id="wheel" width="520" height="520"></canvas></div>
+      <p id="wheel-empty" class="muted" style="text-align:center; display:none;"></p>
+      <div class="admin-only" style="text-align:center; margin-top:12px;">
+        <button class="btn" id="btn-spin" type="button">Spin the wheel</button>
+        <button class="btn secondary" id="btn-putback" type="button">Put back on wheel</button>
+        <button class="btn secondary" id="btn-undo-last" type="button">Undo last action</button>
+        <div style="margin-top:10px;">
+          <button class="btn" id="btn-load-r2" type="button" style="display:none;">Load Round 2 players onto the wheel</button>
+          <button class="btn secondary" id="btn-back-r1" type="button" style="display:none;">Back to Round 1 wheel</button>
+        </div>
+      </div>
+      <p id="wheel-msg" class="muted" style="text-align:center;"></p>
+    </div>
+
     <div class="card block-card">
       <div class="card-title">On the block</div>
       <div id="on-block"><p class="muted">Waiting for the next player…</p></div>
       <div class="admin-only" id="sell-panel" style="display:none; text-align:left;">
         <div class="ctl-row">
           <div><label>Team</label><select id="sell-team"></select></div>
-          <div><label>Sold price (points)</label><input type="number" id="sell-price" min="0" step="1"></div>
+          <div><label>Sold price (points, numbers only)</label><input type="text" id="sell-price" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" placeholder="e.g. 45"></div>
         </div>
         <div class="ctl-row">
           <button class="btn" id="btn-sold" type="button">Sold</button>
-          <button class="btn secondary" id="btn-unsold" type="button">Unsold → Round 2</button>
+          <button class="btn secondary" id="btn-unsold" type="button">Unsold</button>
         </div>
         <p id="sell-msg" class="muted" style="margin-top:8px;"></p>
       </div>
-    </div>
-
-    <div class="card admin-only" id="wheel-card">
-      <div class="card-title">Player wheel <span class="muted" style="font-weight:400;font-size:.8rem;">(owners excluded)</span></div>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
-        <label style="margin:0;">Pool</label>
-        <select id="wheel-round" style="max-width:260px;"></select>
-      </div>
-      <div class="wheel-wrap"><div class="wheel-pointer"></div><canvas id="wheel" width="520" height="520"></canvas></div>
-      <div style="text-align:center; margin-top:12px;">
-        <button class="btn" id="btn-spin" type="button">Spin the wheel</button>
-        <button class="btn secondary" id="btn-undo-last" type="button">Undo last action</button>
-      </div>
-      <p id="wheel-msg" class="muted" style="text-align:center;"></p>
     </div>
   </div>
 
@@ -107,16 +109,22 @@ renderFooter();
 renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Live Auction" }]);
 
 var SEASON = null, TEAMS = [], PLAYERS = {}, ROSTER = [], UNSOLD = [], STATE = null;
-var IS_ADMIN = false, SPINNING = false, BUDGET = 200, MISSING = false;
-var wheelAngle = 0, wheelNames = [];
+var IS_ADMIN = false, ANIM = false, BUDGET = 200, MISSING = false;
+var wheelAngle = 0, wheelNames = [], lastSeq = null, lastStateStamp = null;
 var COLORS = ["#0E3B2E", "#E7A93D", "#1F5C48", "#E2583D", "#2C7A5F", "#B7772A", "#164B3B", "#C0392B"];
+var SPIN_MS = 5200;
 
 function isPlaceholder(t) { return /^Team [A-Z]$/.test(t.name); }
-function photoHtml(p, size) {
+function photoHtml(p) {
   return p && p.photo_url ? '<img src="' + escapeHtml(p.photo_url) + '" alt="' + escapeHtml(p.full_name) + '">'
     : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--chalk-dim);font-size:.7rem;">No photo</div>';
 }
 function pname(id) { return PLAYERS[id] ? PLAYERS[id].full_name : "?"; }
+function wheelRound() { return STATE && STATE.wheel_round === 2 ? 2 : 1; }
+function onBlockId() {
+  var id = STATE && STATE.current_player_id;
+  return id && !soldIds()[id] ? id : null;
+}
 
 async function loadAll() {
   if (!SEASON) SEASON = await getCurrentSeason();
@@ -132,11 +140,24 @@ async function loadAll() {
   var sRes = await window.sb.from("auction_state").select("*").eq("season_id", SEASON.id).maybeSingle();
   MISSING = !!(uRes.error || sRes.error);
   var note = document.getElementById("setup-note");
-  if (MISSING) { note.style.display = ""; note.textContent = "Auction setup incomplete: run sql/migration_auction.sql in Supabase."; }
+  if (MISSING) { note.style.display = ""; note.textContent = "Auction setup incomplete: run sql/migration_auction.sql and sql/migration_auction_wheel.sql in Supabase."; }
   else note.style.display = "none";
   UNSOLD = uRes.data || [];
   STATE = sRes.data || null;
+  lastStateStamp = stamp(STATE);
+  checkSpin();
   render();
+}
+function stamp(st) { return st ? [st.updated_at, st.spin_seq, st.current_player_id, st.wheel_round].join("|") : ""; }
+
+// Light poll: one small query every 2s; full reload only when something changed
+// (or every 8s as a safety net).
+var lastFull = Date.now();
+async function lightPoll() {
+  if (!SEASON || ANIM) return;
+  var r = await window.sb.from("auction_state").select("*").eq("season_id", SEASON.id).maybeSingle();
+  if (r.error) return;
+  if (stamp(r.data) !== lastStateStamp || Date.now() - lastFull > 8000) { lastFull = Date.now(); await loadAll(); }
 }
 
 function soldIds() { var s = {}; ROSTER.forEach(function (r) { s[r.player_id] = true; }); return s; }
@@ -149,28 +170,28 @@ function pool(round) {
     return un[id] && un[id].round === 1;
   }).map(function (id) { return PLAYERS[id]; }).sort(function (a, b) { return a.full_name.localeCompare(b.full_name); });
 }
+function wheelPool() {
+  var blk = onBlockId();
+  return pool(wheelRound()).filter(function (p) { return p.id !== blk; });   // picked player leaves the wheel at once
+}
 function teamSpent(teamId) {
   return ROSTER.filter(function (r) { return r.team_id === teamId && !r.is_owner; })
     .reduce(function (a, r) { return a + (r.auction_price || 0); }, 0);
 }
 
 function render() {
-  // ---- on the block ----
-  var cur = STATE && STATE.current_player_id ? PLAYERS[STATE.current_player_id] : null;
   var sold = soldIds();
-  if (cur && sold[cur.id]) cur = null;
+  var curId = onBlockId(), cur = curId ? PLAYERS[curId] : null;
   var ob = document.getElementById("on-block");
-  ob.innerHTML = cur
+  if (ANIM) ob.innerHTML = '<p class="muted">Spinning…</p>';
+  else ob.innerHTML = cur
     ? '<div class="block-photo">' + photoHtml(cur) + '</div><div class="block-name">' + escapeHtml(cur.full_name) + '</div>' +
       '<div class="muted">' + escapeHtml([cur.preferred_position, cur.skill_level, cur.skill_rating ? cur.skill_rating + "/10" : ""].filter(Boolean).join(" · ")) + '</div>' +
       '<div style="margin-top:6px;"><a href="player.html?id=' + cur.id + '">View profile</a></div>'
     : '<p class="muted">Waiting for the next player…</p>';
-  var sp = document.getElementById("sell-panel");
-  sp.style.display = IS_ADMIN && cur ? "block" : "none";
+  document.getElementById("sell-panel").style.display = IS_ADMIN && cur && !ANIM ? "block" : "none";
 
   // ---- teams ----
-  var owners = {};
-  ROSTER.forEach(function (r) { if (r.is_owner) owners[r.team_id] = r; });
   document.getElementById("budget-note").textContent = "· " + BUDGET + " points per team · owners count at 0 points";
   document.getElementById("team-grid").innerHTML = TEAMS.map(function (t) {
     var spent = teamSpent(t.id), left = BUDGET - spent;
@@ -185,11 +206,9 @@ function render() {
       }).join("") + '</div>';
   }).join("") || '<p class="muted">No teams yet.</p>';
 
-  // ---- feed (sales + unsold, newest first) ----
+  // ---- feed ----
   var events = [];
-  ROSTER.filter(function (r) { return !r.is_owner; }).forEach(function (r) {
-    events.push({ kind: "sold", at: r.sold_at || "", r: r });
-  });
+  ROSTER.filter(function (r) { return !r.is_owner; }).forEach(function (r) { events.push({ kind: "sold", at: r.sold_at || "", r: r }); });
   UNSOLD.forEach(function (u) { events.push({ kind: "unsold", at: u.created_at || "", u: u }); });
   events.sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
   var teamName = {}; TEAMS.forEach(function (t) { teamName[t.id] = t.name; });
@@ -205,37 +224,47 @@ function render() {
   }).join("") : '<p class="muted">No sales yet.</p>';
 
   // ---- round 2 + round 1 lists ----
-  var r2 = pool(2), fin = UNSOLD.filter(function (u) { return u.round === 2 && !sold[u.player_id]; });
+  var r1 = pool(1), r2 = pool(2), fin = UNSOLD.filter(function (u) { return u.round === 2 && !sold[u.player_id]; });
   document.getElementById("round2").innerHTML =
     (r2.length ? '<div class="chips">' + r2.map(function (p) { return '<span class="chip"><a href="player.html?id=' + p.id + '">' + escapeHtml(p.full_name) + '</a></span>'; }).join("") + '</div>'
       : '<p class="muted">Nobody in Round 2 yet.</p>') +
     (fin.length ? '<p class="muted" style="margin-top:10px;">Final unsold after Round 2: ' + fin.map(function (u) { return escapeHtml(pname(u.player_id)); }).join(", ") + '</p>' : '');
-  var r1 = pool(1);
-  document.getElementById("r1-count").textContent = "(" + r1.length + ")";
-  document.getElementById("round1").innerHTML = r1.length ? r1.map(function (p) { return '<span class="chip">' + escapeHtml(p.full_name) + '</span>'; }).join("") : '<p class="muted">Round 1 is complete.</p>';
+  var r1Left = r1.filter(function (p) { return p.id !== curId; });
+  document.getElementById("r1-count").textContent = "(" + r1Left.length + ")";
+  document.getElementById("round1").innerHTML = r1Left.length ? r1Left.map(function (p) { return '<span class="chip">' + escapeHtml(p.full_name) + '</span>'; }).join("") : '<p class="muted">Round 1 is complete.</p>';
 
-  renderAdmin(r1, r2, cur);
+  // ---- wheel ----
+  var rd = wheelRound();
+  document.getElementById("wheel-round-label").textContent = "· Round " + rd + " · " + wheelPool().length + " on the wheel";
+  var empty = document.getElementById("wheel-empty");
+  if (!ANIM) {
+    var names = wheelPool().map(function (p) { return p.full_name; });
+    if (names.join("|") !== wheelNames.join("|")) { wheelNames = names; wheelAngle = 0; drawWheel(); }
+    if (names.length === 0) {
+      empty.style.display = "";
+      empty.textContent = rd === 1 ? (curId ? "Last Round 1 player is on the block." : "Round 1 is complete.") : (curId ? "Last Round 2 player is on the block." : "Round 2 is complete.");
+    } else empty.style.display = "none";
+  }
+
+  if (IS_ADMIN) {
+    var ts = document.getElementById("sell-team"), tprev = ts.value;
+    ts.innerHTML = TEAMS.map(function (t) {
+      var ow = ROSTER.find(function (r) { return r.team_id === t.id && r.is_owner; });
+      return '<option value="' + t.id + '">' + escapeHtml(t.name) + (ow ? ' — Owner: ' + escapeHtml(pname(ow.player_id)) : '') + ' (' + (BUDGET - teamSpent(t.id)) + ' pts left)</option>';
+    }).join("");
+    if (tprev) ts.value = tprev;
+    document.getElementById("btn-spin").disabled = ANIM || !!curId || wheelPool().length === 0;
+    document.getElementById("btn-putback").style.display = curId && !ANIM ? "" : "none";
+    var r1Empty = r1Left.length === 0 && !curId;
+    document.getElementById("btn-load-r2").style.display = rd === 1 && r1Empty && r2.length > 0 ? "" : "none";
+    document.getElementById("btn-back-r1").style.display = rd === 2 && r1.length > 0 ? "" : "none";
+    document.getElementById("btn-unsold").textContent = rd === 1 ? "Unsold → Round 2" : "Unsold (final)";
+  }
   document.querySelectorAll("[data-undo-sale]").forEach(function (b) { b.onclick = function () { undoSale(b.dataset.undoSale); }; });
   document.querySelectorAll("[data-undo-unsold]").forEach(function (b) { b.onclick = function () { undoUnsold(b.dataset.undoUnsold); }; });
 }
 
-// ---------------- admin ----------------
-function currentRound() { var v = document.getElementById("wheel-round").value; return v === "2" ? 2 : 1; }
-function renderAdmin(r1, r2, cur) {
-  if (!IS_ADMIN) return;
-  var sel = document.getElementById("wheel-round"), prev = sel.value;
-  sel.innerHTML = '<option value="1">Round 1 pool (' + r1.length + ')</option><option value="2">Round 2 pool (' + r2.length + ')</option>';
-  sel.value = prev || (r1.length ? "1" : "2");
-  var names = pool(currentRound()).map(function (p) { return p.full_name; });
-  if (!SPINNING && names.join("|") !== wheelNames.join("|")) { wheelNames = names; drawWheel(); }
-  var ts = document.getElementById("sell-team"), tprev = ts.value;
-  ts.innerHTML = TEAMS.map(function (t) {
-    var left = BUDGET - teamSpent(t.id);
-    return '<option value="' + t.id + '">' + escapeHtml(t.name) + ' (' + left + ' left)</option>';
-  }).join("");
-  if (tprev) ts.value = tprev;
-}
-
+// ---------------- wheel drawing / spinning (same spin on every screen) ----------------
 function drawWheel() {
   var c = document.getElementById("wheel"), ctx = c.getContext("2d"), W = c.width, R = W / 2 - 6;
   ctx.clearRect(0, 0, W, W);
@@ -243,7 +272,7 @@ function drawWheel() {
   var n = wheelNames.length;
   if (n === 0) {
     ctx.fillStyle = "#1C1C1F"; ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill();
-    ctx.fillStyle = "#B7B0A0"; ctx.font = "24px sans-serif"; ctx.textAlign = "center"; ctx.fillText("No players left in this pool", 0, 8);
+    ctx.fillStyle = "#B7B0A0"; ctx.font = "24px sans-serif"; ctx.textAlign = "center"; ctx.fillText("No players on the wheel", 0, 8);
     ctx.restore(); return;
   }
   var seg = 2 * Math.PI / n;
@@ -263,51 +292,82 @@ function drawWheel() {
 
 function randomInt(n) { var a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; }
 
-function spin() {
-  if (SPINNING) return;
-  var msg = document.getElementById("wheel-msg");
-  if (wheelNames.length === 0) { msg.textContent = "No players left in this pool."; return; }
-  SPINNING = true; msg.textContent = "";
-  document.getElementById("btn-spin").disabled = true;
-  var n = wheelNames.length, seg = 360 / n, win = randomInt(n);
-  var jitter = (Math.random() - 0.5) * seg * 0.7;
-  var target = -((win + 0.5) * seg + jitter);
-  var startAngle = wheelAngle % 360;
-  var final = startAngle + 360 * (6 + randomInt(3)) + ((target - startAngle) % 360 + 360) % 360;
-  var t0 = performance.now(), dur = 5200;
+// Animate to the published winner. `ids` is the exact pool order the admin spun.
+function runSpin(ids, winnerId, offset, done) {
+  var names = ids.map(function (id) { return pname(id); });
+  var idx = ids.indexOf(winnerId);
+  if (idx < 0 || !names.length) { if (done) done(); return; }
+  ANIM = true; wheelNames = names; drawWheel(); render();
+  var n = names.length, seg = 360 / n;
+  var target = -((idx + 0.5 + offset) * seg);
+  var startAngle = 0;
+  var final = 360 * 7 + (((target - startAngle) % 360) + 360) % 360;
+  wheelAngle = 0;
+  var t0 = performance.now();
   (function frame(now) {
-    var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 4);
-    wheelAngle = startAngle + (final - startAngle) * e; drawWheel();
+    var k = Math.min(1, (now - t0) / SPIN_MS), e = 1 - Math.pow(1 - k, 4);
+    wheelAngle = final * e; drawWheel();
     if (k < 1) return requestAnimationFrame(frame);
-    wheelAngle = final; drawWheel(); finishSpin(wheelNames[win]);
+    wheelAngle = final; drawWheel();
+    setTimeout(function () { ANIM = false; wheelNames = []; wheelAngle = 0; render(); if (done) done(); }, 900);
   })(t0);
 }
 
-async function finishSpin(name) {
-  var p = Object.keys(PLAYERS).map(function (k) { return PLAYERS[k]; }).find(function (x) { return x.full_name === name; });
-  SPINNING = false; document.getElementById("btn-spin").disabled = false;
-  if (!p) return;
-  document.getElementById("wheel-msg").textContent = "Picked: " + p.full_name;
-  var r = await window.sb.from("auction_state").upsert({ season_id: SEASON.id, current_player_id: p.id, updated_at: new Date().toISOString() }, { onConflict: "season_id" });
-  if (r.error) document.getElementById("wheel-msg").textContent = "Picked " + p.full_name + " but could not publish: " + r.error.message;
-  await loadAll();
-  document.getElementById("sell-price").value = "";
+// Viewers (and the admin's own screen) pick up a newly published spin.
+function checkSpin() {
+  var seq = STATE && STATE.spin_seq ? STATE.spin_seq : 0;
+  if (lastSeq === null) { lastSeq = seq; return; }        // first load: don't replay old spins
+  if (seq > lastSeq && !ANIM && STATE.spin_pool && STATE.spin_winner_id) {
+    var gap = seq - lastSeq, age = STATE.spin_started_at ? Date.now() - new Date(STATE.spin_started_at).getTime() : 0;
+    lastSeq = seq;
+    // Only replay a spin we caught live: if this screen missed spins (tab asleep / offline)
+    // or the spin is old, just show the current state instead of an out-of-date animation.
+    if (gap > 1 || age > 60000) return;
+    runSpin(STATE.spin_pool, STATE.spin_winner_id, Number(STATE.spin_offset) || 0);
+  }
+}
+
+async function publishState(fields) {
+  var row = Object.assign({ season_id: SEASON.id, updated_at: new Date().toISOString() }, fields);
+  return window.sb.from("auction_state").upsert(row, { onConflict: "season_id" });
+}
+function stateBase() {
+  return { current_player_id: STATE ? STATE.current_player_id : null, wheel_round: wheelRound(), spin_seq: STATE ? STATE.spin_seq || 0 : 0,
+    spin_pool: STATE ? STATE.spin_pool : null, spin_winner_id: STATE ? STATE.spin_winner_id : null, spin_offset: STATE ? STATE.spin_offset || 0 : 0,
+    spin_started_at: STATE ? STATE.spin_started_at : null };
+}
+
+async function spin() {
+  var msg = document.getElementById("wheel-msg");
+  if (ANIM || onBlockId()) return;
+  var players = wheelPool();
+  if (players.length === 0) { msg.textContent = "No players left on this wheel."; return; }
+  var winner = players[randomInt(players.length)];
+  var offset = (Math.random() - 0.5) * 0.7;
+  var ids = players.map(function (p) { return p.id; });
+  var seq = (STATE && STATE.spin_seq || 0) + 1;
+  var res = await publishState(Object.assign(stateBase(), { current_player_id: winner.id, spin_seq: seq, spin_pool: ids,
+    spin_winner_id: winner.id, spin_offset: offset, spin_started_at: new Date().toISOString() }));
+  if (res.error) { msg.textContent = "Could not start the spin: " + res.error.message; return; }
+  msg.textContent = "";
+  lastSeq = seq;
+  STATE = Object.assign({}, STATE || {}, { current_player_id: winner.id, spin_seq: seq, wheel_round: wheelRound() });
+  runSpin(ids, winner.id, offset, function () { document.getElementById("sell-price").value = ""; loadAll(); });
 }
 
 async function clearBlock() {
-  await window.sb.from("auction_state").upsert({ season_id: SEASON.id, current_player_id: null, updated_at: new Date().toISOString() }, { onConflict: "season_id" });
+  await publishState(Object.assign(stateBase(), { current_player_id: null }));
 }
 
 async function sell() {
   var msg = document.getElementById("sell-msg");
-  var cur = STATE && STATE.current_player_id; if (!cur) return;
+  var cur = onBlockId(); if (!cur || ANIM) return;
   var teamId = document.getElementById("sell-team").value;
   var raw = document.getElementById("sell-price").value;
   var price = parseInt(raw, 10);
-  if (raw === "" || isNaN(price) || price < 0) { msg.textContent = "Enter the sold price (0 or more)."; return; }
+  if (!/^[0-9]+$/.test(raw) || isNaN(price)) { msg.textContent = "Enter the sold price as a whole number (digits only)."; return; }
   var left = BUDGET - teamSpent(teamId);
   if (price > left) { msg.textContent = "Not enough points: that team has only " + left + " left."; return; }
-  if (soldIds()[cur]) { msg.textContent = "This player is already sold."; return; }
   var res = await window.sb.from("team_season_rosters").insert({ season_id: SEASON.id, team_id: teamId, player_id: cur, auction_price: price, is_owner: false, sold_at: new Date().toISOString() });
   if (res.error) { msg.textContent = "Error: " + res.error.message; return; }
   await window.sb.from("auction_unsold").delete().eq("season_id", SEASON.id).eq("player_id", cur);
@@ -317,11 +377,20 @@ async function sell() {
 
 async function markUnsold() {
   var msg = document.getElementById("sell-msg");
-  var cur = STATE && STATE.current_player_id; if (!cur) return;
-  var round = currentRound() === 1 ? 1 : 2;
+  var cur = onBlockId(); if (!cur || ANIM) return;
+  var round = wheelRound() === 1 ? 1 : 2;
   var res = await window.sb.from("auction_unsold").upsert({ season_id: SEASON.id, player_id: cur, round: round, created_at: new Date().toISOString() }, { onConflict: "season_id,player_id" });
   if (res.error) { msg.textContent = "Error: " + res.error.message; return; }
   await clearBlock(); msg.textContent = "";
+  await loadAll();
+}
+
+async function putBack() {          // took the wrong spin / player not present: back onto the wheel, no penalty
+  if (ANIM || !onBlockId()) return;
+  await clearBlock(); await loadAll();
+}
+async function setRound(r) {
+  await publishState(Object.assign(stateBase(), { wheel_round: r, current_player_id: null }));
   await loadAll();
 }
 
@@ -358,15 +427,17 @@ async function undoLast() {
   } catch (e) {}
   if (IS_ADMIN) {
     document.body.classList.add("is-admin");
-    document.getElementById("auc-top").classList.add("admin");
+    document.getElementById("sell-price").addEventListener("input", function () { this.value = this.value.replace(/[^0-9]/g, ""); });
     document.getElementById("btn-spin").addEventListener("click", spin);
     document.getElementById("btn-sold").addEventListener("click", sell);
     document.getElementById("btn-unsold").addEventListener("click", markUnsold);
+    document.getElementById("btn-putback").addEventListener("click", putBack);
     document.getElementById("btn-undo-last").addEventListener("click", undoLast);
-    document.getElementById("wheel-round").addEventListener("change", function () { wheelNames = pool(currentRound()).map(function (p) { return p.full_name; }); drawWheel(); });
+    document.getElementById("btn-load-r2").addEventListener("click", function () { setRound(2); });
+    document.getElementById("btn-back-r1").addEventListener("click", function () { setRound(1); });
   }
   await loadAll();
-  setInterval(function () { if (!SPINNING) loadAll(); }, 5000);
+  setInterval(lightPoll, 2000);
 })();
 trackPageView("auction").then(function (count) {
   document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
