@@ -36,6 +36,9 @@
   body.is-admin span.admin-only, body.is-admin button.admin-only { display:inline-block; }
   .ctl-row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:10px; }
   .ctl-row > div { flex:1 1 140px; }
+  .ctl-row > div.wide { flex:1 1 100%; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; filter:none; }
+  #sell-team { width:100%; }
 </style>
 </head>
 <body>
@@ -66,7 +69,7 @@
       <div id="on-block"><p class="muted">Waiting for the next player…</p></div>
       <div class="admin-only" id="sell-panel" style="display:none; text-align:left;">
         <div class="ctl-row">
-          <div><label>Team</label><select id="sell-team"></select></div>
+          <div class="wide"><label>Sell to team</label><select id="sell-team"></select></div>
           <div><label>Sold price (points, numbers only)</label><input type="text" id="sell-price" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" placeholder="e.g. 45"></div>
         </div>
         <div class="ctl-row">
