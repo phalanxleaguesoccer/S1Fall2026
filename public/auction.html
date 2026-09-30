@@ -36,6 +36,12 @@
   .bar > span { display:block; height:100%; background:var(--amber); }
   .sq-row { display:flex; justify-content:space-between; gap:8px; padding:4px 0; border-bottom:1px solid var(--card-edge); font-size:.9rem; }
   .sq-row:last-child { border-bottom:0; }
+  .pl-box { margin-top:12px; padding-top:10px; border-top:2px solid var(--card-edge-2); }
+  .pl-row { display:flex; justify-content:space-between; align-items:baseline; }
+  .pl-row span { font-size:.8rem; letter-spacing:.08em; text-transform:uppercase; color:var(--chalk-dim); font-weight:700; }
+  .pl-val { font-family: Anton, sans-serif; font-size:1.7rem; color:var(--amber); }
+  .pl-calc { font-size:.78rem; color:var(--chalk-dim); text-align:right; }
+  .r2-banner { background:rgba(231,169,61,.15); border:1px solid rgba(231,169,61,.5); border-radius:10px; padding:8px 12px; margin:10px 0; font-size:.88rem; text-align:center; }
   .feed-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--card-edge); }
   .tag { font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:20px; margin-right:6px; }
   .tag.sold { background:rgba(46,160,90,.2); color:#63d391; }
@@ -86,6 +92,7 @@
         <div class="w-pointer" id="w-pointer"></div>
         <button class="w-hub" id="w-hub" type="button"></button>
       </div>
+      <div id="r2-banner" class="r2-banner" style="display:none;"></div>
       <p id="wheel-empty" class="muted" style="text-align:center; display:none;"></p>
       <p class="muted admin-only" style="text-align:center; font-size:.8rem;">Click the wheel (or SPIN) to spin</p>
       <div class="admin-only" style="text-align:center; margin-top:8px;">
@@ -93,7 +100,7 @@
         <button class="btn secondary" id="btn-putback" type="button">Put back on wheel</button>
         <button class="btn secondary" id="btn-undo-last" type="button">Undo last action</button>
         <div style="margin-top:10px;">
-          <button class="btn" id="btn-load-r2" type="button" style="display:none;">Load Round 2 players onto the wheel</button>
+          <button class="btn" id="btn-load-r2" type="button" style="display:none;">Start Round 2</button>
           <button class="btn secondary" id="btn-back-r1" type="button" style="display:none;">Back to Round 1 wheel</button>
         </div>
       </div>
@@ -305,12 +312,14 @@ function render() {
     var squad = ROSTER.filter(function (r) { return r.team_id === t.id; })
       .sort(function (a, b) { return (b.is_owner ? 1 : 0) - (a.is_owner ? 1 : 0) || (b.auction_price || 0) - (a.auction_price || 0); });
     return '<div class="team-box"><h3><a href="team.html?id=' + t.id + '">' + escapeHtml(t.name) + '</a></h3>' +
-      '<div class="muted" style="font-size:.82rem;">' + squad.length + ' player' + (squad.length === 1 ? "" : "s") + ' · <strong>' + left + '</strong> pts left · ' + spent + ' spent</div>' +
+      '<div class="muted" style="font-size:.82rem;">' + squad.length + ' player' + (squad.length === 1 ? "" : "s") + '</div>' +
       '<div class="bar"><span style="width:' + Math.min(100, Math.round(spent / BUDGET * 100)) + '%"></span></div>' +
       squad.map(function (r) {
         return '<div class="sq-row"><span><a href="player.html?id=' + r.player_id + '">' + escapeHtml(pname(r.player_id)) + '</a>' + (r.is_owner ? ' <span class="muted">(owner)</span>' : '') + '</span>' +
           '<strong>' + (r.is_owner ? '0' : (r.auction_price == null ? '—' : r.auction_price)) + ' pts</strong></div>';
-      }).join("") + '</div>';
+      }).join("") +
+      '<div class="pl-box"><div class="pl-row"><span>Points left</span><strong class="pl-val">' + left + '</strong></div>' +
+      '<div class="pl-calc">' + BUDGET + ' total − ' + spent + ' spent</div></div></div>';
   }).join("") || '<p class="muted">No teams yet.</p>';
 
   // ---- feed ----
@@ -371,7 +380,15 @@ function render() {
     document.getElementById("btn-spin").disabled = !canSpin;
     document.getElementById("btn-putback").style.display = curId && !ANIM ? "" : "none";
     var r1Empty = r1Left.length === 0 && !curId;
-    document.getElementById("btn-load-r2").style.display = rd === 1 && r1Empty && r2.length > 0 ? "" : "none";
+    var startBtn = document.getElementById("btn-load-r2");
+    startBtn.style.display = rd === 1 && r2.length > 0 ? "" : "none";
+    startBtn.textContent = "Start Round 2 (" + r2.length + " player" + (r2.length === 1 ? "" : "s") + ")";
+    startBtn.disabled = !!curId || ANIM;
+    startBtn.className = r1Empty ? "btn" : "btn secondary";
+    var bn = document.getElementById("r2-banner");
+    if (rd === 1 && r1Empty && r2.length > 0) { bn.style.display = ""; bn.textContent = "Round 1 is complete — " + r2.length + " unsold player" + (r2.length === 1 ? "" : "s") + " waiting. Click “Start Round 2” to put them on the wheel."; }
+    else if (rd === 2) { bn.style.display = ""; bn.textContent = "Round 2 is running — only players who went unsold in Round 1 are on the wheel."; }
+    else bn.style.display = "none";
     document.getElementById("btn-back-r1").style.display = rd === 2 && r1.length > 0 ? "" : "none";
     document.getElementById("btn-unsold").textContent = rd === 1 ? "Round 2" : "Final unsold";
   }
@@ -609,7 +626,11 @@ async function undoLast() {
     document.getElementById("btn-putback").addEventListener("click", putBack);
     document.getElementById("btn-undo-last").addEventListener("click", undoLast);
     document.getElementById("btn-reset").addEventListener("click", resetAuction);
-    document.getElementById("btn-load-r2").addEventListener("click", function () { setRound(2); });
+    document.getElementById("btn-load-r2").addEventListener("click", function () {
+      var left = pool(1).filter(function (p) { return p.id !== onBlockId(); }).length;
+      if (left > 0 && !confirm(left + " player(s) have not been through the wheel in Round 1 yet. Start Round 2 anyway? (You can switch back to Round 1 afterwards.)")) return;
+      setRound(2);
+    });
     document.getElementById("btn-back-r1").addEventListener("click", function () { setRound(1); });
   }
   await loadAll();
