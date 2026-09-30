@@ -80,6 +80,21 @@ with sync_playwright() as pw:
     p.click('#btn-spin');p.wait_for_timeout(7600);p.click('#btn-unsold');p.wait_for_timeout(800);p.click('#btn-undo-last');p.wait_for_timeout(800)
     ok('undo last action reverses unsold (back to 5 on wheel)',p.evaluate('wheelNames.length')==5 and len(p.evaluate("__DB.auction_unsold"))==0)
     ok('no JS errors in admin flows',not [e for e in p.errs+adm.errs if 'DIALOG' not in e],(p.errs,adm.errs))
+    # ---- reset ----
+    pr=Site(pw,scenario_auction(),admin=True);q=pr.page('auction.html',1200);vv=Site(pw,scenario_auction(),admin=False).page('auction.html',1200)
+    q.click('#btn-spin');q.wait_for_timeout(7600);q.click('#btn-sell-open');q.fill('#sell-price','40');q.click('#btn-sold');q.wait_for_timeout(700)
+    q.click('#btn-spin');q.wait_for_timeout(7600);q.click('#btn-unsold');q.wait_for_timeout(700)
+    q.click('#btn-spin');q.wait_for_timeout(7600);q.click('#btn-close')
+    ok('reset setup: 1 sale, 1 unsold, 1 on the block',q.evaluate("__DB.team_season_rosters.length")==5 and q.evaluate("__DB.auction_unsold.length")==1 and q.evaluate("__DB.auction_state[0].current_player_id")!=None)
+    q.evaluate("window.prompt=()=>'nope'");q.click('#btn-reset');q.wait_for_timeout(500)
+    ok('reset: wrong confirmation text cancels, nothing deleted',q.evaluate("__DB.team_season_rosters.length")==5 and 'cancelled' in q.inner_text('#wheel-msg'))
+    q.evaluate("window.prompt=()=>'RESET'");q.click('#btn-reset');q.wait_for_timeout(900)
+    ok('reset: sales + Round 2 cleared, owners kept (4 rows, all owners)',q.evaluate("__DB.team_season_rosters.length")==4 and q.evaluate("__DB.team_season_rosters.every(r=>r.is_owner)") and q.evaluate("__DB.auction_unsold.length")==0)
+    ok('reset: wheel back to all 5 non-owners, Round 1, nobody on the block',q.evaluate('wheelNames.length')==5 and q.evaluate('wheelRound()')==1 and 'Waiting' in q.inner_text('#on-block') and q.inner_text('#team-grid').count('200 pts left')==4,q.evaluate('wheelNames'))
+    ok('reset: can spin again after reset',q.evaluate("document.getElementById('btn-spin').disabled")==False)
+    sync(q,vv);vv.wait_for_timeout(3000)
+    ok('reset: viewer screen also back to full wheel',vv.evaluate('wheelNames.length')==5)
+    ok('reset button hidden from viewers',not vv.is_visible('#btn-reset'))
     # ---- randomness ----
     stat=adm.evaluate("""(function(){
       var n=33,N=99000,c=new Array(n).fill(0);for(var i=0;i<N;i++)c[secureInt(n)]++;

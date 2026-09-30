@@ -98,6 +98,10 @@
         </div>
       </div>
       <p id="wheel-msg" class="muted" style="text-align:center;"></p>
+      <div class="admin-only" style="text-align:center; margin-top:14px; padding-top:12px; border-top:1px solid var(--card-edge);">
+        <button class="btn danger" id="btn-reset" type="button">Reset auction (for testing)</button>
+        <div class="muted" style="font-size:.75rem; margin-top:6px;">Clears every sale and Round 2 entry and puts all players except owners back on the wheel.</div>
+      </div>
     </div>
 
     <div>
@@ -532,6 +536,22 @@ async function putBack() {          // wrong spin / player not present: back ont
   if (ANIM || !onBlockId()) return;
   await clearBlock(); closePop(); await loadAll();
 }
+async function resetAuction() {
+  if (!IS_ADMIN || ANIM) return;
+  var sales = ROSTER.filter(function (r) { return !r.is_owner; }).length;
+  var typed = prompt("This will UNDO all " + sales + " sale(s) for this season, clear Round 2, and put every player except the owners back on the wheel.\n\nType RESET to confirm.");
+  if (typed !== "RESET") { document.getElementById("wheel-msg").textContent = "Reset cancelled."; return; }
+  var d1 = await window.sb.from("team_season_rosters").delete().eq("season_id", SEASON.id).eq("is_owner", false);
+  if (d1.error) { alert("Reset failed: " + d1.error.message); return; }
+  var d2 = await window.sb.from("auction_unsold").delete().eq("season_id", SEASON.id);
+  if (d2.error) { alert("Reset failed: " + d2.error.message); return; }
+  var st = await publishState({ current_player_id: null, wheel_round: 1, spin_seq: STATE ? STATE.spin_seq || 0 : 0,
+    spin_pool: null, spin_winner_id: null, spin_offset: 0, spin_started_at: null });
+  if (st.error) { alert("Reset failed: " + st.error.message); return; }
+  closePop(); wheelKey = null;
+  document.getElementById("wheel-msg").textContent = "Auction reset. All players except owners are back on the wheel.";
+  await loadAll();
+}
 async function setRound(r) {
   await publishState(Object.assign(stateBase(), { wheel_round: r, current_player_id: null }));
   await loadAll();
@@ -588,6 +608,7 @@ async function undoLast() {
     document.getElementById("btn-reopen").addEventListener("click", function () { var c = onBlockId(); if (c) openPop(c); });
     document.getElementById("btn-putback").addEventListener("click", putBack);
     document.getElementById("btn-undo-last").addEventListener("click", undoLast);
+    document.getElementById("btn-reset").addEventListener("click", resetAuction);
     document.getElementById("btn-load-r2").addEventListener("click", function () { setRound(2); });
     document.getElementById("btn-back-r1").addEventListener("click", function () { setRound(1); });
   }
