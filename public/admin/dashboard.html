@@ -175,8 +175,8 @@
               <option value="player_of_tournament">Player of the Tournament</option>
             </select>
           </div>
-          <div><label>Half</label><select id="e-half"><option value="1">1st (0-7')</option><option value="2">2nd (8-14')</option></select></div>
-          <div><label>Minute</label><input type="number" id="e-minute" min="1" max="14"></div>
+          <div><label>Half</label><select id="e-half"><option value="1">1st (1-10')</option><option value="2">2nd (11-20')</option></select></div>
+          <div><label>Minute</label><input type="number" id="e-minute" min="1" max="20"></div>
         </div>
         <button class="btn mt-16" type="submit">Log Event</button>
         <p id="event-msg"></p>
@@ -197,7 +197,7 @@
         </div>
         <div class="row">
           <div><label>Position played (this match)</label><input type="text" id="ap-position"></div>
-          <div><label>Minutes played (optional)</label><input type="number" id="ap-minutes" min="0" max="14"></div>
+          <div><label>Minutes played (optional)</label><input type="number" id="ap-minutes" min="0" max="20"></div>
           <div style="display:flex; gap:16px; align-items:flex-end;">
             <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="ap-started" checked style="width:auto;"> Started</label>
             <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="ap-captain" style="width:auto;"> Captain</label>
