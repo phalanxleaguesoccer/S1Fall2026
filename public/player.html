@@ -42,8 +42,8 @@
     <div class="card-title">Current Season Stats</div>
     <div class="table-scroll">
       <table class="data-table">
-        <thead><tr><th>GP</th><th>Goals</th><th>Assists</th><th>Saves</th><th>CS</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
-        <tbody id="stats-body"><tr><td colspan="9" class="text-center muted">Loading…</td></tr></tbody>
+        <thead><tr><th class="team-name">Bought by</th><th>Sold for</th><th>GP</th><th>Goals</th><th>Assists</th><th>Saves</th><th>CS</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
+        <tbody id="stats-body"><tr><td colspan="11" class="text-center muted">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -78,8 +78,8 @@
       <div id="history-seasons-view">
         <div class="table-scroll">
           <table class="data-table">
-            <thead><tr><th class="team-name">Season</th><th class="team-name">Team</th><th>GP</th><th>Goals</th><th>Assists</th><th>Saves</th><th>CS</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
-            <tbody id="career-by-season-body"><tr><td colspan="11" class="text-center muted">Loading…</td></tr></tbody>
+            <thead><tr><th class="team-name">Season</th><th class="team-name">Bought by</th><th>Sold for</th><th>GP</th><th>Goals</th><th>Assists</th><th>Saves</th><th>CS</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
+            <tbody id="career-by-season-body"><tr><td colspan="12" class="text-center muted">Loading…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -139,11 +139,13 @@ async function loadPlayer() {
 
   // Always resolve stats-body, even if there's no current season or no roster row —
   // never leave it stuck on "Loading…".
+  var curRoster = null;
   var statsFallback = { games_played: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0, clean_sheets: 0 };
   try {
     var season = await getCurrentSeason();
     if (season) {
       var rosterRes = await window.sb.from("team_season_rosters").select("*, teams(*)").eq("player_id", playerId).eq("season_id", season.id).maybeSingle();
+      curRoster = rosterRes.data;
       if (rosterRes.data && rosterRes.data.teams) {
         var auc = rosterRes.data.is_owner ? " &middot; Team owner"
           : (rosterRes.data.auction_price != null ? " &middot; Auction: sold for " + rosterRes.data.auction_price + " pts" : "");
@@ -158,11 +160,17 @@ async function loadPlayer() {
   }
   var s = statsFallback;
   document.getElementById("stats-body").innerHTML =
-    "<tr><td>" + s.games_played + "</td><td>" + s.goals + "</td><td>" + s.assists + "</td><td>" + (s.saves || 0) + "</td><td>" + (s.clean_sheets || 0) + "</td>" +
+    "<tr>" + auctionCells(curRoster) + "<td>" + s.games_played + "</td><td>" + s.goals + "</td><td>" + s.assists + "</td><td>" + (s.saves || 0) + "</td><td>" + (s.clean_sheets || 0) + "</td>" +
     '<td><span class="badge yellow">' + s.yellow_cards + "</span></td><td><span class=\"badge red\">" + s.red_cards + "</span></td>" +
     "<td>" + (s.potm_awards || 0) + "</td><td>" + (s.tournament_awards || 0) + "</td></tr>";
 }
 
+function auctionCells(ros, team) {   // "Bought by" + "Sold for" cells from a team_season_rosters row
+  var t = team || (ros && ros.teams);
+  var by = t ? '<a href="team.html?id=' + t.id + '">' + escapeHtml(t.name) + "</a>" : "—";
+  var pts = !ros ? "—" : (ros.is_owner ? "Team owner" : (ros.auction_price != null ? ros.auction_price + " pts" : "—"));
+  return '<td class="team-name">' + by + "</td><td>" + pts + "</td>";
+}
 async function loadCareerHistory() {
   // player_season_stats has one row per season this player was rostered in.
   var res = await window.sb
@@ -179,6 +187,10 @@ async function loadCareerHistory() {
     var teamsRes = await window.sb.from("teams").select("*").in("id", teamIds);
     (teamsRes.data || []).forEach(function (t) { teamsById[t.id] = t; });
   }
+
+  var rosBySeason = {};
+  var rosRes = await window.sb.from("team_season_rosters").select("*").eq("player_id", playerId);
+  (rosRes.data || []).forEach(function (x) { rosBySeason[x.season_id] = x; });
 
   var totals = rows.reduce(function (acc, r) {
     acc.games_played += r.games_played || 0;
@@ -200,14 +212,14 @@ async function loadCareerHistory() {
 
   var seasonBody = document.getElementById("career-by-season-body");
   if (rows.length === 0) {
-    seasonBody.innerHTML = '<tr><td colspan="11" class="text-center muted">No season history yet.</td></tr>';
+    seasonBody.innerHTML = '<tr><td colspan="12" class="text-center muted">No season history yet.</td></tr>';
   } else {
     rows.sort(function (a, b) { return (a.seasons ? a.seasons.name : "").localeCompare(b.seasons ? b.seasons.name : ""); });
     seasonBody.innerHTML = rows.map(function (r) {
       var team = teamsById[r.team_id];
       return "<tr>" +
         '<td class="team-name">' + escapeHtml(r.seasons ? r.seasons.name : "—") + "</td>" +
-        '<td class="team-name">' + (team ? '<a href="team.html?id=' + team.id + '">' + escapeHtml(team.name) + "</a>" : "—") + "</td>" +
+        auctionCells(rosBySeason[r.season_id], team) +
         "<td>" + (r.games_played || 0) + "</td><td>" + (r.goals || 0) + "</td><td>" + (r.assists || 0) + "</td><td>" + (r.saves || 0) + "</td><td>" + (r.clean_sheets || 0) + "</td>" +
         "<td>" + (r.yellow_cards || 0) + "</td><td>" + (r.red_cards || 0) + "</td>" +
         "<td>" + (r.potm_awards || 0) + "</td><td>" + (r.tournament_awards || 0) + "</td>" +

@@ -48,6 +48,8 @@
   .tag.unsold { background:rgba(226,88,61,.18); color:var(--coral); }
   .chips { display:flex; flex-wrap:wrap; gap:8px; }
   .chip { background:var(--card-charcoal); border:1px solid var(--card-edge); border-radius:20px; padding:4px 12px; font-size:.85rem; }
+  body.closed #auc-top, body.closed #round2-card, body.closed #pop, body.closed #prof, body.closed .admin-only { display:none !important; }
+  .closed-banner { background:rgba(231,169,61,.12); border:1px solid var(--amber); border-radius:10px; padding:10px 14px; margin-bottom:16px; }
   .admin-only { display:none; }
   body.is-admin .admin-only { display:block; }
   body.is-admin span.admin-only, body.is-admin button.admin-only { display:inline-block; }
@@ -86,7 +88,8 @@
 </head>
 <body>
 <div class="container">
-  <h1><span class="live-dot"></span>Live Auction</h1>
+  <h1><span class="live-dot" id="live-dot"></span><span id="auc-title">Live Auction</span></h1>
+  <div id="closed-banner" class="closed-banner" style="display:none;"><strong>Auction completed.</strong> <span class="muted">Final team budgets and every sale are below.</span></div>
   <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
   <p id="setup-note" class="error-msg" style="display:none;"></p>
 
@@ -146,7 +149,7 @@
     <div id="feed"><p class="muted">No sales yet.</p></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="round2-card">
     <div class="card-title">Round 2 <span class="muted" style="font-weight:400;font-size:.8rem;">— players not sold in Round 1</span></div>
     <div id="round2"><p class="muted">Nobody yet.</p></div>
   </div>
@@ -191,9 +194,10 @@
 <script>
 renderHeader("auction.html");
 renderFooter();
-renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Live Auction" }]);
+renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Auction Results" }]);
 
 var SEASON = null, TEAMS = [], PLAYERS = {}, ROSTER = [], UNSOLD = [], STATE = null;
+var AUCTION_CLOSED = true;   // auction is over: wheel + admin controls removed, only budgets and feed remain
 var IS_ADMIN = false, ANIM = false, BUDGET = 200, MISSING = false;
 var wheelAngle = 0, wheelNames = [], wheelKey = null, lastSeq = null, lastStateStamp = null;
 var COLORS = ["#3369e8", "#d50f25", "#eeb211", "#009925"], ODD_COLOR = "#8e44ad";
@@ -517,6 +521,7 @@ function runSpin(ids, winnerId, offset, done) {
 }
 
 function checkSpin() {
+  if (AUCTION_CLOSED) return;
   var seq = STATE && STATE.spin_seq ? STATE.spin_seq : 0;
   if (lastSeq === null) { lastSeq = seq; return; }        // first load: don't replay old spins
   if (seq > lastSeq && !ANIM && STATE.spin_pool && STATE.spin_winner_id) {
@@ -663,6 +668,14 @@ async function undoLast() {
       IS_ADMIN = !!(a.data);
     }
   } catch (e) {}
+  if (AUCTION_CLOSED) {                          // nobody (admin included) gets any auction controls
+    IS_ADMIN = false;
+    document.body.classList.add("closed");
+    document.getElementById("auc-title").textContent = "Auction Results";
+    document.getElementById("live-dot").style.display = "none";
+    document.getElementById("closed-banner").style.display = "block";
+    document.title = "Auction Results";
+  }
   paintSoundBtn();
   document.getElementById("btn-sound").addEventListener("click", function () {
     SOUND_ON = !SOUND_ON; try { localStorage.setItem("auctionSound", SOUND_ON ? "on" : "off"); } catch (e) {}
@@ -695,7 +708,7 @@ async function undoLast() {
     document.getElementById("btn-back-r1").addEventListener("click", function () { setRound(1); });
   }
   await loadAll();
-  setInterval(lightPoll, 2000);
+  if (!AUCTION_CLOSED) setInterval(lightPoll, 2000);
 })();
 trackPageView("auction").then(function (count) {
   document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
