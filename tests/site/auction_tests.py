@@ -90,6 +90,8 @@ with sync_playwright() as pw:
     fr=f.frame_locator('#prof-frame')
     wn=f.evaluate("PLAYERS[STATE.current_player_id].full_name")
     ok('panel shows the selected player\'s profile (name + stats), without site header',wn.upper() in fr.locator('#player-name').inner_text().upper() and fr.locator('.site-header').count()==0 and fr.locator('#stats-body').count()==1,fr.locator('#player-name').inner_text())
+    ov=f.evaluate("(function(){var d=document.querySelector('.dlg').getBoundingClientRect(),p=document.getElementById('prof').getBoundingClientRect();return [d.right,p.left,d.left];})()")
+    ok('winner pop-up is moved clear of the profile panel (Sell/Round 2 buttons stay clickable)',ov[0]<=ov[1]+1 and ov[2]>=0,ov)
     ok('embedded profile does not count a page view',not any(str(r.get('page_key','')).startswith('player:') for r in f.evaluate("__DB.page_views")),f.evaluate("__DB.page_views"))
     ok('panel has a Close button that hides it',f.is_visible('#btn-prof-close') and 'Close' in f.inner_text('#btn-prof-close'))
     f.click('#btn-prof-close');f.wait_for_timeout(300)

@@ -64,6 +64,7 @@
   .prof .ph strong { letter-spacing:.06em; text-transform:uppercase; font-size:.85rem; }
   .prof iframe { flex:1; width:100%; border:0; background:var(--pitch-green); }
   @media (max-width: 700px) { .prof { width:100vw; } }
+  @media (min-width: 701px) { body.prof-open .pop { padding-right: calc(33.333vw + 16px); } }   /* keep the winner pop-up clear of the panel */
   /* winner pop-up (wheelofnames style) */
   .pop { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:16px; }
   .pop.on { display:flex; }
@@ -417,9 +418,11 @@ function openProfile(playerId) {
   document.getElementById("prof-title").textContent = pname(playerId);
   document.getElementById("prof-frame").src = "player.html?id=" + encodeURIComponent(playerId) + "&embed=1";
   document.getElementById("prof").classList.add("on");
+  document.body.classList.add("prof-open");
 }
 function closeProfile() {
   document.getElementById("prof").classList.remove("on");
+  document.body.classList.remove("prof-open");
   document.getElementById("prof-frame").removeAttribute("src");
 }
 
