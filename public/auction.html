@@ -102,6 +102,7 @@
         <button class="w-hub" id="w-hub" type="button"></button>
       </div>
       <div id="r2-banner" class="r2-banner" style="display:none;"></div>
+      <p id="reserved-note" class="muted" style="text-align:center; font-size:.8rem; display:none;"></p>
       <p id="wheel-empty" class="muted" style="text-align:center; display:none;"></p>
       <p class="muted admin-only" style="text-align:center; font-size:.8rem;">Click the wheel (or SPIN) to spin</p>
       <div class="admin-only" style="text-align:center; margin-top:8px;">
@@ -196,6 +197,9 @@ var SEASON = null, TEAMS = [], PLAYERS = {}, ROSTER = [], UNSOLD = [], STATE = n
 var IS_ADMIN = false, ANIM = false, BUDGET = 200, MISSING = false;
 var wheelAngle = 0, wheelNames = [], wheelKey = null, lastSeq = null, lastStateStamp = null;
 var COLORS = ["#3369e8", "#d50f25", "#eeb211", "#009925"], ODD_COLOR = "#8e44ad";
+// Reserved pick: this player is held back and comes up as exactly this pick number in Round 1.
+// Every other pick is uniformly random. The rule is shown on the page for everyone.
+var RESERVED_PICKS = [{ pick: 22, name: "Minti" }];
 var SPIN_MS = 6000, POP_FOR = null, POP_DISMISSED = null;
 var SOUND_ON = true, AC = null, TICKS = 0;
 try { if (localStorage.getItem("auctionSound") === "off") SOUND_ON = false; } catch (e) {}
@@ -296,8 +300,8 @@ function pool(round) {
   }).map(function (id) { return PLAYERS[id]; }).sort(function (a, b) { return a.full_name.localeCompare(b.full_name); });
 }
 function wheelPool() {
-  var blk = onBlockId();
-  return pool(wheelRound()).filter(function (p) { return p.id !== blk; });   // picked player leaves the wheel at once
+  var blk = ANIM ? null : onBlockId();          // while the wheel is still spinning, nobody has left it yet
+  return pool(wheelRound()).filter(function (p) { return p.id !== blk; });   // picked player leaves the wheel once it stops
 }
 function teamSpent(teamId) {
   return ROSTER.filter(function (r) { return r.team_id === teamId && !r.is_owner; })
@@ -306,7 +310,7 @@ function teamSpent(teamId) {
 
 function render() {
   var sold = soldIds();
-  var curId = onBlockId(), cur = curId ? PLAYERS[curId] : null;
+  var curId = ANIM ? null : onBlockId(), cur = curId ? PLAYERS[curId] : null;   // hide the winner until the wheel stops
   var ob = document.getElementById("on-block");
   if (ANIM) ob.innerHTML = '<p class="muted">Spinning…</p>';
   else ob.innerHTML = cur
@@ -381,6 +385,9 @@ function render() {
       empty.textContent = rd === 1 ? (curId ? "Last Round 1 player is on the block." : "Round 1 is complete.") : (curId ? "Last Round 2 player is on the block." : "Round 2 is complete.");
     } else empty.style.display = "none";
   }
+  var rn = document.getElementById("reserved-note"), rsv = RESERVED_PICKS.filter(function (r) { return wp.some(function (p) { return p.full_name === r.name; }); });
+  if (rd === 1 && rsv.length) { rn.style.display = ""; rn.textContent = rsv.map(function (r) { return "Pick #" + r.pick + " is reserved for " + r.name; }).join(" · ") + " · every other pick is random."; }
+  else rn.style.display = "none";
   var hub = document.getElementById("w-hub");
   hub.textContent = IS_ADMIN ? "SPIN" : "";
   var canSpin = IS_ADMIN && !ANIM && !curId && wp.length > 0;
@@ -530,6 +537,27 @@ function stateBase() {
     spin_started_at: STATE ? STATE.spin_started_at : null };
 }
 
+function nextPickNumber() {                    // Round 1: how many players have already left the wheel, plus one
+  var owners = {}; ROSTER.forEach(function (r) { if (r.is_owner) owners[r.player_id] = true; });
+  var total = Object.keys(PLAYERS).filter(function (id) { return !owners[id]; }).length;
+  return total - wheelPool().length + 1;
+}
+function chooseWinner(players) {
+  if (wheelRound() === 1) {
+    var pickNo = nextPickNumber();
+    for (var i = 0; i < RESERVED_PICKS.length; i++) {
+      var rp = players.find(function (p) { return p.full_name === RESERVED_PICKS[i].name; });
+      if (!rp) continue;
+      if (pickNo === RESERVED_PICKS[i].pick) return rp;
+      if (pickNo < RESERVED_PICKS[i].pick && players.length > 1) {
+        var others = players.filter(function (p) { return p !== rp; });
+        return others[secureInt(others.length)];
+      }
+    }
+  }
+  return players[secureInt(players.length)];
+}
+
 async function spin() {
   var msg = document.getElementById("wheel-msg");
   if (!IS_ADMIN || ANIM || onBlockId()) return;
@@ -537,7 +565,7 @@ async function spin() {
   if (players.length === 0) { msg.textContent = "No players left on this wheel."; return; }
   audio();
   var ids = secureShuffle(players.map(function (p) { return p.id; }));   // fresh random layout every spin
-  var winnerId = ids[secureInt(ids.length)];                             // uniform, unbiased pick
+  var winnerId = chooseWinner(players).id;                               // uniform, unbiased pick (except the disclosed reserved pick)
   var offset = secureInt(7001) / 10000 - 0.35;                           // random landing spot inside the segment
   var seq = (STATE && STATE.spin_seq || 0) + 1;
   var res = await publishState(Object.assign(stateBase(), { current_player_id: winnerId, spin_seq: seq, spin_pool: ids,
