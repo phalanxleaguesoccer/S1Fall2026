@@ -51,7 +51,8 @@ with sync_playwright() as pw:
     ok('team: name + owner link -> owner profile',p.inner_text('#team-name').lower().startswith('desi') and p.get_attribute('#owner-link','href')=='player.html?id=p0')
     totals=[t.strip() for t in p.locator('#squad-totals-body td').all_inner_texts()]
     ok('team: cumulative squad totals G/A/Saves/CS/Y/R/POTM/POT = 3,1,1,0,0,0,1,1',totals==['3','1','1','0','0','0','1','1'],totals)
-    ok('team: squad grid lists non-owner players',p.locator('#roster-grid a[href^="player.html?id="]').count()==2)
+    cards=p.locator('#roster-grid .player-card').all_inner_texts()
+    ok('team: squad grid lists owner FIRST (labelled Owner) then the players',p.locator('#roster-grid a[href^="player.html?id="]').count()==3 and 'Owner' in cards[0] and all('Owner' not in c for c in cards[1:]),cards)
     ok('team: season filter + squad season filter present',p.locator('#season-filter option').count()>=2 and p.locator('#squad-season-filter option').count()>=2)
     ok('team: top scorer & POTM at season and all-time level','Nasiq (2)' in p.inner_text('#top-scorer-season') and 'Nasiq (2)' in p.inner_text('#top-scorer-alltime') and 'Nasiq (1)' in p.inner_text('#top-potm-season') and 'Nasiq (1)' in p.inner_text('#top-potm-alltime'))
     p.select_option('#season-filter','all');p.wait_for_timeout(500)

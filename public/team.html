@@ -256,7 +256,7 @@ async function renderSquad() {
     document.getElementById("owner-link").style.display = "none";
   }
 
-  var squadRows = rows.filter(function (r) { return !r.is_owner; });
+  var squadRows = rows.slice().sort(function (a, b) { return (b.is_owner ? 1 : 0) - (a.is_owner ? 1 : 0); });   // owner first (stable sort keeps the rest in order)
   var grid = document.getElementById("roster-grid");
   if (squadRows.length === 0) {
     grid.innerHTML = '<p class="muted">No squad members added ' + (isAllSquad ? "yet" : "for this season yet") + '.</p>';
@@ -270,7 +270,7 @@ async function renderSquad() {
           (r.jersey_number ? '<div class="rating-badge">#' + r.jersey_number + "</div>" : "") +
         "</div>" +
         '<div class="info"><div class="name">' + escapeHtml(p.full_name) + "</div>" +
-        '<div class="meta">' + escapeHtml(p.preferred_position || "") + (r.auction_price != null ? " &middot; " + r.auction_price + " pts" : "") + "</div></div>" +
+        '<div class="meta">' + escapeHtml(p.preferred_position || "") + (r.is_owner ? " &middot; Owner" : (r.auction_price != null ? " &middot; " + r.auction_price + " pts" : "")) + "</div></div>" +
         "</a>";
     }).join("");
   }
