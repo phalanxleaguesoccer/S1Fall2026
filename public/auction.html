@@ -56,6 +56,14 @@
   .ctl-row > div.wide { flex:1 1 100%; }
   .btn:disabled { opacity:.4; cursor:not-allowed; filter:none; }
   #sell-team { width:100%; }
+  /* profile side panel (1/3 of the window) */
+  .prof { position:fixed; top:0; right:0; bottom:0; width:33.333vw; min-width:360px; max-width:100vw; background:#0b0f0d; border-left:2px solid var(--amber);
+    box-shadow:-10px 0 40px rgba(0,0,0,.6); z-index:80; display:none; flex-direction:column; }
+  .prof.on { display:flex; }
+  .prof .ph { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--card-charcoal); border-bottom:1px solid var(--card-edge); }
+  .prof .ph strong { letter-spacing:.06em; text-transform:uppercase; font-size:.85rem; }
+  .prof iframe { flex:1; width:100%; border:0; background:var(--pitch-green); }
+  @media (max-width: 700px) { .prof { width:100vw; } }
   /* winner pop-up (wheelofnames style) */
   .pop { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:16px; }
   .pop.on { display:flex; }
@@ -144,6 +152,11 @@
 </div>
 
 
+<aside class="prof" id="prof" aria-label="Player profile">
+  <div class="ph"><strong id="prof-title">Player profile</strong><button class="btn" id="btn-prof-close" type="button" style="padding:4px 14px;">Close ✕</button></div>
+  <iframe id="prof-frame" title="Player profile"></iframe>
+</aside>
+
 <div class="pop" id="pop">
   <div class="dlg">
     <div class="hd">We have a winner!</div>
@@ -158,6 +171,7 @@
     </div>
     <div class="ft" id="pop-ft-view">
       <button class="pb grey" id="btn-close" type="button">Close</button>
+      <button class="pb blue" id="btn-view-profile" type="button">View profile</button>
       <button class="pb red admin-only" id="btn-unsold" type="button">Round 2</button>
       <button class="pb green admin-only" id="btn-sell-open" type="button">Sell</button>
     </div>
@@ -297,8 +311,9 @@ function render() {
   else ob.innerHTML = cur
     ? '<div class="block-photo">' + photoHtml(cur) + '</div><div class="block-name">' + escapeHtml(cur.full_name) + '</div>' +
       '<div class="muted">' + escapeHtml([cur.preferred_position, cur.skill_level, cur.skill_rating ? cur.skill_rating + "/10" : ""].filter(Boolean).join(" · ")) + '</div>' +
-      '<div style="margin-top:6px;"><a href="player.html?id=' + cur.id + '">View profile</a></div>'
+      '<div style="margin-top:6px;"><a href="player.html?id=' + cur.id + '" data-open-profile="' + cur.id + '">View profile</a></div>'
     : '<p class="muted">Waiting for the next player…</p>';
+  document.querySelectorAll("[data-open-profile]").forEach(function (a) { a.onclick = function (e) { e.preventDefault(); openProfile(a.dataset.openProfile); }; });
   document.getElementById("reopen-wrap").style.display = IS_ADMIN && cur && !ANIM ? "block" : "none";
 
   // pop-up follows the player on the block
@@ -394,6 +409,18 @@ function render() {
   }
   document.querySelectorAll("[data-undo-sale]").forEach(function (b) { b.onclick = function () { undoSale(b.dataset.undoSale); }; });
   document.querySelectorAll("[data-undo-unsold]").forEach(function (b) { b.onclick = function () { undoUnsold(b.dataset.undoUnsold); }; });
+}
+
+// ---------------- profile side panel ----------------
+function openProfile(playerId) {
+  if (!playerId) return;
+  document.getElementById("prof-title").textContent = pname(playerId);
+  document.getElementById("prof-frame").src = "player.html?id=" + encodeURIComponent(playerId) + "&embed=1";
+  document.getElementById("prof").classList.add("on");
+}
+function closeProfile() {
+  document.getElementById("prof").classList.remove("on");
+  document.getElementById("prof-frame").removeAttribute("src");
 }
 
 // ---------------- winner pop-up ----------------
@@ -611,6 +638,9 @@ async function undoLast() {
     paintSoundBtn(); if (SOUND_ON) { audio(); tick(); TICKS--; }
   });
   document.getElementById("btn-close").addEventListener("click", dismissPop);
+  document.getElementById("btn-view-profile").addEventListener("click", function () { openProfile(POP_FOR); });
+  document.getElementById("btn-prof-close").addEventListener("click", closeProfile);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeProfile(); });
   document.getElementById("pop").addEventListener("click", function (e) { if (e.target === this) dismissPop(); });
   document.getElementById("sell-price").addEventListener("input", function () { this.value = this.value.replace(/[^0-9]/g, ""); });
   if (IS_ADMIN) {

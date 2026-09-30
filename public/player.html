@@ -92,8 +92,15 @@
 <script src="js/supabase-client.js"></script>
 <script src="js/common.js"></script>
 <script>
-renderHeader("players.html");
-renderFooter();
+// ?embed=1 = shown inside the Auction page's side panel: no site chrome and
+// no page-view counting (so watching the auction doesn't inflate profile views).
+var EMBED = qs("embed") === "1";
+if (EMBED) {
+  document.head.insertAdjacentHTML("beforeend", "<style>.breadcrumbs,#page-views{display:none !important;} body{padding-top:0 !important;} .container{padding-top:8px;}</style>");
+} else {
+  renderHeader("players.html");
+  renderFooter();
+}
 renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Players", href: "players.html" }, { label: "…" }]);
 
 var playerId = qs("id");
@@ -291,7 +298,7 @@ async function loadAwardsAndSuspensions() {
 
 loadPlayer();
 loadAwardsAndSuspensions();
-if (playerId) {
+if (playerId && !EMBED) {
   trackPageView("player:" + playerId).then(function (count) {
     document.getElementById("page-views").textContent = "Profile viewed " + formatViewCount(count);
   });
