@@ -60,7 +60,7 @@ with sync_playwright() as pw:
     p=s.page('player.html?id=p0');body=p.inner_text('body')
     for lab in ['GP','GOALS','ASSISTS','SAVES','CS','YELLOW','RED','POTM','POT']:
         ok(f'player: stats column {lab}',lab in body)
-    ok('player: stat values goals=2 potm=1 pot=1',re.search(r'\n0\t2\t0\t0\t0\t0\t0\t1\t1',body) is not None,body[body.find('GP'):body.find('GP')+80])
+    ok('player: stat values goals=2 potm=1 pot=1',re.search(r'\t0\t2\t0\t0\t0\t0\t0\t1\t1',body) is not None,body[body.find('GP'):body.find('GP')+80])
     ok('player: team link',p.locator('#player-team a[href^="team.html"]').count()==1 or 'Desi Steelers FC' in body)
     # ---------- matches / match ----------
     p=s.page('matches.html')

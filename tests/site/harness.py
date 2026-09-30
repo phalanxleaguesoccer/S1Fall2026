@@ -1,7 +1,7 @@
 import json, threading, http.server, socketserver, functools, sys
 from playwright.sync_api import sync_playwright
 ROOT='/home/claude/s1fall2026/public'
-FAKE=open(__import__('os').path.join(__import__('os').path.dirname(__file__),'fake_supabase.js')+'').read()
+FAKE=open('/var/tmp/site/fake_supabase.js').read()
 class H(http.server.SimpleHTTPRequestHandler):
     def log_message(self,*a): pass
 def serve(port=8137):
@@ -16,6 +16,10 @@ class Site:
         self.ctx.add_init_script('window.__DB='+json.dumps(db)+';')
         self.ctx.route('**/*supabase*.js',lambda r:r.fulfill(body=FAKE,content_type='application/javascript') if 'cdn.jsdelivr' in r.request.url else r.continue_())
         self.ctx.route('**/fonts.g*/**',lambda r:r.abort())
+        if not getattr(Site,'closed',False):   # live-auction tests run against an "open" copy of the page
+            def _open(r):
+                resp=r.fetch();r.fulfill(response=resp,body=resp.text().replace('var AUCTION_CLOSED = true;','var AUCTION_CLOSED = false;'))
+            self.ctx.route('**/auction.html*',_open)
         self.errors=[]
     def page(self,path,wait=900):
         p=self.ctx.new_page();errs=[]

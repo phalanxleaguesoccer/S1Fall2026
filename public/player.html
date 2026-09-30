@@ -71,6 +71,8 @@
         </select>
       </div>
 
+      <div id="auction-history" style="margin-bottom:14px;"></div>
+
       <div id="history-matches-view" style="display:none;">
         <div id="events-list"><p class="muted">Loading…</p></div>
       </div>
@@ -147,8 +149,8 @@ async function loadPlayer() {
       var rosterRes = await window.sb.from("team_season_rosters").select("*, teams(*)").eq("player_id", playerId).eq("season_id", season.id).maybeSingle();
       curRoster = rosterRes.data;
       if (rosterRes.data && rosterRes.data.teams) {
-        var auc = rosterRes.data.is_owner ? " &middot; Team owner"
-          : (rosterRes.data.auction_price != null ? " &middot; Auction: sold for " + rosterRes.data.auction_price + " pts" : "");
+        var auc = rosterRes.data.is_owner ? " : Team owner"
+          : (rosterRes.data.auction_price != null ? " : Auction sold for " + rosterRes.data.auction_price + " pts" : "");
         document.getElementById("player-team").innerHTML = 'Plays for <a href="team.html?id=' + rosterRes.data.teams.id + '">' + escapeHtml(rosterRes.data.teams.name) + "</a>" + auc;
       }
       var statsRes = await window.sb.from("player_season_stats").select("*").eq("player_id", playerId).eq("season_id", season.id).maybeSingle();
@@ -191,6 +193,27 @@ async function loadCareerHistory() {
   var rosBySeason = {};
   var rosRes = await window.sb.from("team_season_rosters").select("*").eq("player_id", playerId);
   (rosRes.data || []).forEach(function (x) { rosBySeason[x.season_id] = x; });
+
+  // Auction history: one line per season (shown for both Season-by-Season and Match-by-Match filters)
+  var seasonNames = {};
+  rows.forEach(function (r) { if (r.seasons) seasonNames[r.season_id] = r.seasons.name; });
+  var missing = Object.keys(rosBySeason).filter(function (id) { return !seasonNames[id]; });
+  if (missing.length) {
+    var sn = await window.sb.from("seasons").select("id,name").in("id", missing);
+    (sn.data || []).forEach(function (s) { seasonNames[s.id] = s.name; });
+  }
+  var allTeamIds = Object.keys(rosBySeason).map(function (k) { return rosBySeason[k].team_id; }).filter(function (id) { return id && !teamsById[id]; });
+  if (allTeamIds.length) {
+    var t2 = await window.sb.from("teams").select("*").in("id", allTeamIds);
+    (t2.data || []).forEach(function (t) { teamsById[t.id] = t; });
+  }
+  var aucLines = Object.keys(rosBySeason).sort(function (a, b) { return (seasonNames[a] || "").localeCompare(seasonNames[b] || ""); }).map(function (sid) {
+    var x = rosBySeason[sid], t = teamsById[x.team_id];
+    if (!x.is_owner && x.auction_price == null) return "";
+    return "<p style=\"margin:4px 0;\"><span class=\"muted\">" + escapeHtml(seasonNames[sid] || "Season") + ":</span> " +
+      (t ? '<a href="team.html?id=' + t.id + '">' + escapeHtml(t.name) + "</a>" : "—") + " : " + (x.is_owner ? "Team owner" : "Auction sold for " + x.auction_price + " pts") + "</p>";
+  }).filter(Boolean);
+  document.getElementById("auction-history").innerHTML = aucLines.length ? '<p class="muted" style="font-size:0.82rem;margin-bottom:4px;">Auction history:</p>' + aucLines.join("") : "";
 
   var totals = rows.reduce(function (acc, r) {
     acc.games_played += r.games_played || 0;
