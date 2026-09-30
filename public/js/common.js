@@ -21,6 +21,22 @@ function renderHeader(activePage) {
       '<nav class="main-nav">' + nav + "</nav>" +
       "</div></header>"
   );
+  renderEnvBanner();
+}
+
+// Preprod copy only (config.js sets ENV: "preprod"): a fixed red strip so a test
+// site can never be mistaken for the live league. The live config has no ENV.
+function renderEnvBanner() {
+  var cfg = window.PHALANX_CONFIG || {};
+  if (cfg.ENV !== "preprod" || document.getElementById("env-banner")) return;
+  document.title = "[PREPROD] " + document.title;
+  document.body.style.paddingBottom = "40px";
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    '<div id="env-banner" style="position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#b3261e;color:#fff;' +
+      'font:600 13px/1.3 system-ui,sans-serif;padding:7px 12px;text-align:center;letter-spacing:.02em">' +
+      "PREPROD · test copy, not the live league</div>"
+  );
 }
 
 function renderFooter() {

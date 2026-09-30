@@ -1,7 +1,8 @@
 import json, threading, http.server, socketserver, functools, sys
 from playwright.sync_api import sync_playwright
 ROOT='/home/claude/s1fall2026/public'
-FAKE=open('/var/tmp/site/fake_supabase.js').read()
+import os
+FAKE=open(os.path.join(os.path.dirname(os.path.abspath(__file__)),'fake_supabase.js')).read()
 class H(http.server.SimpleHTTPRequestHandler):
     def log_message(self,*a): pass
 def serve(port=8137):
