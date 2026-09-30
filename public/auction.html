@@ -7,17 +7,28 @@
 <link rel="stylesheet" href="css/app.css">
 <style>
   .auc-top { display:grid; grid-template-columns: 1fr; gap:16px; margin-bottom:16px; }
-  @media (min-width: 900px) { .auc-top { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 980px) { .auc-top { grid-template-columns: 1.35fr 1fr; } }
   .block-card { text-align:center; }
   .block-name { font-family: Anton, sans-serif; font-size: 2rem; letter-spacing: .02em; margin: 6px 0; }
-  .block-photo { width:120px; height:120px; border-radius:50%; overflow:hidden; margin:0 auto; background:var(--pitch-dark); border:2px solid var(--amber); }
+  .block-photo { width:110px; height:110px; border-radius:50%; overflow:hidden; margin:0 auto; background:var(--pitch-dark); border:2px solid var(--amber); }
   .block-photo img { width:100%; height:100%; object-fit:cover; display:block; }
   .live-dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--coral); margin-right:6px; animation: pulse 1.4s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
-  .wheel-wrap { position:relative; width:min(100%, 420px); margin:0 auto; }
-  .wheel-wrap canvas { width:100%; height:auto; display:block; }
-  .wheel-pointer { position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:0; height:0;
-    border-left:12px solid transparent; border-right:12px solid transparent; border-top:26px solid var(--amber); filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); z-index:2; }
+  .stage { position:relative; width:min(100%, 620px); margin:0 auto; aspect-ratio:1/1; }
+  .stage canvas { width:100%; height:100%; display:block; }
+  .w-pointer { position:absolute; right:-8px; top:50%; transform:translateY(-50%); width:0; height:0; border-top:20px solid transparent;
+    border-bottom:20px solid transparent; border-right:42px solid #F5F1E6; filter:drop-shadow(0 2px 4px rgba(0,0,0,.6)); z-index:2; }
+  .w-pointer.flick { animation: flick .12s; }
+  @keyframes flick { 50% { transform: translateY(-50%) rotate(-14deg); } }
+  .w-hub { position:absolute; left:50%; top:50%; width:17%; height:17%; transform:translate(-50%,-50%); border-radius:50%; background:#fff; color:#1a1a1a;
+    display:flex; align-items:center; justify-content:center; font-weight:800; letter-spacing:.06em; font-size:clamp(.7rem,2vw,1.05rem);
+    box-shadow:0 0 0 6px rgba(255,255,255,.25), 0 4px 14px rgba(0,0,0,.5); border:0; padding:0; }
+  body.is-admin .w-hub.can { cursor:pointer; }
+  body.is-admin .w-hub.can:hover { filter:brightness(.93); }
+  .w-hub:disabled { cursor:not-allowed; }
+  .name-list { max-height:360px; overflow:auto; }
+  .name-list div { padding:5px 10px; border-radius:6px; font-size:.9rem; }
+  .name-list div:nth-child(odd) { background:rgba(255,255,255,.04); }
   .team-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:14px; }
   .team-box { background:var(--card-charcoal); border:1px solid var(--card-edge); border-radius:var(--radius); padding:14px; }
   .team-box h3 { margin:0 0 2px; font-size:1.05rem; }
@@ -39,6 +50,23 @@
   .ctl-row > div.wide { flex:1 1 100%; }
   .btn:disabled { opacity:.4; cursor:not-allowed; filter:none; }
   #sell-team { width:100%; }
+  /* winner pop-up (wheelofnames style) */
+  .pop { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:16px; }
+  .pop.on { display:flex; }
+  .dlg { background:#fff; color:#222; width:min(100%, 480px); border-radius:8px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+  .dlg .hd { background:#3369e8; color:#fff; padding:14px 18px; font-size:1.15rem; font-weight:700; }
+  .dlg .bd { padding:26px 18px 18px; text-align:center; }
+  .dlg .winner { font-size:2.2rem; font-weight:800; line-height:1.15; }
+  .dlg .sub { color:#666; margin-top:4px; }
+  .dlg .ft { padding:12px 18px; display:flex; gap:10px; justify-content:flex-end; background:#f4f4f4; flex-wrap:wrap; }
+  .pb { border:0; padding:10px 18px; border-radius:4px; font-weight:700; cursor:pointer; font-size:.95rem; }
+  .pb.green { background:#009925; color:#fff; } .pb.red { background:#d50f25; color:#fff; }
+  .pb.grey { background:#ddd; color:#222; } .pb.blue { background:#3369e8; color:#fff; }
+  .dlg label { color:#333; font-size:.8rem; font-weight:700; display:block; text-align:left; margin-bottom:4px; }
+  .dlg select, .dlg input[type=text] { width:100%; padding:9px 10px; border:1px solid #bbb; border-radius:4px; font-size:1rem; background:#fff; color:#222; }
+  .dlg .sellform { text-align:left; margin-top:18px; display:none; }
+  .dlg .sellform .r { margin-bottom:10px; }
+  #pop-msg { color:#c0392b; font-size:.85rem; min-height:1.1em; margin:4px 0 0; }
 </style>
 </head>
 <body>
@@ -49,10 +77,18 @@
 
   <div class="auc-top" id="auc-top">
     <div class="card">
-      <div class="card-title">Player wheel <span class="muted" id="wheel-round-label" style="font-weight:400;font-size:.8rem;"></span></div>
-      <div class="wheel-wrap"><div class="wheel-pointer"></div><canvas id="wheel" width="520" height="520"></canvas></div>
+      <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span>Player wheel <span class="muted" id="wheel-round-label" style="font-weight:400;font-size:.8rem;"></span></span>
+        <button class="btn secondary" id="btn-sound" type="button" style="padding:3px 12px; font-size:.8rem;">🔊 Sound on</button>
+      </div>
+      <div class="stage" id="stage">
+        <canvas id="wheel" width="1240" height="1240"></canvas>
+        <div class="w-pointer" id="w-pointer"></div>
+        <button class="w-hub" id="w-hub" type="button"></button>
+      </div>
       <p id="wheel-empty" class="muted" style="text-align:center; display:none;"></p>
-      <div class="admin-only" style="text-align:center; margin-top:12px;">
+      <p class="muted admin-only" style="text-align:center; font-size:.8rem;">Click the wheel (or SPIN) to spin</p>
+      <div class="admin-only" style="text-align:center; margin-top:8px;">
         <button class="btn" id="btn-spin" type="button">Spin the wheel</button>
         <button class="btn secondary" id="btn-putback" type="button">Put back on wheel</button>
         <button class="btn secondary" id="btn-undo-last" type="button">Undo last action</button>
@@ -64,19 +100,17 @@
       <p id="wheel-msg" class="muted" style="text-align:center;"></p>
     </div>
 
-    <div class="card block-card">
-      <div class="card-title">On the block</div>
-      <div id="on-block"><p class="muted">Waiting for the next player…</p></div>
-      <div class="admin-only" id="sell-panel" style="display:none; text-align:left;">
-        <div class="ctl-row">
-          <div class="wide"><label>Sell to team</label><select id="sell-team"></select></div>
-          <div><label>Sold price (points, numbers only)</label><input type="text" id="sell-price" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" placeholder="e.g. 45"></div>
+    <div>
+      <div class="card block-card" style="margin-bottom:16px;">
+        <div class="card-title">On the block</div>
+        <div id="on-block"><p class="muted">Waiting for the next player…</p></div>
+        <div class="admin-only" id="reopen-wrap" style="display:none; margin-top:10px;">
+          <button class="btn" id="btn-reopen" type="button">Sell / Round 2 …</button>
         </div>
-        <div class="ctl-row">
-          <button class="btn" id="btn-sold" type="button">Sold</button>
-          <button class="btn secondary" id="btn-unsold" type="button">Unsold</button>
-        </div>
-        <p id="sell-msg" class="muted" style="margin-top:8px;"></p>
+      </div>
+      <div class="card">
+        <div class="card-title">On the wheel <span class="muted" id="r1-count" style="font-weight:400;font-size:.8rem;"></span></div>
+        <div id="round1" class="name-list"></div>
       </div>
     </div>
   </div>
@@ -96,9 +130,30 @@
     <div id="round2"><p class="muted">Nobody yet.</p></div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Still to be auctioned in Round 1 <span class="muted" id="r1-count" style="font-weight:400;font-size:.8rem;"></span></div>
-    <div id="round1" class="chips"></div>
+</div>
+
+
+<div class="pop" id="pop">
+  <div class="dlg">
+    <div class="hd">We have a winner!</div>
+    <div class="bd">
+      <div class="winner" id="pop-name"></div>
+      <div class="sub" id="pop-sub"></div>
+      <div class="sellform" id="sellform">
+        <div class="r"><label for="sell-team">Sell to team</label><select id="sell-team"></select></div>
+        <div class="r"><label for="sell-price">Sold price (points, numbers only)</label><input type="text" id="sell-price" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" placeholder="e.g. 45"></div>
+      </div>
+      <p id="pop-msg"></p>
+    </div>
+    <div class="ft" id="pop-ft-view">
+      <button class="pb grey" id="btn-close" type="button">Close</button>
+      <button class="pb red admin-only" id="btn-unsold" type="button">Round 2</button>
+      <button class="pb green admin-only" id="btn-sell-open" type="button">Sell</button>
+    </div>
+    <div class="ft" id="pop-ft-sell" style="display:none;">
+      <button class="pb grey" id="btn-sell-back" type="button">Back</button>
+      <button class="pb green" id="btn-sold" type="button">Confirm sale</button>
+    </div>
   </div>
 </div>
 
@@ -113,9 +168,52 @@ renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Live Auction
 
 var SEASON = null, TEAMS = [], PLAYERS = {}, ROSTER = [], UNSOLD = [], STATE = null;
 var IS_ADMIN = false, ANIM = false, BUDGET = 200, MISSING = false;
-var wheelAngle = 0, wheelNames = [], lastSeq = null, lastStateStamp = null;
-var COLORS = ["#0E3B2E", "#E7A93D", "#1F5C48", "#E2583D", "#2C7A5F", "#B7772A", "#164B3B", "#C0392B"];
-var SPIN_MS = 5200;
+var wheelAngle = 0, wheelNames = [], wheelKey = null, lastSeq = null, lastStateStamp = null;
+var COLORS = ["#3369e8", "#d50f25", "#eeb211", "#009925"], ODD_COLOR = "#8e44ad";
+var SPIN_MS = 6000, POP_FOR = null, POP_DISMISSED = null;
+var SOUND_ON = true, AC = null, TICKS = 0;
+try { if (localStorage.getItem("auctionSound") === "off") SOUND_ON = false; } catch (e) {}
+
+// ---------- randomness: cryptographic, unbiased, no pattern ----------
+function secureInt(n) {                       // uniform 0..n-1 (rejection sampling removes modulo bias)
+  if (n <= 1) return 0;
+  var max = Math.floor(4294967296 / n) * n, a = new Uint32Array(1);
+  do { crypto.getRandomValues(a); } while (a[0] >= max);
+  return a[0] % n;
+}
+function secureShuffle(arr) {                 // Fisher-Yates with secureInt
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) { var j = secureInt(i + 1), t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
+}
+
+// ---------- ticking sound ----------
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+  if (AC && AC.state === "suspended") AC.resume();
+  return AC;
+}
+function tick() {
+  TICKS++;
+  var pt = document.getElementById("w-pointer");
+  pt.classList.remove("flick"); void pt.offsetWidth; pt.classList.add("flick");
+  if (!SOUND_ON) return;
+  var ac = audio(); if (!ac || ac.state !== "running") return;
+  var o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+  o.type = "square"; o.frequency.value = 1100;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.06);
+}
+function fanfare() {
+  if (!SOUND_ON) return; var ac = audio(); if (!ac || ac.state !== "running") return;
+  [523, 659, 784, 1047].forEach(function (f, i) {
+    var o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + i * 0.11;
+    o.type = "triangle"; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.4);
+  });
+}
+function paintSoundBtn() { document.getElementById("btn-sound").textContent = SOUND_ON ? "🔊 Sound on" : "🔇 Sound off"; }
 
 function isPlaceholder(t) { return /^Team [A-Z]$/.test(t.name); }
 function photoHtml(p) {
@@ -153,8 +251,6 @@ async function loadAll() {
 }
 function stamp(st) { return st ? [st.updated_at, st.spin_seq, st.current_player_id, st.wheel_round].join("|") : ""; }
 
-// Light poll: one small query every 2s; full reload only when something changed
-// (or every 8s as a safety net).
 var lastFull = Date.now();
 async function lightPoll() {
   if (!SEASON || ANIM) return;
@@ -192,7 +288,11 @@ function render() {
       '<div class="muted">' + escapeHtml([cur.preferred_position, cur.skill_level, cur.skill_rating ? cur.skill_rating + "/10" : ""].filter(Boolean).join(" · ")) + '</div>' +
       '<div style="margin-top:6px;"><a href="player.html?id=' + cur.id + '">View profile</a></div>'
     : '<p class="muted">Waiting for the next player…</p>';
-  document.getElementById("sell-panel").style.display = IS_ADMIN && cur && !ANIM ? "block" : "none";
+  document.getElementById("reopen-wrap").style.display = IS_ADMIN && cur && !ANIM ? "block" : "none";
+
+  // pop-up follows the player on the block
+  if (!ANIM && POP_FOR && POP_FOR !== curId) closePop();
+  if (!ANIM && curId && POP_FOR === curId && POP_DISMISSED !== curId) document.getElementById("pop").classList.add("on");
 
   // ---- teams ----
   document.getElementById("budget-note").textContent = "· " + BUDGET + " points per team · owners count at 0 points";
@@ -226,28 +326,36 @@ function render() {
       '<button class="btn secondary admin-only" data-undo-unsold="' + e.u.player_id + '" style="padding:2px 10px;">Undo</button></div>';
   }).join("") : '<p class="muted">No sales yet.</p>';
 
-  // ---- round 2 + round 1 lists ----
+  // ---- round 2 list ----
   var r1 = pool(1), r2 = pool(2), fin = UNSOLD.filter(function (u) { return u.round === 2 && !sold[u.player_id]; });
   document.getElementById("round2").innerHTML =
     (r2.length ? '<div class="chips">' + r2.map(function (p) { return '<span class="chip"><a href="player.html?id=' + p.id + '">' + escapeHtml(p.full_name) + '</a></span>'; }).join("") + '</div>'
       : '<p class="muted">Nobody in Round 2 yet.</p>') +
     (fin.length ? '<p class="muted" style="margin-top:10px;">Final unsold after Round 2: ' + fin.map(function (u) { return escapeHtml(pname(u.player_id)); }).join(", ") + '</p>' : '');
   var r1Left = r1.filter(function (p) { return p.id !== curId; });
-  document.getElementById("r1-count").textContent = "(" + r1Left.length + ")";
-  document.getElementById("round1").innerHTML = r1Left.length ? r1Left.map(function (p) { return '<span class="chip">' + escapeHtml(p.full_name) + '</span>'; }).join("") : '<p class="muted">Round 1 is complete.</p>';
 
-  // ---- wheel ----
-  var rd = wheelRound();
-  document.getElementById("wheel-round-label").textContent = "· Round " + rd + " · " + wheelPool().length + " on the wheel";
+  // ---- wheel + names list ----
+  var rd = wheelRound(), wp = wheelPool();
+  document.getElementById("wheel-round-label").textContent = "· Round " + rd + " · " + wp.length + " on the wheel";
+  document.getElementById("r1-count").textContent = "(Round " + rd + " · " + wp.length + ")";
+  document.getElementById("round1").innerHTML = wp.length ? wp.map(function (p) { return "<div>" + escapeHtml(p.full_name) + "</div>"; }).join("") : '<p class="muted">Nobody left on this wheel.</p>';
   var empty = document.getElementById("wheel-empty");
   if (!ANIM) {
-    var names = wheelPool().map(function (p) { return p.full_name; });
-    if (names.join("|") !== wheelNames.join("|")) { wheelNames = names; wheelAngle = 0; drawWheel(); }
-    if (names.length === 0) {
+    var key = wp.map(function (p) { return p.id; }).join("|");
+    if (key !== wheelKey) {                      // pool changed: lay the wheel out in a fresh random order
+      wheelKey = key;
+      wheelNames = secureShuffle(wp.map(function (p) { return p.full_name; }));
+      wheelAngle = 0; drawWheel();
+    }
+    if (wp.length === 0) {
       empty.style.display = "";
       empty.textContent = rd === 1 ? (curId ? "Last Round 1 player is on the block." : "Round 1 is complete.") : (curId ? "Last Round 2 player is on the block." : "Round 2 is complete.");
     } else empty.style.display = "none";
   }
+  var hub = document.getElementById("w-hub");
+  hub.textContent = IS_ADMIN ? "SPIN" : "";
+  var canSpin = IS_ADMIN && !ANIM && !curId && wp.length > 0;
+  hub.classList.toggle("can", canSpin); hub.disabled = !IS_ADMIN;
 
   if (IS_ADMIN) {
     var ts = document.getElementById("sell-team"), tprev = ts.value;
@@ -256,76 +364,107 @@ function render() {
       return '<option value="' + t.id + '">' + escapeHtml(t.name) + (ow ? ' — Owner: ' + escapeHtml(pname(ow.player_id)) : '') + ' (' + (BUDGET - teamSpent(t.id)) + ' pts left)</option>';
     }).join("");
     if (tprev) ts.value = tprev;
-    document.getElementById("btn-spin").disabled = ANIM || !!curId || wheelPool().length === 0;
+    document.getElementById("btn-spin").disabled = !canSpin;
     document.getElementById("btn-putback").style.display = curId && !ANIM ? "" : "none";
     var r1Empty = r1Left.length === 0 && !curId;
     document.getElementById("btn-load-r2").style.display = rd === 1 && r1Empty && r2.length > 0 ? "" : "none";
     document.getElementById("btn-back-r1").style.display = rd === 2 && r1.length > 0 ? "" : "none";
-    document.getElementById("btn-unsold").textContent = rd === 1 ? "Unsold → Round 2" : "Unsold (final)";
+    document.getElementById("btn-unsold").textContent = rd === 1 ? "Round 2" : "Final unsold";
   }
   document.querySelectorAll("[data-undo-sale]").forEach(function (b) { b.onclick = function () { undoSale(b.dataset.undoSale); }; });
   document.querySelectorAll("[data-undo-unsold]").forEach(function (b) { b.onclick = function () { undoUnsold(b.dataset.undoUnsold); }; });
 }
 
-// ---------------- wheel drawing / spinning (same spin on every screen) ----------------
-function drawWheel() {
-  var c = document.getElementById("wheel"), ctx = c.getContext("2d"), W = c.width, R = W / 2 - 6;
-  ctx.clearRect(0, 0, W, W);
-  ctx.save(); ctx.translate(W / 2, W / 2); ctx.rotate(wheelAngle * Math.PI / 180);
-  var n = wheelNames.length;
-  if (n === 0) {
-    ctx.fillStyle = "#1C1C1F"; ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill();
-    ctx.fillStyle = "#B7B0A0"; ctx.font = "24px sans-serif"; ctx.textAlign = "center"; ctx.fillText("No players on the wheel", 0, 8);
-    ctx.restore(); return;
-  }
-  var seg = 2 * Math.PI / n;
-  for (var i = 0; i < n; i++) {
-    var a0 = -Math.PI / 2 + i * seg, a1 = a0 + seg;
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, a0, a1); ctx.closePath();
-    ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fill();
-    ctx.strokeStyle = "#082A20"; ctx.lineWidth = 2; ctx.stroke();
-    ctx.save(); ctx.rotate(a0 + seg / 2); ctx.textAlign = "right"; ctx.fillStyle = "#F5F1E6";
-    ctx.font = (n > 28 ? 15 : n > 18 ? 18 : 22) + "px sans-serif";
-    ctx.fillText(wheelNames[i].length > 20 ? wheelNames[i].slice(0, 19) + "…" : wheelNames[i], R - 14, 6);
-    ctx.restore();
-  }
-  ctx.beginPath(); ctx.arc(0, 0, 26, 0, 7); ctx.fillStyle = "#F5F1E6"; ctx.fill();
-  ctx.restore();
+// ---------------- winner pop-up ----------------
+function openPop(playerId) {
+  POP_FOR = playerId; POP_DISMISSED = null;
+  var p = PLAYERS[playerId] || {};
+  document.getElementById("pop-name").textContent = p.full_name || "";
+  document.getElementById("pop-sub").textContent = [p.preferred_position, p.skill_level, p.skill_rating ? p.skill_rating + "/10" : ""].filter(Boolean).join(" · ");
+  showSellForm(false);
+  document.getElementById("pop-msg").textContent = "";
+  document.getElementById("sell-price").value = "";
+  document.getElementById("pop").classList.add("on");
+}
+function closePop() { POP_FOR = null; document.getElementById("pop").classList.remove("on"); showSellForm(false); }
+function dismissPop() { POP_DISMISSED = POP_FOR; document.getElementById("pop").classList.remove("on"); }
+function showSellForm(on) {
+  document.getElementById("sellform").style.display = on ? "block" : "none";
+  document.getElementById("pop-ft-view").style.display = on ? "none" : "flex";
+  document.getElementById("pop-ft-sell").style.display = on ? "flex" : "none";
 }
 
-function randomInt(n) { var a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; }
+// ---------------- wheel drawing / spinning (same spin on every screen) ----------------
+// Wheel-of-names geometry: pointer at 3 o'clock; segment i spans [i*seg, (i+1)*seg) clockwise from 3 o'clock.
+function segColor(i, n) {
+  if (i === n - 1 && n % 4 === 1) return ODD_COLOR;      // avoid same colour meeting itself at the seam
+  return COLORS[i % 4];
+}
+function drawWheel() {
+  var c = document.getElementById("wheel"), ctx = c.getContext("2d"), W = c.width, R = W / 2 - 12;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, W);
+  ctx.translate(W / 2, W / 2);
+  var n = wheelNames.length;
+  if (n === 0) {
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fillStyle = "#2a2a2e"; ctx.fill();
+    ctx.lineWidth = 14; ctx.strokeStyle = "#F5F1E6"; ctx.stroke();
+    ctx.fillStyle = "#B7B0A0"; ctx.font = "bold 40px Arial"; ctx.textAlign = "center"; ctx.fillText("No players on the wheel", 0, 12);
+    return;
+  }
+  ctx.rotate(wheelAngle * Math.PI / 180);
+  var seg = 2 * Math.PI / n;
+  for (var i = 0; i < n; i++) {
+    var a0 = i * seg, a1 = a0 + seg;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, a0, a1); ctx.closePath();
+    ctx.fillStyle = segColor(i, n); ctx.fill();
+    ctx.save(); ctx.rotate(a0 + seg / 2); ctx.textAlign = "right"; ctx.fillStyle = "#fff";
+    var fs = n > 40 ? 20 : n > 28 ? 27 : n > 18 ? 33 : 42;
+    ctx.font = "bold " + fs + "px Arial"; ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 4;
+    var nm = wheelNames[i]; if (nm.length > 22) nm = nm.slice(0, 21) + "…";
+    ctx.fillText(nm, R - 34, fs * 0.35);
+    ctx.restore();
+  }
+  ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.lineWidth = 14; ctx.strokeStyle = "#fff"; ctx.stroke();
+}
+function segUnderPointer(angle, n) {           // index of the segment at the pointer for a given rotation
+  var a = (((-angle) % 360) + 360) % 360;
+  return Math.floor(a / (360 / n)) % n;
+}
 
-// Animate to the published winner. `ids` is the exact pool order the admin spun.
+// Animate to the published winner. `ids` is the exact (shuffled) pool order the admin spun.
 function runSpin(ids, winnerId, offset, done) {
   var names = ids.map(function (id) { return pname(id); });
   var idx = ids.indexOf(winnerId);
   if (idx < 0 || !names.length) { if (done) done(); return; }
-  ANIM = true; wheelNames = names; drawWheel(); render();
+  ANIM = true; wheelNames = names; wheelKey = "spin"; wheelAngle = 0; drawWheel(); render();
+  audio();
   var n = names.length, seg = 360 / n;
   var target = -((idx + 0.5 + offset) * seg);
-  var startAngle = 0;
-  var final = 360 * 7 + (((target - startAngle) % 360) + 360) % 360;
-  wheelAngle = 0;
-  var t0 = performance.now();
+  var final = 360 * 7 + (((target % 360) + 360) % 360);          // clockwise spin, ends exactly on `target` (mod 360)
+  var startAngle = 0, lastSeg = segUnderPointer(0, n), t0 = performance.now();
   (function frame(now) {
     var k = Math.min(1, (now - t0) / SPIN_MS), e = 1 - Math.pow(1 - k, 4);
-    wheelAngle = final * e; drawWheel();
+    wheelAngle = startAngle + (final - startAngle) * e;
+    var sg = segUnderPointer(wheelAngle, n); if (sg !== lastSeg) { lastSeg = sg; tick(); }
+    drawWheel();
     if (k < 1) return requestAnimationFrame(frame);
     wheelAngle = final; drawWheel();
-    setTimeout(function () { ANIM = false; wheelNames = []; wheelAngle = 0; render(); if (done) done(); }, 900);
+    fanfare();
+    setTimeout(function () {
+      ANIM = false; wheelKey = null; wheelAngle = 0;
+      openPop(winnerId);
+      render(); if (done) done();
+    }, 700);
   })(t0);
 }
 
-// Viewers (and the admin's own screen) pick up a newly published spin.
 function checkSpin() {
   var seq = STATE && STATE.spin_seq ? STATE.spin_seq : 0;
   if (lastSeq === null) { lastSeq = seq; return; }        // first load: don't replay old spins
   if (seq > lastSeq && !ANIM && STATE.spin_pool && STATE.spin_winner_id) {
     var gap = seq - lastSeq, age = STATE.spin_started_at ? Date.now() - new Date(STATE.spin_started_at).getTime() : 0;
     lastSeq = seq;
-    // Only replay a spin we caught live: if this screen missed spins (tab asleep / offline)
-    // or the spin is old, just show the current state instead of an out-of-date animation.
-    if (gap > 1 || age > 60000) return;
+    if (gap > 1 || age > 60000) return;                   // missed it: just show the current state
     runSpin(STATE.spin_pool, STATE.spin_winner_id, Number(STATE.spin_offset) || 0);
   }
 }
@@ -342,20 +481,21 @@ function stateBase() {
 
 async function spin() {
   var msg = document.getElementById("wheel-msg");
-  if (ANIM || onBlockId()) return;
+  if (!IS_ADMIN || ANIM || onBlockId()) return;
   var players = wheelPool();
   if (players.length === 0) { msg.textContent = "No players left on this wheel."; return; }
-  var winner = players[randomInt(players.length)];
-  var offset = (Math.random() - 0.5) * 0.7;
-  var ids = players.map(function (p) { return p.id; });
+  audio();
+  var ids = secureShuffle(players.map(function (p) { return p.id; }));   // fresh random layout every spin
+  var winnerId = ids[secureInt(ids.length)];                             // uniform, unbiased pick
+  var offset = secureInt(7001) / 10000 - 0.35;                           // random landing spot inside the segment
   var seq = (STATE && STATE.spin_seq || 0) + 1;
-  var res = await publishState(Object.assign(stateBase(), { current_player_id: winner.id, spin_seq: seq, spin_pool: ids,
-    spin_winner_id: winner.id, spin_offset: offset, spin_started_at: new Date().toISOString() }));
+  var res = await publishState(Object.assign(stateBase(), { current_player_id: winnerId, spin_seq: seq, spin_pool: ids,
+    spin_winner_id: winnerId, spin_offset: offset, spin_started_at: new Date().toISOString() }));
   if (res.error) { msg.textContent = "Could not start the spin: " + res.error.message; return; }
   msg.textContent = "";
   lastSeq = seq;
-  STATE = Object.assign({}, STATE || {}, { current_player_id: winner.id, spin_seq: seq, wheel_round: wheelRound() });
-  runSpin(ids, winner.id, offset, function () { document.getElementById("sell-price").value = ""; loadAll(); });
+  STATE = Object.assign({}, STATE || {}, { current_player_id: winnerId, spin_seq: seq, wheel_round: wheelRound() });
+  runSpin(ids, winnerId, offset, function () { loadAll(); });
 }
 
 async function clearBlock() {
@@ -363,7 +503,7 @@ async function clearBlock() {
 }
 
 async function sell() {
-  var msg = document.getElementById("sell-msg");
+  var msg = document.getElementById("pop-msg");
   var cur = onBlockId(); if (!cur || ANIM) return;
   var teamId = document.getElementById("sell-team").value;
   var raw = document.getElementById("sell-price").value;
@@ -374,23 +514,23 @@ async function sell() {
   var res = await window.sb.from("team_season_rosters").insert({ season_id: SEASON.id, team_id: teamId, player_id: cur, auction_price: price, is_owner: false, sold_at: new Date().toISOString() });
   if (res.error) { msg.textContent = "Error: " + res.error.message; return; }
   await window.sb.from("auction_unsold").delete().eq("season_id", SEASON.id).eq("player_id", cur);
-  await clearBlock(); msg.textContent = "";
+  await clearBlock(); msg.textContent = ""; closePop();
   await loadAll();
 }
 
 async function markUnsold() {
-  var msg = document.getElementById("sell-msg");
+  var msg = document.getElementById("pop-msg");
   var cur = onBlockId(); if (!cur || ANIM) return;
   var round = wheelRound() === 1 ? 1 : 2;
   var res = await window.sb.from("auction_unsold").upsert({ season_id: SEASON.id, player_id: cur, round: round, created_at: new Date().toISOString() }, { onConflict: "season_id,player_id" });
   if (res.error) { msg.textContent = "Error: " + res.error.message; return; }
-  await clearBlock(); msg.textContent = "";
+  await clearBlock(); msg.textContent = ""; closePop();
   await loadAll();
 }
 
-async function putBack() {          // took the wrong spin / player not present: back onto the wheel, no penalty
+async function putBack() {          // wrong spin / player not present: back onto the wheel, no penalty
   if (ANIM || !onBlockId()) return;
-  await clearBlock(); await loadAll();
+  await clearBlock(); closePop(); await loadAll();
 }
 async function setRound(r) {
   await publishState(Object.assign(stateBase(), { wheel_round: r, current_player_id: null }));
@@ -428,12 +568,24 @@ async function undoLast() {
       IS_ADMIN = !!(a.data);
     }
   } catch (e) {}
+  paintSoundBtn();
+  document.getElementById("btn-sound").addEventListener("click", function () {
+    SOUND_ON = !SOUND_ON; try { localStorage.setItem("auctionSound", SOUND_ON ? "on" : "off"); } catch (e) {}
+    paintSoundBtn(); if (SOUND_ON) { audio(); tick(); TICKS--; }
+  });
+  document.getElementById("btn-close").addEventListener("click", dismissPop);
+  document.getElementById("pop").addEventListener("click", function (e) { if (e.target === this) dismissPop(); });
+  document.getElementById("sell-price").addEventListener("input", function () { this.value = this.value.replace(/[^0-9]/g, ""); });
   if (IS_ADMIN) {
     document.body.classList.add("is-admin");
-    document.getElementById("sell-price").addEventListener("input", function () { this.value = this.value.replace(/[^0-9]/g, ""); });
     document.getElementById("btn-spin").addEventListener("click", spin);
+    document.getElementById("w-hub").addEventListener("click", spin);
+    document.getElementById("wheel").addEventListener("click", spin);
     document.getElementById("btn-sold").addEventListener("click", sell);
     document.getElementById("btn-unsold").addEventListener("click", markUnsold);
+    document.getElementById("btn-sell-open").addEventListener("click", function () { showSellForm(true); });
+    document.getElementById("btn-sell-back").addEventListener("click", function () { showSellForm(false); });
+    document.getElementById("btn-reopen").addEventListener("click", function () { var c = onBlockId(); if (c) openPop(c); });
     document.getElementById("btn-putback").addEventListener("click", putBack);
     document.getElementById("btn-undo-last").addEventListener("click", undoLast);
     document.getElementById("btn-load-r2").addEventListener("click", function () { setRound(2); });
