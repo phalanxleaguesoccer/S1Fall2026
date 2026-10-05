@@ -17,7 +17,7 @@ function renderHeader(activePage) {
   document.body.insertAdjacentHTML(
     "afterbegin",
     '<header class="site-header"><div class="container">' +
-      '<a class="brand" href="index.html"><span class="crest">PLS</span> Phalanx League Soccer</span></a>' +
+      '<a class="brand" href="index.html"><img class="logo" src="' + (window.IN_ADMIN_DIR ? "../" : "") + 'assets/brand/logo-icon.png" alt="Phalanx League Soccer logo"> Phalanx League Soccer</a>' +
       '<nav class="main-nav">' + nav + "</nav>" +
       "</div></header>"
   );

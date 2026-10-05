@@ -97,6 +97,7 @@ a:hover { text-decoration: underline; }
   font-size: 1.3rem;
   color: var(--chalk-white);
 }
+.brand .logo { height: 40px; width: auto; display:block; }
 .brand .crest {
   width: 34px; height: 34px;
   border-radius: 50%;
