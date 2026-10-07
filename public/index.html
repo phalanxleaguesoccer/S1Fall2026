@@ -149,11 +149,12 @@ async function loadStandings() {
   rows = resolveTies(rows, played, shootoutPos);
 
   var noteEl = document.getElementById("tie-note");
-  var unresolved = rows.filter(function (r) { return r.unresolved; });
-  if (seasonComplete && unresolved.length) {
+  var unresolved = rows.filter(function (r) { return r.unresolved && r.played > 0; });
+  if (unresolved.length) {
     noteEl.style.display = "";
-    noteEl.textContent = "Penalty shoot-out needed: " + unresolved.map(function (r) { return r.team.name; }).join(", ") +
-      " are level on every criterion. Their final order is set by a penalty shoot-out.";
+    noteEl.textContent = seasonComplete
+      ? "Penalty shoot-out needed: " + unresolved.map(function (r) { return r.team.name; }).join(", ") + " are level on every criterion. Their final order is set by a penalty shoot-out."
+      : "Level on every criterion so far (" + unresolved.map(function (r) { return r.team.name; }).join(", ") + "), so they share a rank. A penalty shoot-out is used only as the last resort, after all matches are completed.";
   } else {
     noteEl.style.display = "none";
   }
@@ -163,9 +164,15 @@ async function loadStandings() {
     tbody.innerHTML = '<tr><td colspan="10" class="text-center muted">No teams added yet.</td></tr>';
     return;
   }
+  // Teams level on EVERY criterion share a rank (1, 2, 2, 4) until the final
+  // penalty shoot-out (tournament complete) separates them.
+  var ranks = [];
+  rows.forEach(function (r, i) {
+    ranks[i] = (i > 0 && r.played > 0 && r.unresolved && rows[i - 1].unresolved && r.tieKey === rows[i - 1].tieKey) ? ranks[i - 1] : i + 1;
+  });
   tbody.innerHTML = rows.map(function (r, i) {
     return "<tr>" +
-      "<td>" + (i + 1) + (r.unresolved && seasonComplete ? "=" : "") + "</td>" +
+      "<td>" + ranks[i] + (r.unresolved && r.played > 0 ? "=" : "") + "</td>" +
       '<td class="team-name"><a href="team.html?id=' + r.team.id + '">' + escapeHtml(r.team.name) + "</a></td>" +
       "<td>" + r.played + "</td><td>" + r.wins + "</td><td>" + r.draws + "</td><td>" + r.losses + "</td>" +
       "<td>" + r.gf + "</td><td>" + r.ga + "</td><td>" + r.gd + "</td>" +
@@ -221,7 +228,10 @@ function resolveTies(rows, matches, shootoutPos) {
         return pa < pb ? -1 : 1;
       }
       group.sort(cmp);
+      var runId = 0;
       for (var k = 0; k < group.length; k++) {
+        if (k > 0 && cmp(group[k - 1], group[k]) !== 0) runId++;
+        group[k].tieKey = i + ":" + runId;
         var same = (k > 0 && cmp(group[k - 1], group[k]) === 0) ||
                    (k < group.length - 1 && cmp(group[k], group[k + 1]) === 0);
         if (same) group[k].unresolved = true;

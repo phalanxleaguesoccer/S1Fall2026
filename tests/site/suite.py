@@ -85,7 +85,7 @@ with sync_playwright() as pw:
     b=p.inner_text('#standings-body');note=p.inner_text('#tie-note') if p.is_visible('#tie-note') else ''
     rk=[p.locator('#standings-body tr').nth(i).locator('td').first.inner_text() for i in range(4)]
     ok('tie: Desi is clear #1',p.locator('#standings-body tr').first.locator('td').nth(1).inner_text()=='Desi Steelers FC' and rk[0]=='1',rk)
-    ok('tie: 3 tied teams flagged with = and banner asks for shoot-out',rk[1:]==['2=','3=','4='] and 'shoot-out needed' in note,(rk,note))
+    ok('tie: 3 tied teams flagged with = and banner asks for shoot-out',rk[1:]==['2=','2=','2='] and 'shoot-out needed' in note,(rk,note))
     db=scenario_post_tie();db['tiebreak_shootout_order']=[{'season_id':'season1','team_id':db['_ids']['T']['Renegades'],'position':1},{'season_id':'season1','team_id':db['_ids']['T']['Scouts FC'],'position':2},{'season_id':'season1','team_id':db['_ids']['T']['Muggles FC'],'position':3}]
     s3=Site(pw,db);p=s3.page('index.html')
     order=[p.locator('#standings-body tr').nth(i).locator('td').nth(1).inner_text() for i in range(4)];rk=[p.locator('#standings-body tr').nth(i).locator('td').first.inner_text() for i in range(4)]
@@ -93,7 +93,16 @@ with sync_playwright() as pw:
     db=scenario_post_tie();db['matches'].append({'id':'mx','season_id':'season1','match_day':4,'match_number':1,'home_team_id':'t4','away_team_id':'t5','status':'scheduled','home_score':None,'away_score':None,'forfeited_by_team_id':None,'kickoff_at':None})
     db['tiebreak_shootout_order']=[{'season_id':'season1','team_id':db['_ids']['T']['Renegades'],'position':1}]
     s4=Site(pw,db);p=s4.page('index.html')
-    ok('tie: shoot-out ignored while tournament incomplete (no banner, no = marks)',not p.is_visible('#tie-note') and '=' not in p.locator('#standings-body tr').nth(1).locator('td').first.inner_text())
+    ok('tie: shoot-out ignored while tournament incomplete (shared rank, "only after all matches" note)',p.is_visible('#tie-note') and 'shoot-out needed' not in p.inner_text('#tie-note') and 'after all matches' in p.inner_text('#tie-note') and p.locator('#standings-body tr').nth(1).locator('td').first.inner_text()=='2=')
+    # ---------- Day 1 reality: ranks 1,2,2,4 ----------
+    b=base();m=b['m']
+    m(1,1,'Muggles FC','Desi Steelers FC','completed',0,0);m(1,2,'Renegades','Scouts FC','completed',0,0)
+    m(1,3,'Renegades','Desi Steelers FC','completed',0,0);m(1,4,'Muggles FC','Scouts FC','completed',1,2)
+    m(2,1,'Scouts FC','Desi Steelers FC');m(2,2,'Muggles FC','Renegades')
+    sd=Site(pw,finish(b));p=sd.page('index.html')
+    rows=[[c for c in p.locator('#standings-body tr').nth(i).locator('td').all_inner_texts()] for i in range(4)]
+    ok('day1: ranks read 1, 2=, 2=, 4',[r[0] for r in rows]==['1','2=','2=','4'],rows)
+    ok('day1: Scouts 3pts first; Desi+Renegades level (2pts, GD0, GF0); Muggles last',rows[0][1]=='Scouts FC' and rows[0][-1]=='3' and {rows[1][1],rows[2][1]}=={'Desi Steelers FC','Renegades'} and rows[3][1]=='Muggles FC' and rows[3][-1]=='1',rows)
     # ---------- admin ----------
     sa=Site(pw,scenario_played(),admin=True);p=sa.page('admin/dashboard.html',1200)
     ok('admin: dashboard loads, no errors',not p.errs,p.errs);p.click('button[data-tab=matches]')
