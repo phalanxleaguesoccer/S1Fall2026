@@ -33,7 +33,7 @@ from matches m join teams h on h.id = m.home_team_id join teams a on a.id = m.aw
 where m.match_day = 1 order by m.match_number;
 
 -- ===================== STEP 2: player events (goals, assists, yellow card, player of the match) =====================
--- Team of each player is taken from the current season's squads. Half and minute are not recorded; events are saved in the order listed (that is the order shown on the Stats > Milestones page).
+-- Team of each player is taken from the current season's squads. Halves are recorded for the Match 4 goals/assists only (goal 1 first half, goals 2 and 3 second half); minutes are not recorded; events are saved in the order listed (that is the order shown on the Stats > Milestones page).
 do $$
 declare
   s uuid := (select id from seasons where is_current limit 1);
@@ -41,17 +41,17 @@ declare
 begin
   delete from match_events where match_id in (select id from matches where season_id = s and match_day = 1);
   for ev in select * from (values
-    (1, 1, 'player_of_match', 'Dhruv', null),
-    (2, 2, 'player_of_match', 'Kartik', null),
-    (3, 3, 'player_of_match', 'Nuhu Okikiri', null),
-    (4, 3, 'yellow_card', 'Chirag', null),
-    (5, 4, 'player_of_match', 'Bhagyesh Rane', null),
-    (6, 4, 'goal', 'Vishnu Mohan', null),
-    (7, 4, 'goal', 'Bhagyesh Rane', 'Kartik'),
-    (8, 4, 'assist', 'Kartik', null),
-    (9, 4, 'goal', 'Bilal Yaser', 'Pradnyal Gandhi'),
-    (10, 4, 'assist', 'Pradnyal Gandhi', null)
-  ) v(seq, n, typ, who, assist_by)
+    (1, 1, 'player_of_match', 'Dhruv', null, null),
+    (2, 2, 'player_of_match', 'Kartik', null, null),
+    (3, 3, 'player_of_match', 'Nuhu Okikiri', null, null),
+    (4, 3, 'yellow_card', 'Chirag', null, null),
+    (5, 4, 'player_of_match', 'Bhagyesh Rane', null, null),
+    (6, 4, 'goal', 'Vishnu Mohan', null, 1),
+    (7, 4, 'goal', 'Bhagyesh Rane', 'Kartik', 2),
+    (8, 4, 'assist', 'Kartik', null, 2),
+    (9, 4, 'goal', 'Bilal Yaser', 'Pradnyal Gandhi', 2),
+    (10, 4, 'assist', 'Pradnyal Gandhi', null, 2)
+  ) v(seq, n, typ, who, assist_by, hf)
   order by seq
   loop
     select id into mid from matches where season_id = s and match_day = 1 and match_number = ev.n;
@@ -61,7 +61,7 @@ begin
     rid := null;
     if ev.assist_by is not null then select id into rid from players where full_name = ev.assist_by; end if;
     insert into match_events (match_id, team_id, player_id, event_type, half, related_player_id, created_at)
-    values (mid, tid, pid, ev.typ, null, rid, clock_timestamp());   -- half/minute not recorded; entry order = order they happened
+    values (mid, tid, pid, ev.typ, ev.hf, rid, clock_timestamp());   -- half only where known; minute not recorded; entry order = order they happened
   end loop;
 end $$;
 
