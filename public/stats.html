@@ -265,10 +265,11 @@ var SS_COLS = [
   ["yellow", "Yellow", "Yellow cards"], ["red", "Red", "Red cards"],
   ["rested", "Rested", "Matches rested"], ["absent", "Absent", "Matches absent"]
 ];
-// Ranking order: Goals > Assists > POTM > Won > Drawn > (played at all) > fewer Lost > more Played > fewer Yellow > fewer Red > more Rested > fewer Absent.
-// Cards only break ties: a player with cards ranks below an otherwise equal player without.
-var SS_CHAIN = [["goals", -1], ["assists", -1], ["potm", -1], ["won", -1], ["drawn", -1], ["hasPlayed", -1], ["lost", 1], ["played", -1], ["yellow", 1], ["red", 1], ["rested", -1], ["absent", 1]];
+// Ranking order: no cards above any cards; then Goals > Assists > POTM > Won > Drawn > (played at all) > fewer Lost > more Played > fewer Yellow > fewer Red > more Rested > fewer Absent.
+// Anyone with a yellow or red card ranks below everyone without one, whatever their other numbers.
+var SS_CHAIN = [["hasCard", 1], ["goals", -1], ["assists", -1], ["potm", -1], ["won", -1], ["drawn", -1], ["hasPlayed", -1], ["lost", 1], ["played", -1], ["yellow", 1], ["red", 1], ["rested", -1], ["absent", 1]];
 function ssChainCmp(a, b) {
+  a.hasCard = a.yellow + a.red > 0 ? 1 : 0; b.hasCard = b.yellow + b.red > 0 ? 1 : 0;   // players with no cards always rank above players with any card
   a.hasPlayed = a.played > 0 ? 1 : 0; b.hasPlayed = b.played > 0 ? 1 : 0;   // someone who played always ranks above someone who never played
   for (var i = 0; i < SS_CHAIN.length; i++) {
     var k = SS_CHAIN[i][0], d = SS_CHAIN[i][1];
@@ -306,7 +307,7 @@ function renderSeasonStats() {
       SS_COLS.map(function (c) { return '<td class="num">' + (SS.sort === c[0] || (SS.sort === "default" && c[0] === "goals") ? "<strong>" + r[c[0]] + "</strong>" : r[c[0]]) + "</td>"; }).join("") + "</tr>";
   }).join("");
   box.innerHTML = '<div class="table-scroll"><table class="data-table"><thead><tr>' + head + "</tr></thead><tbody>" + (body || '<tr><td colspan="' + (SS_COLS.length + 3) + '" class="text-center muted">No player matches that name.</td></tr>') + "</tbody></table></div>" +
-    '<p class="muted" style="font-size:.78rem;margin-top:8px;">P/W/D/L = matches the player actually played and the team\'s result in them. Ranked by Goals, Assists, POTM, Won, Drawn, then anyone who played above anyone who didn\'t, fewer Lost, more Played, fewer Yellow, fewer Red, more Rested, fewer Absent. Players equal on all of these share a rank.</p>';
+    '<p class="muted" style="font-size:.78rem;margin-top:8px;">P/W/D/L = matches the player actually played and the team\'s result in them. Players with no yellow or red cards always rank above players with any card. Within each group: Goals, Assists, POTM, Won, Drawn, then anyone who played above anyone who didn\'t, fewer Lost, more Played, fewer Yellow, fewer Red, more Rested, fewer Absent. Players equal on all of these share a rank.</p>';
   box.querySelectorAll("th.sortable").forEach(function (th) {
     th.addEventListener("click", function () {
       var k = th.dataset.sort;

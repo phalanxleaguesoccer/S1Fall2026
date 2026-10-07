@@ -31,7 +31,7 @@ with sync_playwright() as pw:
     def col(name): return H.index(M[name])
     R0=rows()
     names=lambda: [r[1].strip() for r in rows()]
-    ok('default: goals→assists→potm (Ayush, Nasiq, Varun first)',names()[:3]==['Ayush','Nasiq','Varun'],names())
+    ok('default: card-free players first (Ayush, Nasiq, Rishabh) then carded (Varun 2 goals ahead of Bhagyesh)',names()[:3]==['Ayush','Nasiq','Rishabh Devgon'] and names().index('Varun')<names().index('Bhagyesh Rane')<names().index('Bilal Yaser'),names())
     ok('ranks 1,2,3,4 at top',[r[0].strip() for r in rows()[:4]]==['1','2','3','4'],[r[0] for r in rows()[:4]])
     def rec(n): return [r for r in rows() if r[1].strip()==n][0]
     v=rec('Varun');ok('Varun P2 W1 D1 L0 G2',[v[col('played')].strip(),v[col('won')].strip(),v[col('drawn')].strip(),v[col('lost')].strip(),v[col('goals')].strip()]==['2','1','1','0','2'],v)
@@ -39,11 +39,11 @@ with sync_playwright() as pw:
     bl=rec('Bilal Yaser');ok('Bilal rested 1, played 0',bl[col('rested')].strip()=='1' and bl[col('played')].strip()=='0',bl)
     vv=rec('Varun');ok('Varun yellow 1',vv[col('yellow')].strip()=='1',vv)
     full=names()
-    ok('zero-match players rank below everyone who played (Ajinkya/Bilal rested last, after Bhagyesh who lost)',full.index('Bhagyesh Rane')<full.index('Ajinkya P') and full.index('Bhagyesh Rane')<full.index('Bilal Yaser'),full)
+    ok('no-card group: anyone who played above a non-player; every card-free player above every carded player',full.index('Amritpal Singh')<full.index('Ajinkya P') and max(full.index(n) for n in ['Ayush','Nasiq','Rishabh Devgon','Vignesh','Amritpal Singh','Ajinkya P'])<min(full.index(n) for n in ['Varun','Bhagyesh Rane','Bilal Yaser']),full)
     ok('draws above loss: Amritpal/Vignesh (1 draw) above Bhagyesh (1 loss)',max(full.index('Amritpal Singh'),full.index('Vignesh'))<full.index('Bhagyesh Rane'),full)
     ok('more played breaks tie: Vignesh (2 draws) above Amritpal (1 draw)',full.index('Vignesh')<full.index('Amritpal Singh'),full)
     ok('Ayush (absent) ranks below... equal goals/assists but see rank 1 by assists',full[0]=='Ayush')
-    ok('yellow card lowers rank on tie: Ajinkya (clean) above Bilal (1 yellow), different ranks',full.index('Ajinkya P')<full.index('Bilal Yaser') and rec('Ajinkya P')[0].strip()!=rec('Bilal Yaser')[0].strip(),(full,rec('Ajinkya P')[0],rec('Bilal Yaser')[0]))
+    ok('Ajinkya (clean) above Bilal (1 yellow), different ranks',full.index('Ajinkya P')<full.index('Bilal Yaser') and rec('Ajinkya P')[0].strip()!=rec('Bilal Yaser')[0].strip(),(full,rec('Ajinkya P')[0],rec('Bilal Yaser')[0]))
     # header click re-sorts and renumbers
     p.locator('#ss-body thead th',has_text='Assists').first.click();p.wait_for_timeout(200)
     ok('sort by assists: Ayush then Rishabh (ties broken by full ranking), ranks renumber 1,2,3',names()[:2]==['Ayush','Rishabh Devgon'] and [r[0].strip() for r in rows()[:3]]==['1','2','3'],(names()[:3],[r[0] for r in rows()[:3]]))
