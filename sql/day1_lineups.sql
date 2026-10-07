@@ -28,6 +28,7 @@ begin
       (3,'Renegades','rested','Rajeev Singh'),
       (3,'Renegades','played','Varun'),(3,'Renegades','played','Minti'),(3,'Renegades','played','Nuhu Okikiri'),(3,'Renegades','played','Shailesh'),
       (3,'Renegades','played','Chirag'),(3,'Renegades','played','Prajna'),(3,'Renegades','played','Sangram Ghewade'),(3,'Renegades','played','Dhananjay'),(3,'Renegades','played','Vivek'),
+      (3,'Desi Steelers FC','absent','Vamshi'),
       (3,'Desi Steelers FC','played','Nasiq'),(3,'Desi Steelers FC','played','Ketan Shilimkar'),(3,'Desi Steelers FC','played','Vija'),(3,'Desi Steelers FC','played','Vignesh'),
       (3,'Desi Steelers FC','played','Kaushik Apte'),(3,'Desi Steelers FC','played','Rishabh Devgon'),(3,'Desi Steelers FC','played','Ajinkya P'),(3,'Desi Steelers FC','played','Sagar'),
       -- Match 4: Muggles FC vs Scouts FC
