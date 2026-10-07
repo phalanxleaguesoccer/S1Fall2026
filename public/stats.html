@@ -294,6 +294,7 @@ function renderSeasonStats() {
   var box = document.getElementById("ss-body");
   var rows = ssSorted(), ranks = [];
   rows.forEach(function (r, i) { ranks[i] = i > 0 && ssSame(rows[i - 1], r) ? ranks[i - 1] : i + 1; });
+  var tied = rows.map(function (r, i) { return (i > 0 && ranks[i] === ranks[i - 1]) || (i + 1 < rows.length && ranks[i] === ranks[i + 1] && ssSame(r, rows[i + 1])); });
   var q = document.getElementById("s-search").value.trim().toLowerCase();
   if (!rows.length) { box.innerHTML = '<p class="muted">No players for this selection yet.</p>'; return; }
   var head = '<th class="num">#</th><th class="team-name sortable' + (SS.sort === "name" ? " sorted" : "") + '" data-sort="name">Player' + (SS.sort === "name" ? (SS.dir > 0 ? " ▲" : " ▼") : "") + '</th><th class="team-name">Team</th>' +
@@ -303,11 +304,11 @@ function renderSeasonStats() {
     }).join("");
   var body = rows.map(function (r, i) {
     if (q && r.name.toLowerCase().indexOf(q) < 0) return "";
-    return '<tr><td class="ms-n num">' + ranks[i] + '</td><td class="team-name"><a href="player.html?id=' + r.id + '">' + escapeHtml(r.name) + "</a></td><td class=\"team-name\">" + escapeHtml(r.team) + "</td>" +
+    return '<tr><td class="ms-n num">' + ranks[i] + (tied[i] ? "=" : "") + '</td><td class="team-name"><a href="player.html?id=' + r.id + '">' + escapeHtml(r.name) + "</a></td><td class=\"team-name\">" + escapeHtml(r.team) + "</td>" +
       SS_COLS.map(function (c) { return '<td class="num">' + (SS.sort === c[0] || (SS.sort === "default" && c[0] === "goals") ? "<strong>" + r[c[0]] + "</strong>" : r[c[0]]) + "</td>"; }).join("") + "</tr>";
   }).join("");
   box.innerHTML = '<div class="table-scroll"><table class="data-table"><thead><tr>' + head + "</tr></thead><tbody>" + (body || '<tr><td colspan="' + (SS_COLS.length + 3) + '" class="text-center muted">No player matches that name.</td></tr>') + "</tbody></table></div>" +
-    '<p class="muted" style="font-size:.78rem;margin-top:8px;">P/W/D/L = matches the player actually played and the team\'s result in them. Players with no yellow or red cards always rank above players with any card. Within each group: Goals, Assists, POTM, Won, Drawn, then anyone who played above anyone who didn\'t, fewer Lost, more Played, fewer Yellow, fewer Red, more Rested, fewer Absent. Players equal on all of these share a rank.</p>';
+    '<p class="muted" style="font-size:.78rem;margin-top:8px;">P/W/D/L = matches the player actually played and the team\'s result in them. Players with no yellow or red cards always rank above players with any card. Within each group: Goals, Assists, POTM, Won, Drawn, then anyone who played above anyone who didn\'t, fewer Lost, more Played, fewer Yellow, fewer Red, more Rested, fewer Absent. Players equal on all of these share a rank, shown with "=" (e.g. 5=).</p>';
   box.querySelectorAll("th.sortable").forEach(function (th) {
     th.addEventListener("click", function () {
       var k = th.dataset.sort;

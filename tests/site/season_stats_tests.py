@@ -44,6 +44,13 @@ with sync_playwright() as pw:
     ok('more played breaks tie: Vignesh (2 draws) above Amritpal (1 draw)',full.index('Vignesh')<full.index('Amritpal Singh'),full)
     ok('Ayush (absent) ranks below... equal goals/assists but see rank 1 by assists',full[0]=='Ayush')
     ok('Ajinkya (clean) above Bilal (1 yellow), different ranks',full.index('Ajinkya P')<full.index('Bilal Yaser') and rec('Ajinkya P')[0].strip()!=rec('Bilal Yaser')[0].strip(),(full,rec('Ajinkya P')[0],rec('Bilal Yaser')[0]))
+    ok('no ties in this data: no "=" marks',not any('=' in r[0] for r in rows()),[r[0] for r in rows()])
+    p.evaluate("(function(){var a=SS.rows.filter(function(r){return r.name==='Amritpal Singh'})[0];var c=JSON.parse(JSON.stringify(a));c.id='zz';c.name='Zed Twin';SS.rows.push(c);renderSeasonStats();})()")
+    tr=[r[0].strip() for r in rows() if r[1].strip() in ('Amritpal Singh','Zed Twin')]
+    ok('tied players share rank and show "=" (e.g. 5=)',len(tr)==2 and tr[0]==tr[1] and tr[0].endswith('='),tr)
+    nxt=[r[0].strip() for r in rows()]
+    ok('player after the tie skips a rank and has no "="',nxt[nxt.index(tr[0])+2].isdigit() and int(nxt[nxt.index(tr[0])+2])==int(tr[0][:-1])+2,nxt)
+    p.evaluate("loadSeasonStats()");p.wait_for_timeout(500)
     # header click re-sorts and renumbers
     p.locator('#ss-body thead th',has_text='Assists').first.click();p.wait_for_timeout(200)
     ok('sort by assists: Ayush then Rishabh (ties broken by full ranking), ranks renumber 1,2,3',names()[:2]==['Ayush','Rishabh Devgon'] and [r[0].strip() for r in rows()[:3]]==['1','2','3'],(names()[:3],[r[0] for r in rows()[:3]]))
