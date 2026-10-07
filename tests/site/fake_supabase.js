@@ -66,6 +66,7 @@
         if(f[0]==='or')return f[2].split(',').some(function(c){var p=c.split('.');return r[p[0]]===p[2];}); if(f[0]==='eq')return v===f[2]; if(f[0]==='in')return f[2].indexOf(v)>=0; if(f[0]==='neq')return v!==f[2];
         if(f[0]==='or')return f[2].split(',').some(function(c){var p=c.split('.');return p[1]==='eq'&&r[p[0]]===p[2];}); if(f[0]==='is')return v===f[2]||(f[2]===null&&v==null); return true;});}
       if(q.mode==='select'){
+        if((name==='league_standings'||name==='player_season_stats'||name==='team_head_to_head') && /\w+\(/.test(q.sel||'')) return {data:null,error:{message:'Could not find a relationship between views and embedded table'}};
         rows=t.filter(match);
         q.orders.forEach(function(o){rows=rows.slice().sort(function(a,b){var x=a[o[0]],y=b[o[0]];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return (x<y?-1:x>y?1:0)*(o[1]?1:-1);});});
         // stable multi-key: apply orders in reverse

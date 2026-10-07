@@ -178,10 +178,17 @@ async function loadCareerHistory() {
   // player_season_stats has one row per season this player was rostered in.
   var res = await window.sb
     .from("player_season_stats")
-    .select("*, seasons(name)")
+    .select("*")
     .eq("player_id", playerId);
 
   var rows = res.data || [];
+  // A view can't be joined to seasons by PostgREST (no foreign key), so fetch names separately.
+  if (rows.length) {
+    var snRes = await window.sb.from("seasons").select("id,name").in("id", rows.map(function (r) { return r.season_id; }));
+    var snMap = {};
+    (snRes.data || []).forEach(function (x) { snMap[x.id] = x; });
+    rows.forEach(function (r) { r.seasons = snMap[r.season_id] || null; });
+  }
 
   // Also need team name per season (player_season_stats has team_id, not team name).
   var teamIds = rows.map(function (r) { return r.team_id; }).filter(Boolean);
