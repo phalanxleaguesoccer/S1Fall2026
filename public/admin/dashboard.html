@@ -189,6 +189,15 @@
   <!-- RECORDS: appearances, historized notes/ratings, suspensions, awards -->
   <div class="tab-panel" id="tab-records">
     <div class="card">
+      <div class="card-title">Match Lineup &mdash; Played / Rested / Absent (whole squads at once)</div>
+      <p class="muted" style="font-size:0.82rem; margin-top:-6px;">Pick a match, set every squad member (default Played) and save once. Saving again replaces the choices for that match.</p>
+      <div class="row"><div><label>Match</label><select id="lu-match"></select></div></div>
+      <div id="lu-body"></div>
+      <button class="btn mt-16" type="button" id="lu-save" style="display:none;">Save lineup</button>
+      <p id="lineup-msg"></p>
+    </div>
+
+    <div class="card">
       <div class="card-title">Log Match Appearance (accurate Games Played)</div>
       <form id="appearance-form">
         <div class="row">
@@ -197,6 +206,7 @@
           <div><label>Team</label><select id="ap-team" required></select></div>
         </div>
         <div class="row">
+          <div><label>Status</label><select id="ap-status"><option value="played">Played</option><option value="rested">Rested</option><option value="absent">Absent</option></select></div>
           <div><label>Position played (this match)</label><input type="text" id="ap-position"></div>
           <div><label>Minutes played (optional)</label><input type="number" id="ap-minutes" min="0" max="20"></div>
           <div style="display:flex; gap:16px; align-items:flex-end;">

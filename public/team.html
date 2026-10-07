@@ -108,8 +108,11 @@ function aggregateByPlayer(rows) {
   rows.forEach(function (s) {
     var key = s.player_id;
     if (!byPlayer[key]) {
-      byPlayer[key] = { player_id: s.player_id, full_name: s.full_name, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0, clean_sheets: 0 };
+      byPlayer[key] = { player_id: s.player_id, full_name: s.full_name, games_played: 0, rested: 0, absent: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0, clean_sheets: 0 };
     }
+    byPlayer[key].games_played += s.games_played || 0;
+    byPlayer[key].rested += s.rested || 0;
+    byPlayer[key].absent += s.absent || 0;
     byPlayer[key].goals += s.goals || 0;
     byPlayer[key].assists += s.assists || 0;
     byPlayer[key].yellow_cards += s.yellow_cards || 0;
@@ -221,6 +224,11 @@ async function renderStatsAndSchedule() {
   }
 }
 
+function attLine(a) {
+  if (!a || !((a.games_played || 0) + (a.rested || 0) + (a.absent || 0))) return "";
+  return '<div class="meta">Played ' + (a.games_played || 0) + " &middot; Rested " + (a.rested || 0) + " &middot; Absent " + (a.absent || 0) + "</div>";
+}
+
 async function renderSquad() {
   var squadSeasonId = document.getElementById("squad-season-filter").value;
   var isAllSquad = squadSeasonId === "all";
@@ -228,6 +236,11 @@ async function renderSquad() {
   var rosterQuery = window.sb.from("team_season_rosters").select("*, players(*)").eq("team_id", teamId);
   if (!isAllSquad) rosterQuery = rosterQuery.eq("season_id", squadSeasonId);
   var rosterRes = await rosterQuery;
+
+  var attQuery = window.sb.from("player_season_stats").select("*").eq("team_id", teamId);
+  if (!isAllSquad) attQuery = attQuery.eq("season_id", squadSeasonId);
+  var attRes = await attQuery;
+  var att = {}; aggregateByPlayer(attRes.data || []).forEach(function (a) { att[a.player_id] = a; });
 
   var rows = rosterRes.data || [];
   if (isAllSquad) {
@@ -271,7 +284,7 @@ async function renderSquad() {
           (r.jersey_number ? '<div class="rating-badge">#' + r.jersey_number + "</div>" : "") +
         "</div>" +
         '<div class="info"><div class="name">' + escapeHtml(p.full_name) + "</div>" +
-        '<div class="meta">' + escapeHtml(p.preferred_position || "") + (r.is_owner ? " &middot; Owner" : (r.auction_price != null ? " &middot; " + r.auction_price + " pts" : "")) + "</div></div>" +
+        '<div class="meta">' + escapeHtml(p.preferred_position || "") + (r.is_owner ? " &middot; Owner" : (r.auction_price != null ? " &middot; " + r.auction_price + " pts" : "")) + "</div>" + attLine(att[p.id]) + "</div>" +
         "</a>";
     }).join("");
   }

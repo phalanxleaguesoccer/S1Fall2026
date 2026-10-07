@@ -63,6 +63,9 @@ async function init() {
     sel.value = CURRENT_SEASON.id;
   });
   populateAppearanceMatchDropdown();
+  populateLineupMatchDropdown();
+  document.getElementById("lu-match").addEventListener("change", loadLineup);
+  document.getElementById("lu-save").addEventListener("click", saveLineup);
   document.getElementById("appearance-form").addEventListener("submit", onLogAppearance);
   document.getElementById("note-form").addEventListener("submit", onLogNote);
   document.getElementById("rating-form").addEventListener("submit", onLogRating);
@@ -398,6 +401,60 @@ async function populateAppearanceMatchDropdown() {
   }).join("");
 }
 
+// ----- Bulk lineup: Played / Rested / Absent for every squad member of both teams -----
+var LINEUP = null;
+async function populateLineupMatchDropdown() {
+  var res = await window.sb.from("matches").select("*").eq("season_id", CURRENT_SEASON.id).order("match_day").order("match_number");
+  var teamsById = {};
+  TEAMS_CACHE.forEach(function (t) { teamsById[t.id] = t; });
+  document.getElementById("lu-match").innerHTML = '<option value="">— select match —</option>' + (res.data || []).map(function (m) {
+    var home = teamsById[m.home_team_id] ? teamsById[m.home_team_id].name : "?";
+    var away = teamsById[m.away_team_id] ? teamsById[m.away_team_id].name : "?";
+    return '<option value="' + m.id + '">Day ' + m.match_day + " M" + m.match_number + ": " + home + " vs " + away + "</option>";
+  }).join("");
+}
+async function loadLineup() {
+  var body = document.getElementById("lu-body"), save = document.getElementById("lu-save");
+  document.getElementById("lineup-msg").textContent = "";
+  var mid = document.getElementById("lu-match").value;
+  LINEUP = null; save.style.display = "none";
+  if (!mid) { body.innerHTML = ""; return; }
+  var mRes = await window.sb.from("matches").select("*").eq("id", mid).single();
+  var m = mRes.data; if (!m) return;
+  var rosterRes = await window.sb.from("team_season_rosters").select("*, players(*)").eq("season_id", m.season_id).in("team_id", [m.home_team_id, m.away_team_id]);
+  var apRes = await window.sb.from("match_appearances").select("*").eq("match_id", mid);
+  var existing = {}; (apRes.data || []).forEach(function (a) { existing[a.player_id] = a; });
+  var teamsById = {}; TEAMS_CACHE.forEach(function (t) { teamsById[t.id] = t; });
+  LINEUP = { match: m, rows: rosterRes.data || [], existing: existing };
+  body.innerHTML = [m.home_team_id, m.away_team_id].map(function (tid) {
+    var squad = LINEUP.rows.filter(function (r) { return r.team_id === tid && r.players; })
+      .sort(function (a, b) { return (b.is_owner ? 1 : 0) - (a.is_owner ? 1 : 0) || a.players.full_name.localeCompare(b.players.full_name); });
+    return '<h3 style="margin:14px 0 6px;">' + escapeHtml(teamsById[tid] ? teamsById[tid].name : "?") + "</h3>" +
+      (squad.length ? squad.map(function (r) {
+        var cur = existing[r.player_id] ? (existing[r.player_id].status || "played") : "played";
+        return '<div class="list-row" style="gap:10px;"><span>' + escapeHtml(r.players.full_name) + (r.is_owner ? " (owner)" : "") + "</span>" +
+          '<select data-lu-player="' + r.player_id + '" data-lu-team="' + tid + '" style="max-width:140px;">' +
+          ["played", "rested", "absent"].map(function (s) { return '<option value="' + s + '"' + (s === cur ? " selected" : "") + ">" + s.charAt(0).toUpperCase() + s.slice(1) + "</option>"; }).join("") +
+          "</select></div>";
+      }).join("") : '<p class="muted">No squad members yet.</p>');
+  }).join("");
+  save.style.display = LINEUP.rows.length ? "" : "none";
+}
+async function saveLineup() {
+  var msg = document.getElementById("lineup-msg");
+  if (!LINEUP) return;
+  var rows = [], c = { played: 0, rested: 0, absent: 0 };
+  document.querySelectorAll("#lu-body select[data-lu-player]").forEach(function (s) {
+    var old = LINEUP.existing[s.dataset.luPlayer] || {};
+    rows.push({ match_id: LINEUP.match.id, player_id: s.dataset.luPlayer, team_id: s.dataset.luTeam, status: s.value, started: s.value === "played",
+      position_played: old.position_played || null, minutes_played: old.minutes_played || null, is_captain: !!old.is_captain });
+    c[s.value]++;
+  });
+  var res = await window.sb.from("match_appearances").upsert(rows, { onConflict: "match_id,player_id" });
+  if (res.error) { showError(msg, res.error.message); return; }
+  showSuccess(msg, "Lineup saved: " + c.played + " played, " + c.rested + " rested, " + c.absent + " absent.");
+}
+
 async function onLogAppearance(e) {
   e.preventDefault();
   var msg = document.getElementById("appearance-msg");
@@ -405,7 +462,8 @@ async function onLogAppearance(e) {
     match_id: document.getElementById("ap-match").value,
     player_id: document.getElementById("ap-player").value,
     team_id: document.getElementById("ap-team").value,
-    started: document.getElementById("ap-started").checked,
+    status: document.getElementById("ap-status").value,
+    started: document.getElementById("ap-status").value === "played" && document.getElementById("ap-started").checked,
     is_captain: document.getElementById("ap-captain").checked,
     position_played: document.getElementById("ap-position").value.trim() || null,
     minutes_played: document.getElementById("ap-minutes").value || null

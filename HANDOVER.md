@@ -68,3 +68,9 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - New Stats page (`public/stats.html`, nav "Stats"): Milestones with tabs Goals / Assists / Yellow / Red; Season filter + View filter (Tournament default or a team); nth numbering; Details button (season, match, opponent, final score, half, minute, assist link, tournament vs team number). Tests: `tests/site/stats_tests.py`.
 - Fixed: `match_events` has two foreign keys to players, so embeds must use `players!match_events_player_id_fkey(*)` (match page + admin events list updated).
 - Kickoffs for 10-minute halves: `sql/update_match_times_10min_halves.sql`. Placeholder team removal: `sql/remove_placeholder_teams.sql`.
+
+## Attendance (Played / Rested / Absent) - 7 Oct 2026
+- SQL order: `sql/migration_attendance.sql` (status column + player_season_stats now has rested/absent; games_played counts only matches actually played; a completed match with NO lineup entered counts everyone as played), then `sql/day1_lineups.sql` (Day 1 lineups + Chirag yellow card = second half).
+- Site: match page "Lineups" card, schedule shows Rested/Absent counts, profile tables have Rested/Absent columns, team squad cards show Played/Rested/Absent, Stats page has Rested and Absent tabs (list + per-player totals), admin Records tab has a bulk "Match Lineup" form (default Played, saves whole squads).
+- Name mapping used: Vamsi=Vamshi, Ayush Jain=Ayush, Vivek Shrivatava=Vivek, Kaushik Apte=Kaushik, Rishab Devgon=Rishabh Devgon, Sagar (Desi)=Sagar, Sagar SJ (Scouts).
+- Tests: `tests/site/attendance_tests.py` (21).

@@ -43,6 +43,22 @@ async function loadMatches() {
     return;
   }
 
+  // Rested / Absent counts per match and team (only shows once a lineup was entered)
+  var apRes = await window.sb.from("match_appearances").select("match_id, team_id, status").in("match_id", res.data.map(function (m) { return m.id; }));
+  var att = {};
+  (apRes.data || []).forEach(function (a) {
+    if (a.status !== "rested" && a.status !== "absent") return;
+    var k = a.match_id + "|" + a.status;
+    att[k] = att[k] || {}; att[k][a.team_id] = (att[k][a.team_id] || 0) + 1;
+  });
+  function attText(m) {
+    return [["rested", "Rested"], ["absent", "Absent"]].map(function (s) {
+      var c = att[m.id + "|" + s[0]];
+      if (!c) return "";
+      return s[1] + ": " + Object.keys(c).map(function (tid) { return escapeHtml(teams[tid] ? teams[tid].name : "?") + " " + c[tid]; }).join(", ");
+    }).filter(Boolean).join(" &middot; ");
+  }
+
   var byDay = {};
   res.data.forEach(function (m) {
     byDay[m.match_day] = byDay[m.match_day] || [];
@@ -61,6 +77,7 @@ async function loadMatches() {
         '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--card-edge); gap:10px; flex-wrap:wrap;">' +
         '<div><span class="pill ' + m.status + '">' + m.status + "</span> " + escapeHtml(home) + " " + score + " " + escapeHtml(away) + "</div>" +
         '<div class="muted" style="font-size:0.82rem;">' + when + "</div>" +
+        (attText(m) ? '<div class="muted" style="font-size:0.78rem; width:100%;">' + attText(m) + "</div>" : "") +
         "</div></a>";
     }).join("");
     return '<div class="card"><div class="card-title">Match Day ' + day + "</div>" + rows + "</div>";

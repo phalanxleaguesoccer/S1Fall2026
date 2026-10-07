@@ -13,6 +13,11 @@
   <p class="muted" id="match-meta"></p>
   <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
 
+  <div class="card" id="lineups-card" style="display:none;">
+    <div class="card-title">Lineups</div>
+    <div id="lineups" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px;"></div>
+  </div>
+
   <div class="card">
     <div class="card-title">Events</div>
     <div id="events-list"><p class="muted">Loading…</p></div>
@@ -30,6 +35,25 @@ renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Matches", hr
 
 var matchId = qs("id");
 
+async function loadLineups(m) {
+  var aRes = await window.sb.from("match_appearances").select("*").eq("match_id", matchId);
+  var apps = aRes.data || [];
+  if (!apps.length) return;
+  var pRes = await window.sb.from("players").select("id, full_name").in("id", apps.map(function (a) { return a.player_id; }));
+  var names = {}; (pRes.data || []).forEach(function (p) { names[p.id] = p.full_name; });
+  var labels = [["played", "Played"], ["rested", "Rested"], ["absent", "Absent"]];
+  document.getElementById("lineups").innerHTML = [m.home, m.away].map(function (team) {
+    var mine = apps.filter(function (a) { return a.team_id === team.id; });
+    return "<div><h3 style=\"margin:0 0 8px;\">" + escapeHtml(team.name) + "</h3>" + labels.map(function (l) {
+      var list = mine.filter(function (a) { return (a.status || "played") === l[0]; })
+        .map(function (a) { return '<a href="player.html?id=' + a.player_id + '">' + escapeHtml(names[a.player_id] || "?") + "</a>"; })
+        .sort();
+      return '<p style="margin:6px 0;"><span class="muted">' + l[1] + " (" + list.length + "):</span> " + (list.length ? list.join(", ") : "—") + "</p>";
+    }).join("") + "</div>";
+  }).join("");
+  document.getElementById("lineups-card").style.display = "";
+}
+
 async function loadMatch() {
   if (!matchId) return;
   var mRes = await window.sb.from("matches").select("*, home:teams!matches_home_team_id_fkey(*), away:teams!matches_away_team_id_fkey(*)").eq("id", matchId).single();
@@ -42,6 +66,8 @@ async function loadMatch() {
     "Match Day " + m.match_day + " &middot; Match " + m.match_number +
     '<span class="pill ' + m.status + '" style="margin-left:8px;">' + m.status + "</span>" +
     (m.kickoff_at ? " &middot; " + formatKickoff(m.kickoff_at) : "");
+
+  await loadLineups(m);
 
   var eventsRes = await window.sb.from("match_events").select("*, players!match_events_player_id_fkey(*), teams(*)").eq("match_id", matchId).order("minute", { ascending: true });
   var list = document.getElementById("events-list");

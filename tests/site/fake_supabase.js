@@ -29,9 +29,16 @@
         var mids={};ms.forEach(function(m){mids[m.id]=m;});
         var ev=DB.match_events.filter(function(e){return mids[e.match_id]&&e.player_id===r.player_id;});
         function c(t){return ev.filter(function(e){return e.event_type===t;}).length;}
-        var gp=ms.filter(function(m){return m.status==='completed'&&(m.home_team_id===r.team_id||m.away_team_id===r.team_id);}).length;
-        var app=DB.match_appearances.filter(function(a){return a.player_id===r.player_id&&mids[a.match_id];}).length;
-        return {player_id:r.player_id,full_name:p.full_name,season_id:r.season_id,team_id:r.team_id,games_played:app||gp,goals:c('goal'),assists:c('assist'),yellow_cards:c('yellow_card'),red_cards:c('red_card'),potm_awards:c('player_of_match'),saves:c('save'),tournament_awards:c('player_of_tournament'),clean_sheets:0};
+        var done=ms.filter(function(m){return m.status==='completed'&&(m.home_team_id===r.team_id||m.away_team_id===r.team_id);});
+        var gp=0,rest=0,abs=0;
+        done.forEach(function(m){
+          var mine=DB.match_appearances.find(function(a){return a.match_id===m.id&&a.player_id===r.player_id;});
+          var teamHas=DB.match_appearances.some(function(a){return a.match_id===m.id&&a.team_id===r.team_id;});
+          var st=mine?(mine.status||'played'):null;
+          if(st==='played'||(!mine&&!teamHas))gp++; if(st==='rested')rest++; if(st==='absent')abs++;
+        });
+        var app=gp;gp=0;
+        return {player_id:r.player_id,full_name:p.full_name,season_id:r.season_id,team_id:r.team_id,games_played:app,rested:rest,absent:abs,goals:c('goal'),assists:c('assist'),yellow_cards:c('yellow_card'),red_cards:c('red_card'),potm_awards:c('player_of_match'),saves:c('save'),tournament_awards:c('player_of_tournament'),clean_sheets:0};
       });
     }
     return null;

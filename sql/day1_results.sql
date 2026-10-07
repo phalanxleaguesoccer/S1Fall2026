@@ -33,7 +33,7 @@ from matches m join teams h on h.id = m.home_team_id join teams a on a.id = m.aw
 where m.match_day = 1 order by m.match_number;
 
 -- ===================== STEP 2: player events (goals, assists, yellow card, player of the match) =====================
--- Team of each player is taken from the current season's squads. Halves are recorded for the Match 4 goals/assists only (goal 1 first half, goals 2 and 3 second half); minutes are not recorded; events are saved in the order listed (that is the order shown on the Stats > Milestones page).
+-- Team of each player is taken from the current season's squads. Halves are recorded where known (Match 4 goal 1 first half, goals 2-3 and both assists second half, Chirag's yellow second half); minutes are not recorded; events are saved in the order listed (that is the order shown on the Stats > Milestones page).
 do $$
 declare
   s uuid := (select id from seasons where is_current limit 1);
@@ -44,7 +44,7 @@ begin
     (1, 1, 'player_of_match', 'Dhruv', null, null),
     (2, 2, 'player_of_match', 'Kartik', null, null),
     (3, 3, 'player_of_match', 'Nuhu Okikiri', null, null),
-    (4, 3, 'yellow_card', 'Chirag', null, null),
+    (4, 3, 'yellow_card', 'Chirag', null, 2),
     (5, 4, 'player_of_match', 'Bhagyesh Rane', null, null),
     (6, 4, 'goal', 'Vishnu Mohan', null, 1),
     (7, 4, 'goal', 'Bhagyesh Rane', 'Kartik', 2),
