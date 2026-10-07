@@ -37,9 +37,14 @@ with sync_playwright() as pw:
     y=rec('Ayush');ok('Ayush absent 1, played 1 (absent excluded)',y[col('absent')].strip()=='1' and y[col('played')].strip()=='1',y)
     bl=rec('Bilal Yaser');ok('Bilal rested 1, played 0',bl[col('rested')].strip()=='1' and bl[col('played')].strip()=='0',bl)
     vv=rec('Varun');ok('Varun yellow 1',vv[col('yellow')].strip()=='1',vv)
+    full=names()
+    ok('zero-match players rank below everyone who played (Ajinkya/Bilal rested last, after Bhagyesh who lost)',full.index('Bhagyesh Rane')<full.index('Ajinkya P') and full.index('Bhagyesh Rane')<full.index('Bilal Yaser'),full)
+    ok('draws above loss: Amritpal/Vignesh (1 draw) above Bhagyesh (1 loss)',max(full.index('Amritpal Singh'),full.index('Vignesh'))<full.index('Bhagyesh Rane'),full)
+    ok('more played breaks tie: Vignesh (2 draws) above Amritpal (1 draw)',full.index('Vignesh')<full.index('Amritpal Singh'),full)
+    ok('Ayush (absent) ranks below... equal goals/assists but see rank 1 by assists',full[0]=='Ayush')
     # header click re-sorts and renumbers
     p.locator('#ss-body thead th',has_text='Assists').first.click();p.wait_for_timeout(200)
-    ok('sort by assists: Ayush/Rishabh first, ranks renumber with shared tie',names()[:2] in (['Ayush','Rishabh Devgon'],['Rishabh Devgon','Ayush']) and [r[0].strip() for r in rows()[:3]][:2]==['1','1'],(names()[:3],[r[0] for r in rows()[:3]]))
+    ok('sort by assists: Ayush then Rishabh (ties broken by full ranking), ranks renumber 1,2,3',names()[:2]==['Ayush','Rishabh Devgon'] and [r[0].strip() for r in rows()[:3]]==['1','2','3'],(names()[:3],[r[0] for r in rows()[:3]]))
     p.locator('#ss-body thead th',has_text='Red').first.click();p.wait_for_timeout(200)
     ok('sort by red cards: Bhagyesh first',names()[0]=='Bhagyesh Rane',names()[:3])
     # filters
