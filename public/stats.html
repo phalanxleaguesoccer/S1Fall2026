@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stats — Phalanx League Soccer</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" type="image/png" href="assets/brand/favicon.png">
+<style>
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .tabs button { background:var(--card-charcoal); color:var(--chalk-dim); border:1px solid var(--card-edge); border-radius:999px; padding:7px 16px; cursor:pointer; font:inherit; font-weight:600; }
+  .tabs button.on { background:var(--amber); color:var(--pitch-dark); border-color:var(--amber); }
+  .filters { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px; }
+  .filters label { display:block; font-size:.78rem; margin-bottom:3px; }
+  .filters select { min-width:200px; max-width:100%; }
+  .ms-n { font-family:'Anton',sans-serif; font-size:1.15rem; color:var(--amber); width:48px; }
+  tr.det td { background:rgba(255,255,255,.03); padding:10px 14px; }
+  .det-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:6px 18px; }
+  .det-grid div span { color:var(--chalk-dim); font-size:.78rem; display:block; }
+  .btn.small { padding:3px 12px; font-size:.8rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Stats</h1>
+  <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+
+  <div class="card">
+    <div class="card-title">Milestones</div>
+    <p class="muted" style="margin-top:0;">Every goal, assist and card in the order it happened. Pick the tournament view, or a single team to count that team's own 1st, 2nd, 3rd&hellip;</p>
+    <div class="tabs" id="tabs">
+      <button type="button" data-tab="goals" class="on">Goals</button>
+      <button type="button" data-tab="assists">Assists</button>
+      <button type="button" data-tab="yellow">Yellow cards</button>
+      <button type="button" data-tab="red">Red cards</button>
+    </div>
+    <div class="filters">
+      <div><label class="muted" for="f-season">Season</label><select id="f-season"></select></div>
+      <div><label class="muted" for="f-view">View</label><select id="f-view"></select></div>
+    </div>
+    <div id="ms-body"><p class="muted">Loading…</p></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderHeader("stats.html");
+renderFooter();
+renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Stats" }]);
+
+var TABS = {
+  goals:   { type: "goal",        title: "Goal",        none: "No goals recorded yet." },
+  assists: { type: "assist",      title: "Assist",      none: "No assists recorded yet." },
+  yellow:  { type: "yellow_card", title: "Yellow card", none: "No yellow cards recorded yet." },
+  red:     { type: "red_card",    title: "Red card",    none: "No red cards recorded yet." }
+};
+var TAB = "goals", SEASONS = [], TEAMS = {}, PLAYERS = {}, MATCHES = {}, EVENTS = [], SEASON_ID = null;
+
+function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+function isPlaceholder(t) { return /^Team [A-Z]$/.test(t.name); }
+function tname(id) { return TEAMS[id] ? TEAMS[id].name : "?"; }
+function pname(id) { return PLAYERS[id] ? PLAYERS[id].full_name : "?"; }
+
+// Chronological order: match order first; inside a match by minute when EVERY
+// event of that kind in the match has one, otherwise by the order they were entered.
+function sortChrono(list) {
+  var allMin = {};
+  list.forEach(function (e) { var k = e.match_id; if (allMin[k] === undefined) allMin[k] = true; if (e.minute == null) allMin[k] = false; });
+  return list.slice().sort(function (a, b) {
+    var ma = MATCHES[a.match_id], mb = MATCHES[b.match_id];
+    if (ma.match_day !== mb.match_day) return ma.match_day - mb.match_day;
+    if (ma.match_number !== mb.match_number) return ma.match_number - mb.match_number;
+    if (allMin[a.match_id] && a.minute !== b.minute) return a.minute - b.minute;
+    var ta = a.created_at || "", tb = b.created_at || "";
+    if (ta !== tb) return ta < tb ? -1 : 1;
+    return String(a.id) < String(b.id) ? -1 : 1;
+  });
+}
+
+// Link each goal with its assist (goal.related_player_id when set, otherwise the
+// next unmatched assist by the same team in the same match).
+function pairAssists(events) {
+  var goals = sortChrono(events.filter(function (e) { return e.event_type === "goal"; }));
+  var assists = sortChrono(events.filter(function (e) { return e.event_type === "assist"; }));
+  var goalOfAssist = {}, assistOfGoal = {}, used = {};
+  goals.forEach(function (g) {
+    if (!g.related_player_id) return;
+    var a = assists.find(function (x) { return !used[x.id] && x.match_id === g.match_id && x.team_id === g.team_id && x.player_id === g.related_player_id; });
+    if (a) { used[a.id] = true; assistOfGoal[g.id] = a; goalOfAssist[a.id] = g; }
+  });
+  goals.forEach(function (g) {
+    if (assistOfGoal[g.id] || g.related_player_id) return;
+    var a = assists.find(function (x) { return !used[x.id] && x.match_id === g.match_id && x.team_id === g.team_id; });
+    if (a) { used[a.id] = true; assistOfGoal[g.id] = a; goalOfAssist[a.id] = g; }
+  });
+  return { assistOfGoal: assistOfGoal, goalOfAssist: goalOfAssist };
+}
+
+function halfText(e) {
+  var h = e.half;
+  if (e.minute != null && (h == null || h === 0)) h = e.minute <= 10 ? 1 : 2;
+  return h === 1 ? "First half" : (h === 2 ? "Second half" : "Not recorded");
+}
+
+function renderMilestones() {
+  var cfg = TABS[TAB], view = document.getElementById("f-view").value;
+  var all = sortChrono(EVENTS.filter(function (e) { return e.event_type === cfg.type; }));
+  var tourN = {}, teamN = {}, perTeam = {};
+  all.forEach(function (e, i) { tourN[e.id] = i + 1; perTeam[e.team_id] = (perTeam[e.team_id] || 0) + 1; teamN[e.id] = perTeam[e.team_id]; });
+  var rows = view === "all" ? all : all.filter(function (e) { return e.team_id === view; });
+  var pairs = pairAssists(EVENTS);
+  var box = document.getElementById("ms-body");
+  if (!rows.length) { box.innerHTML = '<p class="muted">' + cfg.none + "</p>"; return; }
+  var seasonName = (SEASONS.find(function (s) { return s.id === SEASON_ID; }) || {}).name || "";
+  box.innerHTML = '<div class="table-scroll"><table class="data-table"><thead><tr><th>#</th><th class="team-name">Player</th><th class="team-name">Team</th><th></th></tr></thead><tbody>' +
+    rows.map(function (e, i) {
+      var n = i + 1, m = MATCHES[e.match_id];
+      var opp = m.home_team_id === e.team_id ? m.away_team_id : m.home_team_id;
+      var score = m.status === "completed" || m.status === "forfeited" ? tname(m.home_team_id) + " " + (m.home_score == null ? "–" : m.home_score) + " – " + (m.away_score == null ? "–" : m.away_score) + " " + tname(m.away_team_id) : "Not completed";
+      var extra = "";
+      if (cfg.type === "goal") { var a = pairs.assistOfGoal[e.id]; extra = '<div><span>Assist by</span>' + (a ? escapeHtml(pname(a.player_id)) : "None recorded") + "</div>"; }
+      if (cfg.type === "assist") { var g = pairs.goalOfAssist[e.id]; extra = '<div><span>Goal scored by</span>' + (g ? escapeHtml(pname(g.player_id)) : "Not linked") + "</div>"; }
+      var det =
+        '<div class="det-grid">' +
+        "<div><span>Season</span>" + escapeHtml(seasonName) + "</div>" +
+        "<div><span>Match</span>Day " + m.match_day + " &middot; Match " + m.match_number + (m.kickoff_at ? " (" + formatKickoffDate(m.kickoff_at) + ")" : "") + "</div>" +
+        "<div><span>Team represented</span>" + escapeHtml(tname(e.team_id)) + "</div>" +
+        "<div><span>Opponent</span>" + escapeHtml(tname(opp)) + "</div>" +
+        "<div><span>Final score</span>" + escapeHtml(score) + "</div>" +
+        "<div><span>Half</span>" + halfText(e) + "</div>" +
+        (e.minute != null ? "<div><span>Minute</span>" + e.minute + "'</div>" : "") +
+        extra +
+        "<div><span>" + cfg.title + " number in tournament</span>" + ordinal(tourN[e.id]) + "</div>" +
+        "<div><span>" + cfg.title + " number for " + escapeHtml(tname(e.team_id)) + "</span>" + ordinal(teamN[e.id]) + "</div>" +
+        "</div>";
+      return '<tr><td class="ms-n">' + n + '</td><td class="team-name"><a href="player.html?id=' + e.player_id + '">' + escapeHtml(pname(e.player_id)) + "</a></td>" +
+        '<td class="team-name">' + escapeHtml(tname(e.team_id)) + '</td><td><button type="button" class="btn secondary small" data-det="' + e.id + '" aria-expanded="false">Details</button></td></tr>' +
+        '<tr class="det" id="det-' + e.id + '" style="display:none;"><td colspan="4">' + det + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+  box.querySelectorAll("[data-det]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var r = document.getElementById("det-" + b.dataset.det), open = r.style.display === "none";
+      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
+    });
+  });
+}
+
+async function loadSeason() {
+  SEASON_ID = document.getElementById("f-season").value;
+  var mRes = await window.sb.from("matches").select("*").eq("season_id", SEASON_ID);
+  MATCHES = {}; (mRes.data || []).forEach(function (m) { MATCHES[m.id] = m; });
+  var ids = Object.keys(MATCHES);
+  EVENTS = [];
+  if (ids.length) {
+    var eRes = await window.sb.from("match_events").select("*").in("match_id", ids);
+    EVENTS = (eRes.data || []).filter(function (e) { return MATCHES[e.match_id]; });
+  }
+  var inSeason = {};
+  Object.keys(MATCHES).forEach(function (k) { inSeason[MATCHES[k].home_team_id] = true; inSeason[MATCHES[k].away_team_id] = true; });
+  var teamOpts = Object.keys(inSeason).filter(function (id) { return TEAMS[id] && !isPlaceholder(TEAMS[id]); })
+    .sort(function (a, b) { return tname(a).localeCompare(tname(b)); });
+  document.getElementById("f-view").innerHTML = '<option value="all">Tournament / Season (default)</option>' +
+    teamOpts.map(function (id) { return '<option value="' + id + '">' + escapeHtml(tname(id)) + "</option>"; }).join("");
+  renderMilestones();
+}
+
+(async function init() {
+  var sRes = await window.sb.from("seasons").select("*").order("created_at", { ascending: false });
+  SEASONS = sRes.data || [];
+  var tRes = await window.sb.from("teams").select("*");
+  (tRes.data || []).forEach(function (t) { TEAMS[t.id] = t; });
+  var pRes = await window.sb.from("players").select("id, full_name");
+  (pRes.data || []).forEach(function (p) { PLAYERS[p.id] = p; });
+  var cur = SEASONS.find(function (s) { return s.is_current; }) || SEASONS[0];
+  document.getElementById("f-season").innerHTML = SEASONS.map(function (s) {
+    return '<option value="' + s.id + '"' + (cur && s.id === cur.id ? " selected" : "") + ">" + escapeHtml(s.name) + "</option>";
+  }).join("");
+  if (!SEASONS.length) { document.getElementById("ms-body").innerHTML = '<p class="muted">No seasons yet.</p>'; return; }
+  document.getElementById("f-season").addEventListener("change", loadSeason);
+  document.getElementById("f-view").addEventListener("change", renderMilestones);
+  document.querySelectorAll("#tabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      TAB = b.dataset.tab;
+      document.querySelectorAll("#tabs button").forEach(function (x) { x.classList.toggle("on", x === b); });
+      renderMilestones();
+    });
+  });
+  await loadSeason();
+})();
+trackPageView("stats").then(function (count) {
+  document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
+});
+</script>
+</body>
+</html>

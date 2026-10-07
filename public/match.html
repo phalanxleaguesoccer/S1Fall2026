@@ -43,7 +43,7 @@ async function loadMatch() {
     '<span class="pill ' + m.status + '" style="margin-left:8px;">' + m.status + "</span>" +
     (m.kickoff_at ? " &middot; " + formatKickoff(m.kickoff_at) : "");
 
-  var eventsRes = await window.sb.from("match_events").select("*, players(*), teams(*)").eq("match_id", matchId).order("minute", { ascending: true });
+  var eventsRes = await window.sb.from("match_events").select("*, players!match_events_player_id_fkey(*), teams(*)").eq("match_id", matchId).order("minute", { ascending: true });
   var list = document.getElementById("events-list");
   if (!eventsRes.data || eventsRes.data.length === 0) {
     list.innerHTML = '<p class="muted">No events logged for this match yet.</p>';

@@ -6,6 +6,7 @@ function renderHeader(activePage) {
     ["teams.html", "Teams"],
     ["players.html", "Players"],
     ["matches.html", "Matches"],
+    ["stats.html", "Stats"],
     ["auction.html", "Auction"],
     ["admin/login.html", "Admin"]
   ];

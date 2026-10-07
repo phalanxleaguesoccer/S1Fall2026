@@ -61,3 +61,10 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - `public/js/common.js` (nav, Eastern-time helpers), `public/js/supabase-client.js`, `public/css/app.css`
 - `public/admin/dashboard.html/.js` admin tools (match results, shoot-out order)
 - `sql/` all migrations and seeds
+
+
+## Update 7 Oct 2026
+- Day 1 results: `sql/day1_results.sql` (Step 1 scores, Step 2 player events - re-run Step 2 after the Stats page change so events keep their entry order and half is not guessed). Standings show shared ranks (1,2,2,4) for teams level on all criteria until the final shoot-out. Table columns: Pts P W D L GD GF GA.
+- New Stats page (`public/stats.html`, nav "Stats"): Milestones with tabs Goals / Assists / Yellow / Red; Season filter + View filter (Tournament default or a team); nth numbering; Details button (season, match, opponent, final score, half, minute, assist link, tournament vs team number). Tests: `tests/site/stats_tests.py`.
+- Fixed: `match_events` has two foreign keys to players, so embeds must use `players!match_events_player_id_fkey(*)` (match page + admin events list updated).
+- Kickoffs for 10-minute halves: `sql/update_match_times_10min_halves.sql`. Placeholder team removal: `sql/remove_placeholder_teams.sql`.
