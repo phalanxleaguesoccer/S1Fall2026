@@ -68,7 +68,7 @@ with sync_playwright() as pw:
     ok('matches: date and EDT time shown','9:00 PM EDT' in p.inner_text('body') and 'Oct 6, 2026' in p.inner_text('body'))
     ok('matches: rows link to match page',p.locator('a[href^="match.html?id="]').count()>=2 or p.locator('[data-href^="match.html"]').count()>=2)
     p=s.page('match.html?id=m0');b=p.inner_text('body')
-    ok('match: score + events',('3 – 1' in b) and 'Player of the Match' in b and 'Goal Saved' in b)
+    ok('match: score + events',('3 – 1' in b) and 'Player of the Match' in b and 'goal saved' in b.lower())
     # ---------- timezone independence ----------
     ctx=s.br.new_context(timezone_id='Asia/Kolkata');db=json.dumps(scenario_played()|{'__admin':False});ctx.add_init_script('window.__DB='+db+';')
     ctx.route('**/*supabase*.js',lambda r:r.fulfill(body=FAKE,content_type='application/javascript') if 'cdn.jsdelivr' in r.request.url else r.continue_())

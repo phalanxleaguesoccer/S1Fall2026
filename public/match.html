@@ -19,7 +19,7 @@
   </div>
 
   <div class="card">
-    <div class="card-title">Events</div>
+    <div class="card-title">Match Timeline</div>
     <div id="events-list"><p class="muted">Loading…</p></div>
   </div>
 </div>
@@ -69,20 +69,80 @@ async function loadMatch() {
 
   await loadLineups(m);
 
-  var eventsRes = await window.sb.from("match_events").select("*, players!match_events_player_id_fkey(*), teams(*)").eq("match_id", matchId).order("minute", { ascending: true });
+  var eventsRes = await window.sb.from("match_events").select("*, players!match_events_player_id_fkey(*), teams(*)").eq("match_id", matchId).order("created_at", { ascending: true });
   var list = document.getElementById("events-list");
-  if (!eventsRes.data || eventsRes.data.length === 0) {
+  var evs = (eventsRes.data || []).filter(function (e) { return e.players && e.teams; });
+  if (evs.length === 0) {
     list.innerHTML = '<p class="muted">No events logged for this match yet.</p>';
     return;
   }
-  var typeLabel = { goal: "⚽ Goal", assist: "🅰️ Assist", yellow_card: "🟨 Yellow", red_card: "🟥 Red", substitution_in: "⬆ Sub on", substitution_out: "⬇ Sub off", player_of_match: "⭐ Player of the Match", save: "🧤 Goal Saved", player_of_tournament: "🏆 Player of the Tournament" };
-  list.innerHTML = eventsRes.data.map(function (e) {
-    return '<div style="padding:8px 0; border-bottom:1px solid var(--card-edge); display:flex; justify-content:space-between; gap:10px;">' +
-      "<span>" + (typeLabel[e.event_type] || e.event_type) + " &middot; " +
-      '<a href="player.html?id=' + e.players.id + '">' + escapeHtml(e.players.full_name) + "</a> (" + escapeHtml(e.teams.name) + ")</span>" +
-      "<span class=\"muted\">" + (e.minute ? e.minute + "'" : "") + "</span>" +
-      "</div>";
-  }).join("");
+  var typeLabel = { goal: "⚽ Goal", assist: "🅰️ Assist", yellow_card: "🟨 Yellow card", red_card: "🟥 Red card", substitution_in: "⬆ Sub on", substitution_out: "⬇ Sub off", save: "🧤 Goal saved" };
+  function pl(e) { return '<a href="player.html?id=' + e.players.id + '">' + escapeHtml(e.players.full_name) + "</a>"; }
+
+  // Order inside a half: by minute when every event in that half has one, otherwise the order they were entered.
+  function ordered(arr) {
+    var allMin = arr.every(function (e) { return e.minute != null; });
+    return arr.map(function (e, i) { return { e: e, i: i }; }).sort(function (x, y) {
+      return (allMin ? x.e.minute - y.e.minute : 0) || x.i - y.i;
+    }).map(function (o) { return o.e; });
+  }
+  // Pair each goal with its assist (explicit link first, else next unused assist from the same team in that half).
+  function pairAssists(arr) {
+    var used = {}, goalAssist = {};
+    var assists = arr.filter(function (e) { return e.event_type === "assist"; });
+    arr.forEach(function (g) {
+      if (g.event_type !== "goal") return;
+      var hit = assists.filter(function (a) { return !used[a.id] && ((g.related_player_id && a.player_id === g.related_player_id) || a.related_player_id === g.player_id); })[0];
+      if (hit) { used[hit.id] = 1; goalAssist[g.id] = hit; }
+    });
+    arr.forEach(function (g) {
+      if (g.event_type !== "goal" || goalAssist[g.id]) return;
+      var hit = assists.filter(function (a) { return !used[a.id] && a.team_id === g.team_id && a.player_id !== g.player_id; })[0];
+      if (hit) { used[hit.id] = 1; goalAssist[g.id] = hit; }
+    });
+    return { used: used, goalAssist: goalAssist };
+  }
+
+  var halves = [
+    { key: 1, title: "First half", rows: [] },
+    { key: 2, title: "Second half", rows: [] },
+    { key: 0, title: "Half not recorded", rows: [] }
+  ];
+  var potm = [], awards = [];
+  evs.forEach(function (e) {
+    if (e.event_type === "player_of_match") { potm.push(e); return; }
+    if (e.event_type === "player_of_tournament") { awards.push(e); return; }
+    var h = e.half === 1 ? halves[0] : (e.half === 2 ? halves[1] : halves[2]);
+    h.rows.push(e);
+  });
+
+  var home = 0, away = 0, html = "";
+  halves.forEach(function (h) {
+    if (!h.rows.length) return;
+    var rows = ordered(h.rows), pa = pairAssists(rows);
+    var hg = 0, ag = 0, body = rows.map(function (e) {
+      if (e.event_type === "assist" && pa.used[e.id]) return "";
+      var when = e.minute != null ? e.minute + "'" : "";
+      var text;
+      if (e.event_type === "goal") {
+        if (e.team_id === m.home_team_id) { home++; hg++; } else { away++; ag++; }
+        var as = pa.goalAssist[e.id];
+        text = "⚽ <strong>Goal</strong> &middot; " + pl(e) + " (" + escapeHtml(e.teams.name) + ")" +
+          (as ? '<div class="muted" style="font-size:0.85rem;">🅰️ Assist: ' + pl(as) + "</div>" : "") +
+          '<div class="muted" style="font-size:0.82rem;">Score: ' + escapeHtml(m.home.name) + " " + home + " – " + away + " " + escapeHtml(m.away.name) + "</div>";
+      } else {
+        text = (typeLabel[e.event_type] || e.event_type) + " &middot; " + pl(e) + " (" + escapeHtml(e.teams.name) + ")";
+      }
+      return '<div style="padding:8px 0; border-bottom:1px solid var(--card-edge); display:flex; justify-content:space-between; gap:10px;"><span>' + text + '</span><span class="muted">' + when + "</span></div>";
+    }).join("");
+    var goalsLine = (hg + ag) ? hg + " – " + ag + " in this half" : "No goals";
+    html += '<div style="margin:14px 0 4px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap;"><strong style="letter-spacing:.04em; text-transform:uppercase; font-size:0.85rem;">' + h.title + '</strong><span class="muted" style="font-size:0.82rem;">' + goalsLine + "</span></div>" + body;
+    if (h.key === 1) html += '<div class="muted" style="padding:8px 0; font-size:0.85rem;">Half-time: ' + escapeHtml(m.home.name) + " " + home + " – " + away + " " + escapeHtml(m.away.name) + "</div>";
+  });
+  if (m.status === "completed") html += '<div style="padding:10px 0 2px;"><strong>Full-time: ' + escapeHtml(m.home.name) + " " + m.home_score + " – " + m.away_score + " " + escapeHtml(m.away.name) + "</strong></div>";
+  if (potm.length) html += '<div style="padding:10px 0 2px;">⭐ <strong>Player of the Match</strong> &middot; ' + potm.map(function (e) { return pl(e) + " (" + escapeHtml(e.teams.name) + ")"; }).join(", ") + "</div>";
+  if (awards.length) html += '<div style="padding:4px 0;">🏆 <strong>Player of the Tournament</strong> &middot; ' + awards.map(function (e) { return pl(e) + " (" + escapeHtml(e.teams.name) + ")"; }).join(", ") + "</div>";
+  list.innerHTML = html;
 }
 loadMatch();
 if (matchId) {
