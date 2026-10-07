@@ -15,7 +15,7 @@ begin
       (1,'Muggles FC','played','Dhruv'),(1,'Muggles FC','played','Ashu'),(1,'Muggles FC','played','Taranjot Singh Dang'),(1,'Muggles FC','played','Rohith'),
       (1,'Desi Steelers FC','rested','Vamshi'),
       (1,'Desi Steelers FC','played','Nasiq'),(1,'Desi Steelers FC','played','Ketan Shilimkar'),(1,'Desi Steelers FC','played','Vija'),
-      (1,'Desi Steelers FC','played','Vignesh'),(1,'Desi Steelers FC','played','Kaushik'),(1,'Desi Steelers FC','played','Rishabh Devgon'),
+      (1,'Desi Steelers FC','played','Vignesh'),(1,'Desi Steelers FC','played','Kaushik Apte'),(1,'Desi Steelers FC','played','Rishabh Devgon'),
       (1,'Desi Steelers FC','played','Ajinkya P'),(1,'Desi Steelers FC','played','Sagar'),
       -- Match 2: Renegades vs Scouts FC
       (2,'Renegades','rested','Vivek'),
@@ -29,7 +29,7 @@ begin
       (3,'Renegades','played','Varun'),(3,'Renegades','played','Minti'),(3,'Renegades','played','Nuhu Okikiri'),(3,'Renegades','played','Shailesh'),
       (3,'Renegades','played','Chirag'),(3,'Renegades','played','Prajna'),(3,'Renegades','played','Sangram Ghewade'),(3,'Renegades','played','Dhananjay'),(3,'Renegades','played','Vivek'),
       (3,'Desi Steelers FC','played','Nasiq'),(3,'Desi Steelers FC','played','Ketan Shilimkar'),(3,'Desi Steelers FC','played','Vija'),(3,'Desi Steelers FC','played','Vignesh'),
-      (3,'Desi Steelers FC','played','Kaushik'),(3,'Desi Steelers FC','played','Rishabh Devgon'),(3,'Desi Steelers FC','played','Ajinkya P'),(3,'Desi Steelers FC','played','Sagar'),
+      (3,'Desi Steelers FC','played','Kaushik Apte'),(3,'Desi Steelers FC','played','Rishabh Devgon'),(3,'Desi Steelers FC','played','Ajinkya P'),(3,'Desi Steelers FC','played','Sagar'),
       -- Match 4: Muggles FC vs Scouts FC
       (4,'Muggles FC','rested','Ayush'),
       (4,'Muggles FC','played','Amritpal Singh'),(4,'Muggles FC','played','Preetesh Duvvuri'),(4,'Muggles FC','played','Dheeraj R Vatti'),(4,'Muggles FC','played','Dhruv'),
