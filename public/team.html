@@ -122,13 +122,13 @@ function aggregateByPlayer(rows) {
   return Object.keys(byPlayer).map(function (k) { return byPlayer[k]; });
 }
 
-function topBy(rows, field) {
-  var best = null;
-  rows.forEach(function (s) {
-    if ((s[field] || 0) > 0 && (!best || s[field] > best[field])) best = s;
-  });
-  return best;
+function topBy(rows, field) {          // everyone tied on the highest (non-zero) value
+  var max = 0;
+  rows.forEach(function (s) { if ((s[field] || 0) > max) max = s[field]; });
+  if (!max) return null;
+  return { value: max, names: rows.filter(function (s) { return (s[field] || 0) === max; }).map(function (s) { return s.full_name; }).sort() };
 }
+function topText(top) { return top ? top.names.join(", ") + " (" + top.value + (top.names.length > 1 ? " each" : "") + ")" : "—"; }
 
 async function renderStatsAndSchedule() {
   var filterVal = document.getElementById("season-filter").value; // "all" or a season id
@@ -177,16 +177,16 @@ async function renderStatsAndSchedule() {
 
   var topScorerSeason = topBy(perPlayerSelected, "goals");
   var topPotmSeason = topBy(perPlayerSelected, "potm_awards");
-  document.getElementById("top-scorer-season").textContent = topScorerSeason ? topScorerSeason.full_name + " (" + topScorerSeason.goals + ")" : "—";
-  document.getElementById("top-potm-season").textContent = topPotmSeason ? topPotmSeason.full_name + " (" + topPotmSeason.potm_awards + ")" : "—";
+  document.getElementById("top-scorer-season").textContent = topText(topScorerSeason);
+  document.getElementById("top-potm-season").textContent = topText(topPotmSeason);
 
   // ---- Top scorer / top POTM (all seasons, this team, regardless of filter) ----
   var allStatsRes = await window.sb.from("player_season_stats").select("*").eq("team_id", teamId);
   var perPlayerAll = aggregateByPlayer(allStatsRes.data || []);
   var topScorerAll = topBy(perPlayerAll, "goals");
   var topPotmAll = topBy(perPlayerAll, "potm_awards");
-  document.getElementById("top-scorer-alltime").textContent = topScorerAll ? topScorerAll.full_name + " (" + topScorerAll.goals + ")" : "—";
-  document.getElementById("top-potm-alltime").textContent = topPotmAll ? topPotmAll.full_name + " (" + topPotmAll.potm_awards + ")" : "—";
+  document.getElementById("top-scorer-alltime").textContent = topText(topScorerAll);
+  document.getElementById("top-potm-alltime").textContent = topText(topPotmAll);
 
   // ---- Schedule & Results ----
   var matchQuery = window.sb

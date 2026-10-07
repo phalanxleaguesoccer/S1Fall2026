@@ -111,6 +111,15 @@ with sync_playwright() as pw:
     th=[h.strip().upper() for h in tid.locator('table thead').first.locator('th').all_inner_texts()]
     tv=[c.strip() for c in tid.locator('#team-totals-body td').all_inner_texts()]
     ok('team page: same column order and Scouts values',th==['PTS','P','W','D','L','GD','GF','GA'] and tv==exp['Scouts FC'],(th,tv))
+    sc=sd.page('team.html?id=%s'%finish(b)['_ids']['T']['Scouts FC'],1500)
+    ok('team page: single top scorer/POTM unaffected when no events','—' in sc.inner_text('#top-scorer-season'),sc.inner_text('#top-scorer-season'))
+    b2=base();m2=b2['m'];m2(1,1,'Muggles FC','Scouts FC','completed',1,2);d2=finish(b2);T2=d2['_ids']['T'];P2=d2['_ids']['P']
+    d2['team_season_rosters']+=[{'id':'rr%d'%i,'season_id':'season1','team_id':T2['Scouts FC'],'player_id':P2[n],'is_owner':False,'jersey_number':None} for i,n in enumerate(['Ajinkya P','Rishabh Devgon','Vignesh'])]
+    d2['match_events']=[{'id':'q%d'%i,'match_id':'m0','team_id':T2['Scouts FC'],'player_id':P2[n],'event_type':t,'half':1,'minute':None,'related_player_id':None} for i,(n,t) in enumerate([('Ajinkya P','goal'),('Rishabh Devgon','goal'),('Vignesh','goal'),('Vignesh','goal'),('Ajinkya P','player_of_match'),('Rishabh Devgon','player_of_match')])]
+    tp=Site(pw,d2).page('team.html?id=%s'%T2['Scouts FC'],1500)
+    ts=tp.inner_text('#top-scorer-season');tpm=tp.inner_text('#top-potm-season')
+    ok('team page: tie for top POTM lists both names',('Ajinkya P' in tpm and 'Rishabh Devgon' in tpm and '(1 each)' in tpm),tpm)
+    ok('team page: single top scorer shows one name',ts.startswith('Vignesh') and 'Ajinkya' not in ts and '(2)' in ts,ts)
     ok('day1: Scouts 3pts first; Desi+Renegades level (2pts, GD0, GF0); Muggles last',rows[0][1]=='Scouts FC' and rows[0][2]=='3' and {rows[1][1],rows[2][1]}=={'Desi Steelers FC','Renegades'} and rows[3][1]=='Muggles FC' and rows[3][2]=='1',rows)
     # ---------- admin ----------
     sa=Site(pw,scenario_played(),admin=True);p=sa.page('admin/dashboard.html',1200)
