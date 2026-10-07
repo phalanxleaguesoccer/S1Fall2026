@@ -14,7 +14,7 @@ def build():
     d['match_appearances']=ap;return d,T,P
 d,T,P=build()
 with sync_playwright() as pw:
-    s=Site(pw,d);p=s.page('stats.html',1500)
+    s=Site(pw,d);p=s.page('stats.html#milestones',1500)
     ok('no JS errors',not p.errs,p.errs)
     ok('Rested + Absent tabs exist',p.locator('[data-tab=rested]').count()==1 and p.locator('[data-tab=absent]').count()==1)
     rows=lambda:[r.replace('\t',' | ') for r in p.locator('#ms-body table').first.locator('tbody tr:not(.det)').all_inner_texts()]

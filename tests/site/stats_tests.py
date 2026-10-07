@@ -16,7 +16,7 @@ e('m2','Renegades','Varun','yellow_card');e('m3','Scouts FC','Ayush','red_card',
 e('m4','Desi Steelers FC','Nasiq','goal',None,1,4)   # tournament goal #4 but Desi's #1
 d['match_events']=ev
 with sync_playwright() as pw:
-    s=Site(pw,d);p=s.page('stats.html',1500)
+    s=Site(pw,d);p=s.page('stats.html#milestones',1500)
     ok('no JS errors',not p.errs,p.errs)
     ok('Stats link in nav',p.locator('nav.main-nav a',has_text='Stats').count()==1)
     rows=lambda:[r.replace('\t',' | ') for r in p.locator('#ms-body tbody tr:not(.det)').all_inner_texts()]
@@ -36,8 +36,8 @@ with sync_playwright() as pw:
     p.locator('[data-det]').first.click();ok('red details: Second half + minute',all(x in p.inner_text('tr.det:visible') for x in ['Second half',"14'"]),p.inner_text('tr.det:visible'))
     p.select_option('#f-view',T['Muggles FC']);ok('red tab, team with none: empty message','No red cards' in p.inner_text('#ms-body'),p.inner_text('#ms-body'))
     # empty season
-    d2=scenario_pre();q=Site(pw,d2).page('stats.html',1200);ok('no events: friendly empty text, no errors','No goals recorded yet' in q.inner_text('#ms-body') and not q.errs,(q.inner_text('#ms-body'),q.errs))
+    d2=scenario_pre();q=Site(pw,d2).page('stats.html#milestones',1200);ok('no events: friendly empty text, no errors','No goals recorded yet' in q.inner_text('#ms-body') and not q.errs,(q.inner_text('#ms-body'),q.errs))
     # mobile
-    mm=Site(pw,d);mp=mm.page('stats.html',1200);mp.set_viewport_size({'width':390,'height':800});mp.wait_for_timeout(300)
+    mm=Site(pw,d);mp=mm.page('stats.html#milestones',1200);mp.set_viewport_size({'width':390,'height':800});mp.wait_for_timeout(300)
     ok('phone width: no sideways page scroll',mp.evaluate('document.documentElement.scrollWidth')<=390,mp.evaluate('document.documentElement.scrollWidth'))
 print(sum(R),'passed',len(R)-sum(R),'failed')
