@@ -61,7 +61,7 @@ var TABS = {
   rested:  { att: "rested",       title: "Rested",      none: "Nobody has been rested yet." },
   absent:  { att: "absent",       title: "Absent",      none: "Nobody has been absent yet." }
 };
-var TAB = "goals", SEASONS = [], TEAMS = {}, PLAYERS = {}, MATCHES = {}, EVENTS = [], APPS = [], SEASON_ID = null;
+var TAB = "goals", SEASONS = [], TEAMS = {}, PLAYERS = {}, MATCHES = {}, EVENTS = [], APPS = [], ROSTER = [], SEASON_ID = null;
 
 function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 function isPlaceholder(t) { return /^Team [A-Z]$/.test(t.name); }
@@ -109,7 +109,53 @@ function halfText(e) {
   return h === 1 ? "First half" : (h === 2 ? "Second half" : "Not recorded");
 }
 
+function matchLink(mid) {
+  var m = MATCHES[mid];
+  var sc = (m.status === "completed" || m.status === "forfeited") && m.home_score != null ? " (" + m.home_score + "–" + m.away_score + ")" : "";
+  return '<li><a href="match.html?id=' + mid + '">Day ' + m.match_day + " &middot; Match " + m.match_number + ": " + escapeHtml(tname(m.home_team_id)) + " vs " + escapeHtml(tname(m.away_team_id)) + sc + "</a></li>";
+}
+function matchOrder(a, b) { var x = MATCHES[a.match_id], y = MATCHES[b.match_id]; return x.match_day - y.match_day || x.match_number - y.match_number; }
+
+// One team picked: whole squad (owner included) split into "never rested/absent" and "at least once".
+function renderSquadView(cfg, teamId) {
+  var box = document.getElementById("ms-body");
+  var word = cfg.att === "rested" ? "rested" : "absent";
+  var squad = ROSTER.filter(function (r) { return r.team_id === teamId; }).map(function (r) {
+    var mine = APPS.filter(function (a) { return a.player_id === r.player_id && MATCHES[a.match_id] && MATCHES[a.match_id].status === "completed"; }).sort(matchOrder);
+    return { id: r.player_id, owner: !!r.is_owner,
+      hit: mine.filter(function (a) { return a.status === cfg.att; }),
+      played: mine.filter(function (a) { return a.status === "played"; }),
+      rested: mine.filter(function (a) { return a.status === "rested"; }).length,
+      absent: mine.filter(function (a) { return a.status === "absent"; }).length };
+  });
+  if (!squad.length) { box.innerHTML = '<p class="muted">No squad members for this team yet.</p>'; return; }
+  var never = squad.filter(function (p) { return !p.hit.length; }).sort(function (a, b) { return pname(a.id).localeCompare(pname(b.id)); });
+  var some = squad.filter(function (p) { return p.hit.length; }).sort(function (a, b) { return b.hit.length - a.hit.length || pname(a.id).localeCompare(pname(b.id)); });
+  function table(list, showCount) {
+    if (!list.length) return '<p class="muted">Nobody.</p>';
+    return '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Player</th>' + (showCount ? "<th>Times " + word + "</th>" : "") + "<th></th></tr></thead><tbody>" +
+      list.map(function (p) {
+        var det = '<div class="det-grid"><div><span>Played</span>' + p.played.length + "</div><div><span>Rested</span>" + p.rested + "</div><div><span>Absent</span>" + p.absent + "</div></div>" +
+          (p.hit.length
+            ? '<p style="margin:10px 0 4px;" class="muted">Matches ' + word + ":</p><ul style=\"margin:0 0 0 18px;\">" + p.hit.map(function (a) { return matchLink(a.match_id); }).join("") + "</ul>"
+            : '<p style="margin:10px 0 4px;" class="muted">Matches played:</p>' + (p.played.length ? '<ul style="margin:0 0 0 18px;">' + p.played.map(function (a) { return matchLink(a.match_id); }).join("") + "</ul>" : "<p>None yet.</p>"));
+        return '<tr><td class="team-name"><a href="player.html?id=' + p.id + '">' + escapeHtml(pname(p.id)) + "</a>" + (p.owner ? ' <span class="muted">(owner)</span>' : "") + "</td>" +
+          (showCount ? "<td><strong>" + p.hit.length + "</strong></td>" : "") + '<td><button type="button" class="btn secondary small" data-det="sq-' + p.id + '" aria-expanded="false">Details</button></td></tr>' +
+          '<tr class="det" id="det-sq-' + p.id + '" style="display:none;"><td colspan="' + (showCount ? 3 : 2) + '">' + det + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+  box.innerHTML = '<h3 style="margin:4px 0 6px;">Never ' + word + " (" + never.length + ")</h3>" + table(never, false) +
+    '<h3 style="margin:18px 0 6px;">' + cfg.title + " at least once (" + some.length + ")</h3>" + table(some, true);
+  box.querySelectorAll("[data-det]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var r = document.getElementById("det-" + b.dataset.det), open = r.style.display === "none";
+      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
+    });
+  });
+}
+
 function renderAttendance(cfg, view) {
+  if (view !== "all") { renderSquadView(cfg, view); return; }
   var box = document.getElementById("ms-body");
   var all = APPS.filter(function (a) { return a.status === cfg.att && MATCHES[a.match_id]; }).sort(function (a, b) {
     var ma = MATCHES[a.match_id], mb = MATCHES[b.match_id];
@@ -195,6 +241,8 @@ async function loadSeason() {
   MATCHES = {}; (mRes.data || []).forEach(function (m) { MATCHES[m.id] = m; });
   var ids = Object.keys(MATCHES);
   EVENTS = []; APPS = [];
+  var rosRes = await window.sb.from("team_season_rosters").select("*").eq("season_id", SEASON_ID);
+  ROSTER = rosRes.data || [];
   if (ids.length) {
     var apRes = await window.sb.from("match_appearances").select("*").in("match_id", ids);
     APPS = apRes.data || [];
