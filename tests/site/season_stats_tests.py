@@ -49,7 +49,7 @@ with sync_playwright() as pw:
     tr=[r[0].strip() for r in rows() if r[1].strip() in ('Amritpal Singh','Zed Twin')]
     ok('tied players share rank and show "=" (e.g. 5=)',len(tr)==2 and tr[0]==tr[1] and tr[0].endswith('='),tr)
     nxt=[r[0].strip() for r in rows()]
-    ok('player after the tie skips a rank and has no "="',nxt[nxt.index(tr[0])+2].isdigit() and int(nxt[nxt.index(tr[0])+2])==int(tr[0][:-1])+2,nxt)
+    ok('player after the tie continues with the next number (no gap) and has no "="',nxt[nxt.index(tr[0])+2].isdigit() and int(nxt[nxt.index(tr[0])+2])==int(tr[0][:-1])+1,nxt)
     p.evaluate("loadSeasonStats()");p.wait_for_timeout(500)
     # header click re-sorts and renumbers
     p.locator('#ss-body thead th',has_text='Assists').first.click();p.wait_for_timeout(200)

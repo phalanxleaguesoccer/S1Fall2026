@@ -293,7 +293,7 @@ function ssSame(a, b) {   // share a rank only when equal on every ranking key
 function renderSeasonStats() {
   var box = document.getElementById("ss-body");
   var rows = ssSorted(), ranks = [];
-  rows.forEach(function (r, i) { ranks[i] = i > 0 && ssSame(rows[i - 1], r) ? ranks[i - 1] : i + 1; });
+  rows.forEach(function (r, i) { ranks[i] = i === 0 ? 1 : (ssSame(rows[i - 1], r) ? ranks[i - 1] : ranks[i - 1] + 1); });   // no gaps: 12=, 12=, 13
   var tied = rows.map(function (r, i) { return (i > 0 && ranks[i] === ranks[i - 1]) || (i + 1 < rows.length && ranks[i] === ranks[i + 1] && ssSame(r, rows[i + 1])); });
   var q = document.getElementById("s-search").value.trim().toLowerCase();
   if (!rows.length) { box.innerHTML = '<p class="muted">No players for this selection yet.</p>'; return; }
