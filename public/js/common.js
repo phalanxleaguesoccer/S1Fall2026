@@ -3,10 +3,10 @@
 function renderHeader(activePage) {
   var links = [
     ["index.html", "Standings"],
-    ["teams.html", "Teams"],
-    ["players.html", "Players"],
     ["matches.html", "Matches"],
     ["stats.html", "Stats"],
+    ["teams.html", "Teams"],
+    ["players.html", "Players"],
     ["auction.html", "Auction"],
     ["admin/login.html", "Admin"]
   ];
