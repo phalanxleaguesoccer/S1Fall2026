@@ -47,8 +47,8 @@
     </div>
     <div class="table-scroll" style="margin-top:14px;">
       <table class="data-table">
-        <thead><tr><th>Goals</th><th>Assists</th><th>Saves</th><th>CS</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
-        <tbody id="squad-totals-body"><tr><td colspan="8" class="text-center muted">Loading…</td></tr></tbody>
+        <thead><tr><th>Goals</th><th>Assists</th><th>Saves</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
+        <tbody id="squad-totals-body"><tr><td colspan="7" class="text-center muted">Loading…</td></tr></tbody>
       </table>
     </div>
     <div style="margin-top:14px; display:flex; flex-direction:column; gap:6px;">
@@ -108,7 +108,7 @@ function aggregateByPlayer(rows) {
   rows.forEach(function (s) {
     var key = s.player_id;
     if (!byPlayer[key]) {
-      byPlayer[key] = { player_id: s.player_id, full_name: s.full_name, games_played: 0, rested: 0, absent: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0, clean_sheets: 0 };
+      byPlayer[key] = { player_id: s.player_id, full_name: s.full_name, games_played: 0, rested: 0, absent: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0 };
     }
     byPlayer[key].games_played += s.games_played || 0;
     byPlayer[key].rested += s.rested || 0;
@@ -120,7 +120,6 @@ function aggregateByPlayer(rows) {
     byPlayer[key].potm_awards += s.potm_awards || 0;
     byPlayer[key].saves += s.saves || 0;
     byPlayer[key].tournament_awards += s.tournament_awards || 0;
-    byPlayer[key].clean_sheets += s.clean_sheets || 0;
   });
   return Object.keys(byPlayer).map(function (k) { return byPlayer[k]; });
 }
@@ -169,12 +168,12 @@ async function renderStatsAndSchedule() {
     acc.goals += s.goals || 0; acc.assists += s.assists || 0;
     acc.yellow_cards += s.yellow_cards || 0; acc.red_cards += s.red_cards || 0;
     acc.potm_awards += s.potm_awards || 0;
-    acc.saves += s.saves || 0; acc.tournament_awards += s.tournament_awards || 0; acc.clean_sheets += s.clean_sheets || 0;
+    acc.saves += s.saves || 0; acc.tournament_awards += s.tournament_awards || 0;
     return acc;
-  }, { goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0, clean_sheets: 0 });
+  }, { goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0 });
 
   document.getElementById("squad-totals-body").innerHTML =
-    "<tr><td>" + totals.goals + "</td><td>" + totals.assists + "</td><td>" + totals.saves + "</td><td>" + totals.clean_sheets + "</td>" +
+    "<tr><td>" + totals.goals + "</td><td>" + totals.assists + "</td><td>" + totals.saves + "</td>" +
     '<td><span class="badge yellow">' + totals.yellow_cards + "</span></td><td><span class=\"badge red\">" + totals.red_cards + "</span></td>" +
     "<td>" + totals.potm_awards + "</td><td>" + totals.tournament_awards + "</td></tr>";
 

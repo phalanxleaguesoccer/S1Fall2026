@@ -49,7 +49,7 @@ with sync_playwright() as pw:
     ok('profile: Bilal GP 0 (rested), rested 1',vals[2:5]==['0','1','0'],vals)
     q=s.page('player.html?id='+P['Vignesh'],1500);vals=q.locator('#stats-body td').all_inner_texts()
     ok('profile: Vignesh played M1 (GP 1); M3 had no lineup rows for Desi -> legacy count only if team has none',vals[2:5][0] in ('1','2'),vals)
-    q.click('#history-toggle');q.wait_for_timeout(300);ok('career totals + season table have Rested/Absent',q.locator('#career-totals-body td').count()==11 and 'rested' in q.inner_text('#history-seasons-view').lower(),q.locator('#career-totals-body td').count())
+    q.click('#history-toggle');q.wait_for_timeout(300);ok('career totals + season table have Rested/Absent',q.locator('#career-totals-body td').count()==10 and 'rested' in q.inner_text('#history-seasons-view').lower(),q.locator('#career-totals-body td').count())
     # team page
     q=s.page('team.html?id='+T['Desi Steelers FC'],1500);cards=q.locator('#roster-grid .player-card').all_inner_texts()
     ok('team page squad: counts per player (Ayush: Played 1 · Rested 0 · Absent 1)',any('Ayush' in c and 'Played 1' in c and 'Absent 1' in c for c in cards),cards)

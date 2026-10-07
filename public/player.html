@@ -43,8 +43,8 @@
     <div class="card-title">Current Season Stats</div>
     <div class="table-scroll">
       <table class="data-table">
-        <thead><tr><th class="team-name">Bought by</th><th>Sold for</th><th>GP</th><th>Rested</th><th>Absent</th><th>Goals</th><th>Assists</th><th>Saves</th><th>CS</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
-        <tbody id="stats-body"><tr><td colspan="13" class="text-center muted">Loading…</td></tr></tbody>
+        <thead><tr><th class="team-name">Bought by</th><th>Sold for</th><th>GP</th><th>Rested</th><th>Absent</th><th>Goals</th><th>Assists</th><th>Saves</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
+        <tbody id="stats-body"><tr><td colspan="12" class="text-center muted">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -59,8 +59,8 @@
       <p class="muted" style="font-size:0.82rem; margin-bottom:6px;">Career totals across all seasons:</p>
       <div class="table-scroll">
         <table class="data-table" style="margin-bottom:20px;">
-          <thead><tr><th>GP</th><th>Rested</th><th>Absent</th><th>Goals</th><th>Assists</th><th>Saves</th><th>CS</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
-          <tbody id="career-totals-body"><tr><td colspan="11" class="text-center muted">Loading…</td></tr></tbody>
+          <thead><tr><th>GP</th><th>Rested</th><th>Absent</th><th>Goals</th><th>Assists</th><th>Saves</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
+          <tbody id="career-totals-body"><tr><td colspan="10" class="text-center muted">Loading…</td></tr></tbody>
         </table>
       </div>
 
@@ -81,8 +81,8 @@
       <div id="history-seasons-view">
         <div class="table-scroll">
           <table class="data-table">
-            <thead><tr><th class="team-name">Season</th><th class="team-name">Bought by</th><th>Sold for</th><th>GP</th><th>Rested</th><th>Absent</th><th>Goals</th><th>Assists</th><th>Saves</th><th>CS</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
-            <tbody id="career-by-season-body"><tr><td colspan="14" class="text-center muted">Loading…</td></tr></tbody>
+            <thead><tr><th class="team-name">Season</th><th class="team-name">Bought by</th><th>Sold for</th><th>GP</th><th>Rested</th><th>Absent</th><th>Goals</th><th>Assists</th><th>Saves</th><th>Yellow</th><th>Red</th><th>POTM</th><th>POT</th></tr></thead>
+            <tbody id="career-by-season-body"><tr><td colspan="13" class="text-center muted">Loading…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -143,7 +143,7 @@ async function loadPlayer() {
   // Always resolve stats-body, even if there's no current season or no roster row —
   // never leave it stuck on "Loading…".
   var curRoster = null;
-  var statsFallback = { games_played: 0, rested: 0, absent: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0, clean_sheets: 0 };
+  var statsFallback = { games_played: 0, rested: 0, absent: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0 };
   try {
     var season = await getCurrentSeason();
     if (season) {
@@ -163,7 +163,7 @@ async function loadPlayer() {
   }
   var s = statsFallback;
   document.getElementById("stats-body").innerHTML =
-    "<tr>" + auctionCells(curRoster) + "<td>" + s.games_played + "</td><td>" + (s.rested || 0) + "</td><td>" + (s.absent || 0) + "</td><td>" + s.goals + "</td><td>" + s.assists + "</td><td>" + (s.saves || 0) + "</td><td>" + (s.clean_sheets || 0) + "</td>" +
+    "<tr>" + auctionCells(curRoster) + "<td>" + s.games_played + "</td><td>" + (s.rested || 0) + "</td><td>" + (s.absent || 0) + "</td><td>" + s.goals + "</td><td>" + s.assists + "</td><td>" + (s.saves || 0) + "</td>" +
     '<td><span class="badge yellow">' + s.yellow_cards + "</span></td><td><span class=\"badge red\">" + s.red_cards + "</span></td>" +
     "<td>" + (s.potm_awards || 0) + "</td><td>" + (s.tournament_awards || 0) + "</td></tr>";
 }
@@ -227,18 +227,18 @@ async function loadCareerHistory() {
     acc.potm_awards += r.potm_awards || 0;
     acc.saves += r.saves || 0;
     acc.tournament_awards += r.tournament_awards || 0;
-    acc.clean_sheets += r.clean_sheets || 0;
+   
     return acc;
-  }, { games_played: 0, rested: 0, absent: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0, clean_sheets: 0 });
+  }, { games_played: 0, rested: 0, absent: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0 });
 
   document.getElementById("career-totals-body").innerHTML =
-    "<tr><td>" + totals.games_played + "</td><td>" + totals.rested + "</td><td>" + totals.absent + "</td><td>" + totals.goals + "</td><td>" + totals.assists + "</td><td>" + totals.saves + "</td><td>" + totals.clean_sheets + "</td>" +
+    "<tr><td>" + totals.games_played + "</td><td>" + totals.rested + "</td><td>" + totals.absent + "</td><td>" + totals.goals + "</td><td>" + totals.assists + "</td><td>" + totals.saves + "</td>" +
     '<td><span class="badge yellow">' + totals.yellow_cards + "</span></td><td><span class=\"badge red\">" + totals.red_cards + "</span></td>" +
     "<td>" + totals.potm_awards + "</td><td>" + totals.tournament_awards + "</td></tr>";
 
   var seasonBody = document.getElementById("career-by-season-body");
   if (rows.length === 0) {
-    seasonBody.innerHTML = '<tr><td colspan="12" class="text-center muted">No season history yet.</td></tr>';
+    seasonBody.innerHTML = '<tr><td colspan="11" class="text-center muted">No season history yet.</td></tr>';
   } else {
     rows.sort(function (a, b) { return (a.seasons ? a.seasons.name : "").localeCompare(b.seasons ? b.seasons.name : ""); });
     seasonBody.innerHTML = rows.map(function (r) {
@@ -246,7 +246,7 @@ async function loadCareerHistory() {
       return "<tr>" +
         '<td class="team-name">' + escapeHtml(r.seasons ? r.seasons.name : "—") + "</td>" +
         auctionCells(rosBySeason[r.season_id], team) +
-        "<td>" + (r.games_played || 0) + "</td><td>" + (r.rested || 0) + "</td><td>" + (r.absent || 0) + "</td><td>" + (r.goals || 0) + "</td><td>" + (r.assists || 0) + "</td><td>" + (r.saves || 0) + "</td><td>" + (r.clean_sheets || 0) + "</td>" +
+        "<td>" + (r.games_played || 0) + "</td><td>" + (r.rested || 0) + "</td><td>" + (r.absent || 0) + "</td><td>" + (r.goals || 0) + "</td><td>" + (r.assists || 0) + "</td><td>" + (r.saves || 0) + "</td>" +
         "<td>" + (r.yellow_cards || 0) + "</td><td>" + (r.red_cards || 0) + "</td>" +
         "<td>" + (r.potm_awards || 0) + "</td><td>" + (r.tournament_awards || 0) + "</td>" +
         "</tr>";

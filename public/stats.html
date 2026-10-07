@@ -262,7 +262,7 @@ var SS = { sort: "default", dir: -1, rows: [], teamOpts: [] };
 var SS_COLS = [
   ["played", "P", "Matches played"], ["won", "W", "Matches won"], ["drawn", "D", "Matches drawn"], ["lost", "L", "Matches lost"],
   ["goals", "Goals", "Goals scored"], ["assists", "Assists", "Assists"], ["potm", "POTM", "Player of the match awards"],
-  ["yellow", "Yellow", "Yellow cards"], ["red", "Red", "Red cards"], ["cs", "CS", "Clean sheets"],
+  ["yellow", "Yellow", "Yellow cards"], ["red", "Red", "Red cards"],
   ["rested", "Rested", "Matches rested"], ["absent", "Absent", "Matches absent"]
 ];
 function ssDefaultCmp(a, b) {
@@ -335,7 +335,7 @@ async function loadSeasonStats() {
     });
     return { id: r.player_id, team_id: r.team_id, season_id: r.season_id, p: p, w: w, d: d, l: l,
       goals: v.goals || 0, assists: v.assists || 0, potm: v.potm_awards || 0, yellow: v.yellow_cards || 0, red: v.red_cards || 0,
-      cs: v.clean_sheets || 0, rested: v.rested || 0, absent: v.absent || 0 };
+      rested: v.rested || 0, absent: v.absent || 0 };
   });
   var teamSel = document.getElementById("s-team"), keep = teamSel.value || "all";
   SS.teamOpts = Object.keys(teamsSeen).sort(function (a, b) { return tname(a).localeCompare(tname(b)); });
@@ -348,10 +348,10 @@ function buildSeasonRows() {
   var team = document.getElementById("s-team").value;
   var by = {};
   SS.recs.filter(function (r) { return team === "all" || r.team_id === team; }).forEach(function (r) {
-    var o = by[r.id] = by[r.id] || { id: r.id, name: pname(r.id), teams: [], played: 0, won: 0, drawn: 0, lost: 0, goals: 0, assists: 0, potm: 0, yellow: 0, red: 0, cs: 0, rested: 0, absent: 0 };
+    var o = by[r.id] = by[r.id] || { id: r.id, name: pname(r.id), teams: [], played: 0, won: 0, drawn: 0, lost: 0, goals: 0, assists: 0, potm: 0, yellow: 0, red: 0, rested: 0, absent: 0 };
     if (o.teams.indexOf(r.team_id) < 0) o.teams.push(r.team_id);
     o.played += r.p; o.won += r.w; o.drawn += r.d; o.lost += r.l; o.goals += r.goals; o.assists += r.assists; o.potm += r.potm;
-    o.yellow += r.yellow; o.red += r.red; o.cs += r.cs; o.rested += r.rested; o.absent += r.absent;
+    o.yellow += r.yellow; o.red += r.red; o.rested += r.rested; o.absent += r.absent;
   });
   SS.rows = Object.keys(by).map(function (k) { var o = by[k]; o.team = o.teams.map(tname).join(", "); return o; });
   renderSeasonStats();

@@ -50,7 +50,7 @@ with sync_playwright() as pw:
     p=s.page('team.html?id=t4')
     ok('team: name + owner link -> owner profile',p.inner_text('#team-name').lower().startswith('desi') and p.get_attribute('#owner-link','href')=='player.html?id=p0')
     totals=[t.strip() for t in p.locator('#squad-totals-body td').all_inner_texts()]
-    ok('team: cumulative squad totals G/A/Saves/CS/Y/R/POTM/POT = 3,1,1,0,0,0,1,1',totals==['3','1','1','0','0','0','1','1'],totals)
+    ok('team: cumulative squad totals G/A/Saves/Y/R/POTM/POT = 3,1,1,0,0,1,1',totals==['3','1','1','0','0','1','1'],totals)
     cards=p.locator('#roster-grid .player-card').all_inner_texts()
     ok('team: squad grid lists owner FIRST (labelled Owner) then the players',p.locator('#roster-grid a[href^="player.html?id="]').count()==3 and 'Owner' in cards[0] and all('Owner' not in c for c in cards[1:]),cards)
     ok('team: season filter + squad season filter present',p.locator('#season-filter option').count()>=2 and p.locator('#squad-season-filter option').count()>=2)
@@ -59,9 +59,9 @@ with sync_playwright() as pw:
     ok('team: All seasons switch no errors',not p.errs,p.errs)
     # ---------- player ----------
     p=s.page('player.html?id=p0');body=p.inner_text('body')
-    for lab in ['GP','GOALS','ASSISTS','SAVES','CS','YELLOW','RED','POTM','POT']:
+    for lab in ['GP','GOALS','ASSISTS','SAVES','YELLOW','RED','POTM','POT']:
         ok(f'player: stats column {lab}',lab in body)
-    ok('player: stat values goals=2 potm=1 pot=1',re.search(r'\t0\t2\t0\t0\t0\t0\t0\t1\t1',body) is not None,body[body.find('GP'):body.find('GP')+80])
+    ok('player: stat values goals=2 potm=1 pot=1',re.search(r'\t0\t2\t0\t0\t0\t0\t1\t1',body) is not None,body[body.find('GP'):body.find('GP')+80])
     ok('player: team link',p.locator('#player-team a[href^="team.html"]').count()==1 or 'Desi Steelers FC' in body)
     # ---------- matches / match ----------
     p=s.page('matches.html')

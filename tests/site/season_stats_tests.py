@@ -25,7 +25,7 @@ with sync_playwright() as pw:
     ok('Season Stats opens first, Milestones hidden',p.is_visible('#sec-season') and not p.is_visible('#sec-milestones'))
     hdr=lambda:[h.strip().lower() for h in p.locator('#ss-body thead th').all_inner_texts()]
     rows=lambda:[r.split('\t') for r in p.locator('#ss-body tbody tr').all_inner_texts()]
-    H=hdr();ok('column headers present',H[3:]==['p','w','d','l','goals','assists','potm','yellow','red','cs','rested','absent'],H)
+    H=hdr();ok('column headers present',H[3:]==['p','w','d','l','goals','assists','potm','yellow','red','rested','absent'],H)
     M={'played':'p','won':'w','drawn':'d','lost':'l','goals':'goals','assists':'assists','potm':'potm','yellow':'yellow','red':'red','rested':'rested','absent':'absent'}
     def col(name): return H.index(M[name])
     R0=rows()
