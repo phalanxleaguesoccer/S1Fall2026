@@ -41,6 +41,7 @@
     <div class="filters">
       <div><label class="muted" for="s-season">Season</label><select id="s-season"></select></div>
       <div><label class="muted" for="s-team">Team</label><select id="s-team"></select></div>
+      <div><label class="muted" for="s-rest">Rested</label><select id="s-rest"><option value="all">All players</option><option value="never">Not rested so far</option><option value="rested">Rested at least once</option></select></div>
       <div><label class="muted" for="s-search">Find player</label><input type="search" id="s-search" placeholder="Type a name" autocomplete="off"></div>
     </div>
     <div id="ss-body"><p class="muted">Loading…</p></div>
@@ -365,6 +366,9 @@ function buildSeasonRows() {
     o.yellow += r.yellow; o.red += r.red; o.rested += r.rested; o.absent += r.absent;
   });
   SS.rows = Object.keys(by).map(function (k) { var o = by[k]; o.team = o.teams.map(tname).join(", "); return o; });
+  var rest = document.getElementById("s-rest").value;   // absent is not rested
+  if (rest === "never") SS.rows = SS.rows.filter(function (o) { return o.rested === 0; });
+  else if (rest === "rested") SS.rows = SS.rows.filter(function (o) { return o.rested > 0; });
   renderSeasonStats();
 }
 
@@ -407,6 +411,7 @@ async function loadSeason() {
   document.getElementById("s-season").innerHTML = opts + '<option value="all">All seasons (career)</option>';
   document.getElementById("s-season").addEventListener("change", loadSeasonStats);
   document.getElementById("s-team").addEventListener("change", buildSeasonRows);
+  document.getElementById("s-rest").addEventListener("change", buildSeasonRows);
   document.getElementById("s-search").addEventListener("input", renderSeasonStats);
   document.querySelectorAll("#sub-nav button").forEach(function (b) {
     b.addEventListener("click", function () {

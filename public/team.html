@@ -75,6 +75,12 @@
       <div style="display:flex; align-items:center; gap:8px;">
         <label for="squad-season-filter" class="muted" style="margin:0; font-size:0.82rem; font-weight:400;">Viewing season</label>
         <select id="squad-season-filter" style="max-width:220px;"></select>
+        <label for="squad-rest-filter" class="muted" style="margin:0; font-size:0.82rem; font-weight:400;">Show</label>
+        <select id="squad-rest-filter" style="max-width:220px;">
+          <option value="all">All players</option>
+          <option value="never">Not rested so far</option>
+          <option value="rested">Rested at least once</option>
+        </select>
       </div>
     </div>
     <div class="grid" id="roster-grid"><p class="muted">Loading…</p></div>
@@ -271,7 +277,17 @@ async function renderSquad() {
 
   var squadRows = rows.slice().sort(function (a, b) { return (b.is_owner ? 1 : 0) - (a.is_owner ? 1 : 0); });   // owner first (stable sort keeps the rest in order)
   var grid = document.getElementById("roster-grid");
-  if (squadRows.length === 0) {
+  var restMode = document.getElementById("squad-rest-filter").value;
+  var totalSquad = squadRows.length;
+  if (restMode !== "all") {
+    squadRows = squadRows.filter(function (r) {
+      var n = (att[r.players.id] && att[r.players.id].rested) || 0;   // absent is not rested
+      return restMode === "never" ? n === 0 : n > 0;
+    });
+  }
+  if (squadRows.length === 0 && totalSquad > 0) {
+    grid.innerHTML = '<p class="muted">' + (restMode === "never" ? "Every player in this squad has been rested at least once." : "Nobody in this squad has been rested yet.") + "</p>";
+  } else if (squadRows.length === 0) {
     grid.innerHTML = '<p class="muted">No squad members added ' + (isAllSquad ? "yet" : "for this season yet") + '.</p>';
   } else {
     grid.innerHTML = squadRows.map(function (r) {
@@ -315,6 +331,7 @@ async function loadTeam() {
     '<option value="all">All Seasons</option>';
   squadFilter.value = currentSeason.id;
   squadFilter.addEventListener("change", renderSquad);
+  document.getElementById("squad-rest-filter").addEventListener("change", renderSquad);
 
   renderStatsAndSchedule();
   renderSquad();
