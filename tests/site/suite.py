@@ -102,7 +102,16 @@ with sync_playwright() as pw:
     sd=Site(pw,finish(b));p=sd.page('index.html')
     rows=[[c for c in p.locator('#standings-body tr').nth(i).locator('td').all_inner_texts()] for i in range(4)]
     ok('day1: ranks read 1, 2=, 2=, 4',[r[0] for r in rows]==['1','2=','2=','4'],rows)
-    ok('day1: Scouts 3pts first; Desi+Renegades level (2pts, GD0, GF0); Muggles last',rows[0][1]=='Scouts FC' and rows[0][-1]=='3' and {rows[1][1],rows[2][1]}=={'Desi Steelers FC','Renegades'} and rows[3][1]=='Muggles FC' and rows[3][-1]=='1',rows)
+    hdr=p.locator('table thead th').all_inner_texts()
+    ok('standings headers: # Team Pts P W D L GD GF GA',[h.strip().upper() for h in hdr[:10]]==['#','TEAM','PTS','P','W','D','L','GD','GF','GA'],hdr)
+    exp={'Scouts FC':['3','2','1','1','0','1','2','1'],'Desi Steelers FC':['2','2','0','2','0','0','0','0'],'Renegades':['2','2','0','2','0','0','0','0'],'Muggles FC':['1','2','0','1','1','-1','1','2']}
+    got={r[1]:[c.strip() for c in r[2:]] for r in rows}
+    ok('day1: every standings value correct (Pts P W D L GD GF GA)',got==exp,got)
+    tid=sd.page('team.html?id=%s'%finish(b)['_ids']['T']['Scouts FC'],1500)
+    th=[h.strip().upper() for h in tid.locator('table thead').first.locator('th').all_inner_texts()]
+    tv=[c.strip() for c in tid.locator('#team-totals-body td').all_inner_texts()]
+    ok('team page: same column order and Scouts values',th==['PTS','P','W','D','L','GD','GF','GA'] and tv==exp['Scouts FC'],(th,tv))
+    ok('day1: Scouts 3pts first; Desi+Renegades level (2pts, GD0, GF0); Muggles last',rows[0][1]=='Scouts FC' and rows[0][2]=='3' and {rows[1][1],rows[2][1]}=={'Desi Steelers FC','Renegades'} and rows[3][1]=='Muggles FC' and rows[3][2]=='1',rows)
     # ---------- admin ----------
     sa=Site(pw,scenario_played(),admin=True);p=sa.page('admin/dashboard.html',1200)
     ok('admin: dashboard loads, no errors',not p.errs,p.errs);p.click('button[data-tab=matches]')

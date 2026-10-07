@@ -29,14 +29,14 @@
           <tr>
             <th>#</th>
             <th class="team-name">Team</th>
+            <th>Pts</th>
             <th>P</th>
             <th>W</th>
             <th>D</th>
             <th>L</th>
+            <th>GD</th>
             <th>GF</th>
             <th>GA</th>
-            <th>GD</th>
-            <th>Pts</th>
           </tr>
         </thead>
         <tbody id="standings-body">
@@ -174,9 +174,9 @@ async function loadStandings() {
     return "<tr>" +
       "<td>" + ranks[i] + (r.unresolved && r.played > 0 ? "=" : "") + "</td>" +
       '<td class="team-name"><a href="team.html?id=' + r.team.id + '">' + escapeHtml(r.team.name) + "</a></td>" +
-      "<td>" + r.played + "</td><td>" + r.wins + "</td><td>" + r.draws + "</td><td>" + r.losses + "</td>" +
-      "<td>" + r.gf + "</td><td>" + r.ga + "</td><td>" + r.gd + "</td>" +
       "<td><strong>" + r.pts + "</strong></td>" +
+      "<td>" + r.played + "</td><td>" + r.wins + "</td><td>" + r.draws + "</td><td>" + r.losses + "</td>" +
+      "<td>" + r.gd + "</td><td>" + r.gf + "</td><td>" + r.ga + "</td>" +
       "</tr>";
   }).join("");
 }

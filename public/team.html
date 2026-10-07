@@ -41,7 +41,7 @@
     </div>
     <div class="table-scroll">
       <table class="data-table">
-        <thead><tr><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
+        <thead><tr><th>Pts</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>GF</th><th>GA</th></tr></thead>
         <tbody id="team-totals-body"><tr><td colspan="8" class="text-center muted">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -149,8 +149,8 @@ async function renderStatsAndSchedule() {
       acc.goals_for += r.goals_for; acc.goals_against += r.goals_against; acc.goal_difference += r.goal_difference; acc.points += r.points;
       return acc;
     }, { played: 0, wins: 0, draws: 0, losses: 0, goals_for: 0, goals_against: 0, goal_difference: 0, points: 0 });
-    tbody.innerHTML = "<tr><td>" + st.played + "</td><td>" + st.wins + "</td><td>" + st.draws + "</td><td>" + st.losses +
-      "</td><td>" + st.goals_for + "</td><td>" + st.goals_against + "</td><td>" + st.goal_difference + "</td><td><strong>" + st.points + "</strong></td></tr>";
+    tbody.innerHTML = "<tr><td><strong>" + st.points + "</strong></td><td>" + st.played + "</td><td>" + st.wins + "</td><td>" + st.draws + "</td><td>" + st.losses +
+      "</td><td>" + st.goal_difference + "</td><td>" + st.goals_for + "</td><td>" + st.goals_against + "</td></tr>";
   } else {
     tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">No matches played yet.</td></tr>';
   }
