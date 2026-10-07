@@ -18,6 +18,7 @@ e('m0','Desi Steelers FC','Nasiq','goal');e('m2','Desi Steelers FC','Nasiq','goa
 e('m2','Desi Steelers FC','Ayush','goal');e('m2','Desi Steelers FC','Ayush','goal');e('m2','Desi Steelers FC','Ayush','assist')
 e('m1','Renegades','Varun','goal');e('m1','Renegades','Varun','goal');e('m1','Renegades','Rishabh Devgon','assist')
 e('m1','Renegades','Varun','yellow_card');e('m1','Scouts FC','Bhagyesh Rane','red_card')
+e('m0','Muggles FC','Bilal Yaser','yellow_card')
 d['match_events']=ev
 with sync_playwright() as pw:
     s=Site(pw,d);p=s.page('stats.html',1500)
@@ -42,6 +43,7 @@ with sync_playwright() as pw:
     ok('draws above loss: Amritpal/Vignesh (1 draw) above Bhagyesh (1 loss)',max(full.index('Amritpal Singh'),full.index('Vignesh'))<full.index('Bhagyesh Rane'),full)
     ok('more played breaks tie: Vignesh (2 draws) above Amritpal (1 draw)',full.index('Vignesh')<full.index('Amritpal Singh'),full)
     ok('Ayush (absent) ranks below... equal goals/assists but see rank 1 by assists',full[0]=='Ayush')
+    ok('yellow card lowers rank on tie: Ajinkya (clean) above Bilal (1 yellow), different ranks',full.index('Ajinkya P')<full.index('Bilal Yaser') and rec('Ajinkya P')[0].strip()!=rec('Bilal Yaser')[0].strip(),(full,rec('Ajinkya P')[0],rec('Bilal Yaser')[0]))
     # header click re-sorts and renumbers
     p.locator('#ss-body thead th',has_text='Assists').first.click();p.wait_for_timeout(200)
     ok('sort by assists: Ayush then Rishabh (ties broken by full ranking), ranks renumber 1,2,3',names()[:2]==['Ayush','Rishabh Devgon'] and [r[0].strip() for r in rows()[:3]]==['1','2','3'],(names()[:3],[r[0] for r in rows()[:3]]))

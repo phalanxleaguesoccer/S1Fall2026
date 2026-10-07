@@ -265,9 +265,9 @@ var SS_COLS = [
   ["yellow", "Yellow", "Yellow cards"], ["red", "Red", "Red cards"],
   ["rested", "Rested", "Matches rested"], ["absent", "Absent", "Matches absent"]
 ];
-// Ranking order: Goals > Assists > POTM > Won > Drawn > (played at all) > fewer Lost > Played; then fewer Absent, more Rested.
-// Yellow/red cards never affect rank.
-var SS_CHAIN = [["goals", -1], ["assists", -1], ["potm", -1], ["won", -1], ["drawn", -1], ["hasPlayed", -1], ["lost", 1], ["played", -1], ["absent", 1], ["rested", -1]];
+// Ranking order: Goals > Assists > POTM > Won > Drawn > (played at all) > fewer Lost > more Played > fewer Yellow > fewer Red > more Rested > fewer Absent.
+// Cards only break ties: a player with cards ranks below an otherwise equal player without.
+var SS_CHAIN = [["goals", -1], ["assists", -1], ["potm", -1], ["won", -1], ["drawn", -1], ["hasPlayed", -1], ["lost", 1], ["played", -1], ["yellow", 1], ["red", 1], ["rested", -1], ["absent", 1]];
 function ssChainCmp(a, b) {
   a.hasPlayed = a.played > 0 ? 1 : 0; b.hasPlayed = b.played > 0 ? 1 : 0;   // someone who played always ranks above someone who never played
   for (var i = 0; i < SS_CHAIN.length; i++) {
@@ -306,7 +306,7 @@ function renderSeasonStats() {
       SS_COLS.map(function (c) { return '<td class="num">' + (SS.sort === c[0] || (SS.sort === "default" && c[0] === "goals") ? "<strong>" + r[c[0]] + "</strong>" : r[c[0]]) + "</td>"; }).join("") + "</tr>";
   }).join("");
   box.innerHTML = '<div class="table-scroll"><table class="data-table"><thead><tr>' + head + "</tr></thead><tbody>" + (body || '<tr><td colspan="' + (SS_COLS.length + 3) + '" class="text-center muted">No player matches that name.</td></tr>') + "</tbody></table></div>" +
-    '<p class="muted" style="font-size:.78rem;margin-top:8px;">P/W/D/L = matches the player actually played and the team\'s result in them. Ranked by Goals, then Assists, POTM, Won, Drawn, then anyone who played above anyone who didn\'t, fewer Lost, more Played; then fewer Absent and more Rested. Cards don\'t affect rank. Players equal on all of these share a rank.</p>';
+    '<p class="muted" style="font-size:.78rem;margin-top:8px;">P/W/D/L = matches the player actually played and the team\'s result in them. Ranked by Goals, Assists, POTM, Won, Drawn, then anyone who played above anyone who didn\'t, fewer Lost, more Played, fewer Yellow, fewer Red, more Rested, fewer Absent. Players equal on all of these share a rank.</p>';
   box.querySelectorAll("th.sortable").forEach(function (th) {
     th.addEventListener("click", function () {
       var k = th.dataset.sort;
