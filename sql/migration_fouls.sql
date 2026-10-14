@@ -1,10 +1,8 @@
 -- Fouls (tracked whether or not a card is shown).
 -- A foul is a match event with event_type = 'foul' (player_id = the player who committed it).
--- Part 1 adds a fouls column to player_season_stats (appended as the last column).
--- Part 2 back-fills a foul for every yellow/red card already recorded (a card is always also a foul).
---   It is safe to run twice: it only adds fouls that are still missing.
+-- Adds a fouls column to player_season_stats (appended as the last column).
+-- A foul is a foul: a yellow or red card is NOT counted as a foul; record the card and the foul separately.
 
--- ---------- Part 1: stats view ----------
 create or replace view player_season_stats as
 select
   p.id as player_id,
@@ -40,16 +38,3 @@ left join matches m on m.season_id = tsr.season_id
 left join match_appearances ma on ma.player_id = p.id and ma.match_id = m.id
 left join match_events me on me.player_id = p.id and me.match_id = m.id
 group by p.id, p.full_name, tsr.season_id, tsr.team_id;
-
--- ---------- Part 2: back-fill fouls for existing cards ----------
-insert into match_events (match_id, team_id, player_id, event_type, half, minute, created_at)
-select c.match_id, c.team_id, c.player_id, 'foul', c.half, c.minute, c.created_at - interval '1 millisecond'
-from (
-  select e.*, row_number() over (partition by e.match_id, e.player_id order by e.created_at, e.id) as rn
-  from match_events e
-  where e.event_type in ('yellow_card', 'red_card')
-) c
-where c.rn > (
-  select count(*) from match_events f
-  where f.match_id = c.match_id and f.player_id = c.player_id and f.event_type = 'foul'
-);

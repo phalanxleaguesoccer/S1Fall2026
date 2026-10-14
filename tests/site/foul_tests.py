@@ -16,7 +16,7 @@ with sync_playwright() as pw:
     s=Site(pw,d);p=s.page('match.html?id=m0',1500);t=p.inner_text('#match-root')
     ok('no JS errors',not p.errs,p.errs)
     ok('standalone foul shows FOUL chip "Foul committed"','FOUL' in t and 'Foul committed' in t,t)
-    ok('foul with a card shows once, on the card row ("Foul · Yellow card")',t.count('Foul · Yellow card')==1 and t.count('Foul committed')==1,t)
+    ok('a card is NOT a foul: foul rows and the yellow-card row are separate',p.locator('.m-chip.fl').count()==2 and p.locator('.m-chip.yc').count()==1 and 'Foul · ' not in t,t)
     ok('Fouls stat row: 1 vs 1... Muggles 1, Scouts 1',p.locator('.m-stat',has_text='Fouls').inner_text().replace('\n',' ').split()[0]=='1' ,p.locator('.m-stat',has_text='Fouls').inner_text())
     rows=[r.split('\t') for r in p.locator('.m-ptable tbody tr').all_inner_texts()]
     bil=[r for r in rows if 'Bilal' in r[0]][0]
@@ -27,7 +27,7 @@ with sync_playwright() as pw:
     ok('Fouls tab lists both fouls (carded or not) in order',[r[1] for r in rw]==['Amritpal Singh','Bilal Yaser'],rw)
     st.locator('[data-det]').nth(0).click();d0=st.inner_text('tr.det:visible')
     st.locator('[data-det]').nth(1).click();d1=st.locator('tr.det:visible').last.inner_text()
-    ok('details: Amritpal "No card"; Bilal "Yellow card"; ordinals','No card' in d0 and 'Yellow card' in d1 and 'Foul number in tournament' in d1,(d0,d1))
+    ok('details: ordinals, no "card given" line (a card is not a foul)','Foul number in tournament' in d1 and 'Card given' not in d1 and 'Card given' not in d0,(d0,d1))
     ss=s.page('stats.html',1500);H=[h.strip().lower() for h in ss.locator('#ss-body thead th').all_inner_texts()]
     ok('Season Stats has Fouls and OG columns, no effect on ranking',H.count('fouls')==1 and H.count('og')==1,H)
     ix=H.index('fouls');rr=[r.split('\t') for r in ss.locator('#ss-body tbody tr').all_inner_texts()]
@@ -39,6 +39,10 @@ with sync_playwright() as pw:
     tp=s.page('team.html?id='+T['Muggles FC'],1500)
     ok('team page totals have Fouls column (Muggles roster: 2 fouls)',tp.inner_text('#squad-totals-body').split()[4]=='2' if 'fouls' in tp.inner_text('body').lower() else False,(tp.inner_text('#squad-totals-body'),tp.errs))
     ad=s.page('admin/dashboard.html',1500) if False else None
+    d2=dict(d);d2['match_appearances']=[{'id':'a0','match_id':'m0','team_id':T['Muggles FC'],'player_id':P['Amritpal Singh'],'status':'played','started':True},{'id':'a1','match_id':'m0','team_id':T['Scouts FC'],'player_id':P['Ajinkya P'],'status':'played','started':True}]
+    q=Site(pw,d2).page('match.html?id=m0',1500);tt=q.inner_text('#match-root')
+    ash=[r for r in q.locator('.m-ptable tbody tr').all_inner_texts() if r.startswith('Ajinkya')]
+    ok('player with no events in the match: zeros, never "undefined"/NaN',ash and 'undefined' not in tt and 'NaN' not in tt and all(x in ('0',) for x in ash[0].split('\t')[2:]),(ash,))
     mp=Site(pw,d).page('match.html?id=m0',1200);mp.set_viewport_size({'width':390,'height':800});mp.wait_for_timeout(300)
     ok('phone: no sideways scroll',mp.evaluate('document.documentElement.scrollWidth')<=390)
 print(sum(R),'passed',len(R)-sum(R),'failed')

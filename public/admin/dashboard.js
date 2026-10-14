@@ -350,12 +350,6 @@ async function populateEventMatchDropdown() {
   }).join("");
 }
 
-function syncAlsoFoul() {
-  var t = document.getElementById("e-type").value;
-  document.getElementById("e-also-foul-wrap").style.display = (t === "yellow_card" || t === "red_card") ? "" : "none";
-}
-document.getElementById("e-type").addEventListener("change", syncAlsoFoul);
-
 async function onLogEvent(e) {
   e.preventDefault();
   var msg = document.getElementById("event-msg");
@@ -371,14 +365,9 @@ async function onLogEvent(e) {
   };
   if (!payload.match_id || !payload.team_id || !payload.player_id) { showError(msg, "Match, team, and player are all required."); return; }
   var rows = [payload];
-  // A card is always also a foul: log the foul first (1 ms earlier so it sorts just before the card).
-  if ((payload.event_type === "yellow_card" || payload.event_type === "red_card") && document.getElementById("e-also-foul").checked) {
-    var foul = Object.assign({}, payload, { event_type: "foul", created_at: new Date(Date.now() - 1).toISOString() });
-    rows = [foul, payload];
-  }
   var res = await window.sb.from("match_events").insert(rows);
   if (res.error) { showError(msg, res.error.message); return; }
-  showSuccess(msg, rows.length > 1 ? "Foul and card logged." : "Event logged.");
+  showSuccess(msg, "Event logged.");
   loadEventsForSelectedMatch();
 }
 

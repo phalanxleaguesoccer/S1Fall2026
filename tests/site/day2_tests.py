@@ -8,7 +8,6 @@ d=finish(b);ev=[]
 def e(match,team,pl,typ,half=None,minute=None,second=None,rel=None,pen=False):
     ev.append({'id':'e%02d'%len(ev),'match_id':match,'team_id':T[team],'player_id':P[pl],'event_type':typ,'half':half,'minute':minute,'second':second,'is_penalty':pen,'related_player_id':P[rel] if rel else None,'created_at':'2026-10-07T01:00:%02d.000+00:00'%len(ev)})
 e('m0','Scouts FC','Bilal Yaser','yellow_card',1,7)   # foul auto
-ev.insert(0,dict(ev[0],id='ef',event_type='foul'))
 e('m0','Scouts FC','Ajinkya P','own_goal',1,8,20,'Rishabh Devgon')
 e('m0','Desi Steelers FC','Rishabh Devgon','assist',1,8,20,'Ajinkya P')
 e('m0','Desi Steelers FC','Rishabh Devgon','player_of_match')

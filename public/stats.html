@@ -235,12 +235,6 @@ function renderMilestones() {
       var score = m.status === "completed" || m.status === "forfeited" ? tname(m.home_team_id) + " " + (m.home_score == null ? "–" : m.home_score) + " – " + (m.away_score == null ? "–" : m.away_score) + " " + tname(m.away_team_id) : "Not completed";
       var extra = "";
       if (cfg.type === "goal") { var a = pairs.assistOfGoal[e.id]; extra = '<div><span>Assist by</span>' + (a ? escapeHtml(pname(a.player_id)) : "None recorded") + "</div>"; }
-      if (cfg.type === "foul") {
-        var myFouls = all.filter(function (x) { return x.match_id === e.match_id && x.player_id === e.player_id; });
-        var myCards = sortChrono(EVENTS.filter(function (x) { return x.match_id === e.match_id && x.player_id === e.player_id && (x.event_type === "yellow_card" || x.event_type === "red_card"); }));
-        var card = myCards[myFouls.indexOf(e)];
-        extra = "<div><span>Card given</span>" + (card ? (card.event_type === "red_card" ? "Red card" : "Yellow card") : "No card") + "</div>";
-      }
       if (cfg.type === "own_goal") { var oa = pairs.assistOfGoal[e.id]; extra = "<div><span>Counts as a goal for</span>" + escapeHtml(tname(opp)) + "</div>" + (oa ? "<div><span>Assist by</span>" + escapeHtml(pname(oa.player_id)) + "</div>" : ""); }
       if (e.is_penalty) extra += "<div><span>Penalty</span>Yes</div>";
       if (cfg.type === "assist") { var g = pairs.goalOfAssist[e.id]; extra = '<div><span>Goal scored by</span>' + (g ? escapeHtml(pname(g.player_id)) + (g.event_type === "own_goal" ? " (own goal)" : "") : "Not linked") + "</div>"; }

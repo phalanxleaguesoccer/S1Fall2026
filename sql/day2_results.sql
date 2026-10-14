@@ -2,7 +2,7 @@
 -- Run sql/migration_day2_fields.sql and sql/migration_fouls.sql FIRST.
 -- Safe to re-run: it replaces everything recorded for Match Day 2.
 -- Every team/player name is checked against the squads; if anything does not match it stops and changes nothing.
--- A yellow card is always also a foul, so each yellow below gets its foul automatically.
+-- Fouls are only the ones listed below; yellow cards are recorded as cards only.
 do $$
 declare
   s uuid := (select id from seasons where is_current limit 1);
@@ -96,11 +96,7 @@ begin
       select id into rid from players where full_name = r.rel;
       if rid is null then raise exception 'Match %: player "%" not found', r.n, r.rel; end if;
     end if;
-    -- Own goal: the card/assist team rule is unchanged; team_id = the scorer's OWN team.
-    if r.typ = 'yellow_card' then   -- a card is always also a foul
-      insert into match_events (match_id, team_id, player_id, event_type, half, minute, second, related_player_id, is_penalty, created_at)
-      values (mid, tid, pid, 'foul', r.half, r.minute, r.second, null, false, clock_timestamp());
-    end if;
+    -- Own goal: team_id = the scorer's OWN team. A yellow card is NOT counted as a foul; fouls are listed separately.
     insert into match_events (match_id, team_id, player_id, event_type, half, minute, second, related_player_id, is_penalty, created_at)
     values (mid, tid, pid, r.typ, r.half, r.minute, r.second, rid, r.pen, clock_timestamp());
   end loop;

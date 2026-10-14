@@ -212,17 +212,9 @@ async function loadMatch() {
   halves.forEach(function (h) {
     if (!h.rows.length) return;
     var rows = ordered(h.rows), pa = pairAssists(rows);
-    // a foul that came with a card is shown once, on the card row ("Foul · Yellow card")
-    var foulWithCard = {}, cardHasFoul = {};
-    rows.forEach(function (c) {
-      if (c.event_type !== "yellow_card" && c.event_type !== "red_card") return;
-      var fl = rows.filter(function (x) { return x.event_type === "foul" && x.player_id === c.player_id && !foulWithCard[x.id]; })[0];
-      if (fl) { foulWithCard[fl.id] = 1; cardHasFoul[c.id] = 1; }
-    });
     tl += '<div class="m-break">' + h.title + "</div>";
     rows.forEach(function (e) {
       if (e.event_type === "assist" && pa.used[e.id]) return;
-      if (e.event_type === "foul" && foulWithCard[e.id]) return;
       var c = chipFor[e.event_type] || [e.event_type.replace(/_/g, " ").toUpperCase(), "sub"];
       var sub, score = "";
       if (e.event_type === "goal") {
@@ -238,8 +230,8 @@ async function loadMatch() {
         score = rh + " – " + ra;
       } else if (e.event_type === "assist") sub = "Assist";
       else if (e.event_type === "foul") sub = "Foul committed";
-      else if (e.event_type === "yellow_card") sub = (cardHasFoul[e.id] ? "Foul · " : "") + "Yellow card";
-      else if (e.event_type === "red_card") sub = (cardHasFoul[e.id] ? "Foul · " : "") + "Red card";
+      else if (e.event_type === "yellow_card") sub = "Yellow card";
+      else if (e.event_type === "red_card") sub = "Red card";
       else if (e.event_type === "save") sub = "Goal saved";
       else sub = "Substitution";
       tl += '<div class="m-ev"><span class="m-chip ' + c[1] + '">' + c[0] + '</span><div><div class="main">' + plink(e.players) + " (" + escapeHtml(e.teams.name) + ')</div><div class="m-sub">' + sub +
@@ -344,7 +336,7 @@ async function loadMatch() {
       return '<div class="m-tname" style="font-size:18px; margin:14px 0 4px;">' + escapeHtml(q.team.name) + '</div><div class="m-scroll"><table class="m-ptable"><thead><tr><th>PLAYER</th><th>POS</th><th class="num">G</th><th class="num">A</th>' +
         (anyOG ? '<th class="num">OG</th>' : "") + (anySave ? '<th class="num">SV</th>' : "") + '<th class="num">FL</th><th class="num">YC</th><th class="num">RC</th></tr></thead><tbody>' +
         q.played.map(function (p) {
-          var s = S[p.id] || { g: 0, a: 0, sv: 0, yc: 0, rc: 0 };
+          var s = S[p.id] || { g: 0, a: 0, sv: 0, yc: 0, rc: 0, og: 0, fl: 0 };
           return "<tr><td>" + plink(p) + '</td><td class="m-sub">' + escapeHtml(p.preferred_position || "—") + '</td><td class="num">' + s.g + '</td><td class="num">' + s.a + "</td>" +
             (anyOG ? '<td class="num">' + s.og + "</td>" : "") + (anySave ? '<td class="num">' + s.sv + "</td>" : "") + '<td class="num">' + s.fl + '</td><td class="num">' + s.yc + '</td><td class="num">' + s.rc + "</td></tr>";
         }).join("") + "</tbody></table></div>";

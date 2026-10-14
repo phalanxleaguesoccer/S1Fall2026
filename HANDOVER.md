@@ -93,3 +93,7 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Match page shows the toss, times as m:ss when seconds were entered, "(pen)" under the scoreboard and "Penalty" on the goal row; an own goal can carry an assist (assist.related_player_id = own-goal scorer).
 - Admin: event form has Second + Penalty; the Match Lineup card has Toss won by / Chose.
 - "Saurabh" in the sheet = Vija (Desi Steelers FC); "Rishab" = Rishabh Devgon; "Amrit" = Amritpal Singh; "Vamsi" = Vamshi.
+
+
+## Update (14 Oct, later): cards are NOT fouls
+- A foul is only recorded when entered as a foul. Yellow/red cards are separate and never counted as fouls. Run `sql/remove_card_fouls.sql` once to delete the fouls that had been created automatically next to cards. The admin 'also a foul' checkbox was removed.
