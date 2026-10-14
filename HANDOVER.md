@@ -97,3 +97,10 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 
 ## Update (14 Oct, later): cards are NOT fouls
 - A foul is only recorded when entered as a foul. Yellow/red cards are separate and never counted as fouls. Run `sql/remove_card_fouls.sql` once to delete the fouls that had been created automatically next to cards. The admin 'also a foul' checkbox was removed.
+
+## Ranking (In QA) — Stats sub-page `stats.html#ranking`
+- Third Stats sub-page, same filters/columns as Season Stats plus **Points** (after Team). Code shares one parametrized board (`BOARDS.ss` / `BOARDS.rk`) in `stats.html`.
+- Points: win 2, draw 1 (only matches actually played), goal 3, assist 2, POTM 1, red −5, yellow −2, foul −1; losses, own goals, saves = 0. See `POINT_RULES` / `calcPoints`.
+- Order (`RK_CHAIN`): 0-match players last, then Points, then the Season Stats chain. Ties share a rank shown with "=".
+- Row "Details" button shows the breakdown. A blocking pop-up ("Don't take it seriously yet" / "I accept") shows once per page load when the tab is opened.
+- Tests: `tests/site/ranking_tests.py`.

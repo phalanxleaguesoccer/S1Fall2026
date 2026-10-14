@@ -19,10 +19,12 @@
   .det-grid div span { color:var(--chalk-dim); font-size:.78rem; display:block; }
   .btn.small { padding:3px 12px; font-size:.8rem; }
   .filters input[type=search] { min-width:200px; max-width:100%; }
-  #ss-body th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
-  #ss-body th.sortable:hover { color:var(--chalk-white); }
-  #ss-body th.sorted { color:var(--amber); }
-  #ss-body td.num, #ss-body th.num { text-align:center; }
+  .det-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:6px 18px; font-size:.85rem; padding:4px 0; }
+  .det-grid span { display:block; color:var(--text-muted,#999); font-size:.75rem; }
+  #ss-body th.sortable, #rk-body th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+  #ss-body th.sortable:hover, #rk-body th.sortable:hover { color:var(--chalk-white); }
+  #ss-body th.sorted, #rk-body th.sorted { color:var(--amber); }
+  #ss-body td.num, #ss-body th.num, #rk-body td.num, #rk-body th.num { text-align:center; }
 </style>
 </head>
 <body>
@@ -33,6 +35,7 @@
   <div class="tabs" id="sub-nav" style="margin-bottom:16px;">
     <button type="button" data-sec="season" class="on">Season Stats</button>
     <button type="button" data-sec="milestones">Milestones</button>
+    <button type="button" data-sec="ranking">Ranking (In QA)</button>
   </div>
 
   <div class="card" id="sec-season">
@@ -45,6 +48,18 @@
       <div><label class="muted" for="s-search">Find player</label><input type="search" id="s-search" placeholder="Type a name" autocomplete="off"></div>
     </div>
     <div id="ss-body"><p class="muted">Loading…</p></div>
+  </div>
+
+  <div class="card" id="sec-ranking" style="display:none;">
+    <div class="card-title">Ranking (In QA)</div>
+    <p class="muted" style="margin-top:0;">Work in progress: same record as Season Stats plus a Points column. Ranked by Points; click any column heading to re-rank by that stat, or Details for how a player's points were worked out.</p>
+    <div class="filters">
+      <div><label class="muted" for="r-season">Season</label><select id="r-season"></select></div>
+      <div><label class="muted" for="r-team">Team</label><select id="r-team"></select></div>
+      <div><label class="muted" for="r-rest">Rested</label><select id="r-rest"><option value="all">All players</option><option value="never">Not rested so far</option><option value="rested">Rested at least once</option></select></div>
+      <div><label class="muted" for="r-search">Find player</label><input type="search" id="r-search" placeholder="Type a name" autocomplete="off"></div>
+    </div>
+    <div id="rk-body"><p class="muted">Loading…</p></div>
   </div>
 
   <div class="card" id="sec-milestones" style="display:none;">
@@ -65,6 +80,13 @@
       <div><label class="muted" for="f-view">View</label><select id="f-view"></select></div>
     </div>
     <div id="ms-body"><p class="muted">Loading…</p></div>
+  </div>
+</div>
+
+<div id="qa-modal" role="dialog" aria-modal="true" aria-labelledby="qa-title" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.78); align-items:center; justify-content:center; padding:20px;">
+  <div style="background:var(--card-charcoal); border:1px solid var(--amber); border-radius:16px; padding:32px 28px; max-width:420px; width:100%; text-align:center;">
+    <h2 id="qa-title" style="margin:0 0 20px; font-size:1.6rem;">Don't take it seriously yet</h2>
+    <button type="button" class="btn" id="qa-accept">I accept</button>
   </div>
 </div>
 
@@ -265,68 +287,96 @@ function renderMilestones() {
 
 
 // ================= SEASON STATS (leaderboard) =================
-var SS = { sort: "default", dir: -1, rows: [], teamOpts: [] };
+var SS = { sort: "default", dir: -1, rows: [], teamOpts: [], recs: [] };
+var RK = { sort: "default", dir: -1, rows: [], teamOpts: [], recs: [] };
 var SS_COLS = [
   ["played", "P", "Matches played"], ["won", "W", "Matches won"], ["drawn", "D", "Matches drawn"], ["lost", "L", "Matches lost"],
   ["goals", "Goals", "Goals scored"], ["assists", "Assists", "Assists"], ["potm", "POTM", "Player of the match awards"],
-  ["yellow", "Yellow", "Yellow cards"], ["red", "Red", "Red cards"], ["fouls", "Fouls", "Fouls committed (with or without a card)"], ["og", "OG", "Own goals"],
+  ["yellow", "Yellow", "Yellow cards"], ["red", "Red", "Red cards"], ["fouls", "Fouls", "Fouls committed"], ["og", "OG", "Own goals"],
   ["rested", "Rested", "Matches rested"], ["absent", "Absent", "Matches absent"]
 ];
-// Ranking order: players who played at least one match first (0-match players are always last); then no cards above any cards; then Goals > Assists > POTM > Won > Drawn > (played at all) > fewer Lost > more Played > fewer Yellow > fewer Red > more Rested > fewer Absent.
-// Anyone with a yellow or red card ranks below everyone without one, whatever their other numbers.
+var RK_COLS = [["points", "Points", "Player points (see Details for the breakdown)"]].concat(SS_COLS);
+// Season Stats order: players who played at least one match first (0-match players are always last); then no cards above any cards;
+// then Goals > Assists > POTM > Won > Drawn > fewer Lost > more Played > fewer Yellow > fewer Red > more Rested > fewer Absent.
 var SS_CHAIN = [["hasPlayed", -1], ["hasCard", 1], ["goals", -1], ["assists", -1], ["potm", -1], ["won", -1], ["drawn", -1], ["lost", 1], ["played", -1], ["yellow", 1], ["red", 1], ["rested", -1], ["absent", 1]];
-function ssChainCmp(a, b) {
+// Ranking (In QA) order: 0-match players last, then Points, then the same order as Season Stats.
+var RK_CHAIN = [["hasPlayed", -1], ["points", -1]].concat(SS_CHAIN.slice(1));
+// Points: win 2, draw 1, goal 3, assist 2, player of the match 1, red card -5, yellow card -2, foul -1 (own goals and losses: 0).
+var POINT_RULES = [["Wins", "won", 2], ["Draws", "drawn", 1], ["Goals", "goals", 3], ["Assists", "assists", 2], ["Player of the match", "potm", 1], ["Red cards", "red", -5], ["Yellow cards", "yellow", -2], ["Fouls", "fouls", -1]];
+function calcPoints(o) { return POINT_RULES.reduce(function (t, r) { return t + r[2] * (o[r[1]] || 0); }, 0); }
+var BOARDS = {
+  ss: { st: SS, chain: SS_CHAIN, cols: SS_COLS, hl: "goals", details: false, ids: { season: "s-season", team: "s-team", rest: "s-rest", search: "s-search", body: "ss-body" } },
+  rk: { st: RK, chain: RK_CHAIN, cols: RK_COLS, hl: "points", details: true, ids: { season: "r-season", team: "r-team", rest: "r-rest", search: "r-search", body: "rk-body" } }
+};
+function ssChainCmp(a, b, chain) {
   a.hasCard = a.yellow + a.red > 0 ? 1 : 0; b.hasCard = b.yellow + b.red > 0 ? 1 : 0;   // players with no cards always rank above players with any card
   a.hasPlayed = a.played > 0 ? 1 : 0; b.hasPlayed = b.played > 0 ? 1 : 0;   // every player with 0 matches ranks below every player who played
-  for (var i = 0; i < SS_CHAIN.length; i++) {
-    var k = SS_CHAIN[i][0], d = SS_CHAIN[i][1];
+  chain = chain || SS_CHAIN;
+  for (var i = 0; i < chain.length; i++) {
+    var k = chain[i][0], d = chain[i][1];
     if (a[k] !== b[k]) return d * (a[k] - b[k]);
   }
   return 0;
 }
-function ssDefaultCmp(a, b) { return ssChainCmp(a, b) || a.name.localeCompare(b.name); }
-function ssSorted() {
-  var rows = SS.rows.slice();
-  if (SS.sort === "default") return rows.sort(ssDefaultCmp);
-  var k = SS.sort, d = SS.dir;
-  if (k === "name") return rows.sort(function (a, b) { return d * a.name.localeCompare(b.name) || ssDefaultCmp(a, b); });
-  return rows.sort(function (a, b) { return d * (a[k] - b[k]) || ssDefaultCmp(a, b); });
+function ssSorted(B) {
+  B = B || BOARDS.ss;
+  var rows = B.st.rows.slice(), cmp = function (a, b) { return ssChainCmp(a, b, B.chain) || a.name.localeCompare(b.name); };
+  if (B.st.sort === "default") return rows.sort(cmp);
+  var k = B.st.sort, d = B.st.dir;
+  if (k === "name") return rows.sort(function (a, b) { return d * a.name.localeCompare(b.name) || cmp(a, b); });
+  return rows.sort(function (a, b) { return d * (a[k] - b[k]) || cmp(a, b); });
 }
-function ssSame(a, b) {   // share a rank only when equal on every ranking key
-  if (SS.sort === "name") return false;
-  if (SS.sort !== "default" && a[SS.sort] !== b[SS.sort]) return false;
-  return ssChainCmp(a, b) === 0;
+function ssSame(B, a, b) {   // share a rank only when equal on every ranking key
+  if (B.st.sort === "name") return false;
+  if (B.st.sort !== "default" && a[B.st.sort] !== b[B.st.sort]) return false;
+  return ssChainCmp(a, b, B.chain) === 0;
 }
-function renderSeasonStats() {
-  var box = document.getElementById("ss-body");
-  var rows = ssSorted(), ranks = [];
-  rows.forEach(function (r, i) { ranks[i] = i === 0 ? 1 : (ssSame(rows[i - 1], r) ? ranks[i - 1] : ranks[i - 1] + 1); });   // no gaps: 12=, 12=, 13
-  var tied = rows.map(function (r, i) { return (i > 0 && ranks[i] === ranks[i - 1]) || (i + 1 < rows.length && ranks[i] === ranks[i + 1] && ssSame(r, rows[i + 1])); });
-  var q = document.getElementById("s-search").value.trim().toLowerCase();
+function renderBoard(B) {
+  var box = document.getElementById(B.ids.body), st = B.st;
+  var rows = ssSorted(B), ranks = [];
+  rows.forEach(function (r, i) { ranks[i] = i === 0 ? 1 : (ssSame(B, rows[i - 1], r) ? ranks[i - 1] : ranks[i - 1] + 1); });   // no gaps: 12=, 12=, 13
+  var tied = rows.map(function (r, i) { return (i > 0 && ranks[i] === ranks[i - 1]) || (i + 1 < rows.length && ranks[i] === ranks[i + 1] && ssSame(B, r, rows[i + 1])); });
+  var q = document.getElementById(B.ids.search).value.trim().toLowerCase();
   if (!rows.length) { box.innerHTML = '<p class="muted">No players for this selection yet.</p>'; return; }
-  var head = '<th class="num">#</th><th class="team-name sortable' + (SS.sort === "name" ? " sorted" : "") + '" data-sort="name">Player' + (SS.sort === "name" ? (SS.dir > 0 ? " ▲" : " ▼") : "") + '</th><th class="team-name">Team</th>' +
-    SS_COLS.map(function (c) {
-      var on = SS.sort === c[0] || (SS.sort === "default" && (c[0] === "goals"));
-      return '<th class="num sortable' + (SS.sort === c[0] ? " sorted" : "") + '" data-sort="' + c[0] + '" title="' + c[2] + ' (click to rank by this)">' + c[1] + (SS.sort === c[0] ? (SS.dir > 0 ? " ▲" : " ▼") : "") + "</th>";
-    }).join("");
+  var arrow = function (k) { return st.sort === k ? (st.dir > 0 ? " ▲" : " ▼") : ""; };
+  var head = '<th class="num">#</th><th class="team-name sortable' + (st.sort === "name" ? " sorted" : "") + '" data-sort="name">Player' + arrow("name") + '</th><th class="team-name">Team</th>' +
+    B.cols.map(function (c) {
+      return '<th class="num sortable' + (st.sort === c[0] ? " sorted" : "") + '" data-sort="' + c[0] + '" title="' + c[2] + ' (click to rank by this)">' + c[1] + arrow(c[0]) + "</th>";
+    }).join("") + (B.details ? "<th></th>" : "");
+  var span = B.cols.length + 3 + (B.details ? 1 : 0);
   var body = rows.map(function (r, i) {
     if (q && r.name.toLowerCase().indexOf(q) < 0) return "";
-    return '<tr><td class="ms-n num">' + ranks[i] + (tied[i] ? "=" : "") + '</td><td class="team-name"><a href="player.html?id=' + r.id + '">' + escapeHtml(r.name) + "</a></td><td class=\"team-name\">" + escapeHtml(r.team) + "</td>" +
-      SS_COLS.map(function (c) { return '<td class="num">' + (SS.sort === c[0] || (SS.sort === "default" && c[0] === "goals") ? "<strong>" + r[c[0]] + "</strong>" : r[c[0]]) + "</td>"; }).join("") + "</tr>";
+    var tr = '<tr><td class="ms-n num">' + ranks[i] + (tied[i] ? "=" : "") + '</td><td class="team-name"><a href="player.html?id=' + r.id + '">' + escapeHtml(r.name) + "</a></td><td class=\"team-name\">" + escapeHtml(r.team) + "</td>" +
+      B.cols.map(function (c) { return '<td class="num">' + (st.sort === c[0] || (st.sort === "default" && c[0] === B.hl) ? "<strong>" + r[c[0]] + "</strong>" : r[c[0]]) + "</td>"; }).join("");
+    if (!B.details) return tr + "</tr>";
+    var parts = POINT_RULES.map(function (p) { var n = r[p[1]] || 0; return "<div><span>" + p[0] + "</span>" + n + " &times; " + p[2] + " = <strong>" + (n * p[2]) + "</strong></div>"; }).join("");
+    return tr + '<td><button type="button" class="btn secondary small" data-pdet="' + r.id + '" aria-expanded="false">Details</button></td></tr>' +
+      '<tr class="det" id="pdet-' + r.id + '" style="display:none;"><td colspan="' + span + '"><div class="det-grid">' + parts + "<div><span>Total points</span><strong>" + r.points + "</strong></div></div></td></tr>";
   }).join("");
-  box.innerHTML = '<div class="table-scroll"><table class="data-table"><thead><tr>' + head + "</tr></thead><tbody>" + (body || '<tr><td colspan="' + (SS_COLS.length + 3) + '" class="text-center muted">No player matches that name.</td></tr>') + "</tbody></table></div>" +
-    '<p class="muted" style="font-size:.78rem;margin-top:8px;">P/W/D/L = matches the player actually played and the team\'s result in them. Players with 0 matches are always at the bottom. Above them, players with no yellow or red cards rank above players with any card. Within each group: Goals, Assists, POTM, Won, Drawn, fewer Lost, more Played, fewer Yellow, fewer Red, more Rested, fewer Absent. Players equal on all of these share a rank, shown with "=" (e.g. 5=).</p>';
+  var note = B.details
+    ? 'Points: win 2 · draw 1 · goal 3 · assist 2 · player of the match 1 · red card &minus;5 · yellow card &minus;2 · foul &minus;1. Win/draw points count only for matches the player actually played; losses and own goals score 0. Order: players with 0 matches last, then Points, then no cards, goals, assists, POTM, wins, draws, fewer losses, more played, fewer yellow, fewer red, more rested, fewer absent. Players equal on all of these share a rank, shown with "=" (e.g. 5=).'
+    : 'P/W/D/L = matches the player actually played and the team\'s result in them. Players with 0 matches are always at the bottom. Above them, players with no yellow or red cards rank above players with any card. Within each group: Goals, Assists, POTM, Won, Drawn, fewer Lost, more Played, fewer Yellow, fewer Red, more Rested, fewer Absent. Players equal on all of these share a rank, shown with "=" (e.g. 5=).';
+  box.innerHTML = '<div class="table-scroll"><table class="data-table"><thead><tr>' + head + "</tr></thead><tbody>" + (body || '<tr><td colspan="' + span + '" class="text-center muted">No player matches that name.</td></tr>') + "</tbody></table></div>" +
+    '<p class="muted" style="font-size:.78rem;margin-top:8px;">' + note + "</p>";
   box.querySelectorAll("th.sortable").forEach(function (th) {
     th.addEventListener("click", function () {
       var k = th.dataset.sort;
-      if (SS.sort === k) SS.dir = -SS.dir; else { SS.sort = k; SS.dir = k === "name" ? 1 : -1; }
-      renderSeasonStats();
+      if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === "name" ? 1 : -1; }
+      renderBoard(B);
+    });
+  });
+  box.querySelectorAll("[data-pdet]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var r = document.getElementById("pdet-" + b.dataset.pdet), open = r.style.display === "none";
+      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
     });
   });
 }
+function renderSeasonStats() { renderBoard(BOARDS.ss); }
+function renderRanking() { renderBoard(BOARDS.rk); }
 
-async function loadSeasonStats() {
-  var sid = document.getElementById("s-season").value, all = sid === "all";
+async function loadBoard(B) {
+  var sid = document.getElementById(B.ids.season).value, all = sid === "all";
   var mq = window.sb.from("matches").select("*"), rq = window.sb.from("team_season_rosters").select("*"), vq = window.sb.from("player_season_stats").select("*");
   if (!all) { mq = mq.eq("season_id", sid); rq = rq.eq("season_id", sid); vq = vq.eq("season_id", sid); }
   var res = await Promise.all([mq, rq, vq]);
@@ -355,28 +405,31 @@ async function loadSeasonStats() {
       goals: v.goals || 0, assists: v.assists || 0, potm: v.potm_awards || 0, yellow: v.yellow_cards || 0, red: v.red_cards || 0, fouls: v.fouls || 0, og: v.own_goals || 0,
       rested: v.rested || 0, absent: v.absent || 0 };
   });
-  var teamSel = document.getElementById("s-team"), keep = teamSel.value || "all";
-  SS.teamOpts = Object.keys(teamsSeen).sort(function (a, b) { return tname(a).localeCompare(tname(b)); });
-  teamSel.innerHTML = '<option value="all">All teams</option>' + SS.teamOpts.map(function (id) { return '<option value="' + id + '">' + escapeHtml(tname(id)) + "</option>"; }).join("");
-  teamSel.value = SS.teamOpts.indexOf(keep) >= 0 ? keep : "all";
-  SS.recs = recs;
-  buildSeasonRows();
+  var teamSel = document.getElementById(B.ids.team), keep = teamSel.value || "all";
+  B.st.teamOpts = Object.keys(teamsSeen).sort(function (a, b) { return tname(a).localeCompare(tname(b)); });
+  teamSel.innerHTML = '<option value="all">All teams</option>' + B.st.teamOpts.map(function (id) { return '<option value="' + id + '">' + escapeHtml(tname(id)) + "</option>"; }).join("");
+  teamSel.value = B.st.teamOpts.indexOf(keep) >= 0 ? keep : "all";
+  B.st.recs = recs;
+  buildBoardRows(B);
 }
-function buildSeasonRows() {
-  var team = document.getElementById("s-team").value;
+function buildBoardRows(B) {
+  var team = document.getElementById(B.ids.team).value, st = B.st;
   var by = {};
-  SS.recs.filter(function (r) { return team === "all" || r.team_id === team; }).forEach(function (r) {
+  st.recs.filter(function (r) { return team === "all" || r.team_id === team; }).forEach(function (r) {
     var o = by[r.id] = by[r.id] || { id: r.id, name: pname(r.id), teams: [], played: 0, won: 0, drawn: 0, lost: 0, goals: 0, assists: 0, potm: 0, yellow: 0, red: 0, fouls: 0, og: 0, rested: 0, absent: 0 };
     if (o.teams.indexOf(r.team_id) < 0) o.teams.push(r.team_id);
     o.played += r.p; o.won += r.w; o.drawn += r.d; o.lost += r.l; o.goals += r.goals; o.assists += r.assists; o.potm += r.potm;
     o.yellow += r.yellow; o.red += r.red; o.fouls += r.fouls; o.og += r.og; o.rested += r.rested; o.absent += r.absent;
   });
-  SS.rows = Object.keys(by).map(function (k) { var o = by[k]; o.team = o.teams.map(tname).join(", "); return o; });
-  var rest = document.getElementById("s-rest").value;   // absent is not rested
-  if (rest === "never") SS.rows = SS.rows.filter(function (o) { return o.rested === 0; });
-  else if (rest === "rested") SS.rows = SS.rows.filter(function (o) { return o.rested > 0; });
-  renderSeasonStats();
+  st.rows = Object.keys(by).map(function (k) { var o = by[k]; o.team = o.teams.map(tname).join(", "); o.points = calcPoints(o); return o; });
+  var rest = document.getElementById(B.ids.rest).value;   // absent is not rested
+  if (rest === "never") st.rows = st.rows.filter(function (o) { return o.rested === 0; });
+  else if (rest === "rested") st.rows = st.rows.filter(function (o) { return o.rested > 0; });
+  renderBoard(B);
 }
+function loadSeasonStats() { return loadBoard(BOARDS.ss); }
+function buildSeasonRows() { buildBoardRows(BOARDS.ss); }
+function loadRanking() { return loadBoard(BOARDS.rk); }
 
 async function loadSeason() {
   SEASON_ID = document.getElementById("f-season").value;
@@ -419,15 +472,38 @@ async function loadSeason() {
   document.getElementById("s-team").addEventListener("change", buildSeasonRows);
   document.getElementById("s-rest").addEventListener("change", buildSeasonRows);
   document.getElementById("s-search").addEventListener("input", renderSeasonStats);
+  document.getElementById("r-season").innerHTML = opts + '<option value="all">All seasons (career)</option>';
+  document.getElementById("r-season").addEventListener("change", loadRanking);
+  document.getElementById("r-team").addEventListener("change", function () { buildBoardRows(BOARDS.rk); });
+  document.getElementById("r-rest").addEventListener("change", function () { buildBoardRows(BOARDS.rk); });
+  document.getElementById("r-search").addEventListener("input", renderRanking);
+  var rkLoaded = false, qaShown = false;
+  function showQa() {
+    if (qaShown) return;
+    qaShown = true;
+    var m = document.getElementById("qa-modal");
+    m.style.display = "flex";
+    document.getElementById("qa-accept").focus();
+  }
+  document.getElementById("qa-accept").addEventListener("click", function () { document.getElementById("qa-modal").style.display = "none"; });
+  document.getElementById("qa-modal").addEventListener("keydown", function (e) {   // keep keyboard focus on the button while the pop-up is open
+    if (e.key === "Tab") { e.preventDefault(); document.getElementById("qa-accept").focus(); }
+  });
   document.querySelectorAll("#sub-nav button").forEach(function (b) {
     b.addEventListener("click", function () {
       document.querySelectorAll("#sub-nav button").forEach(function (x) { x.classList.toggle("on", x === b); });
-      document.getElementById("sec-season").style.display = b.dataset.sec === "season" ? "" : "none";
-      document.getElementById("sec-milestones").style.display = b.dataset.sec === "milestones" ? "" : "none";
-      try { history.replaceState(null, "", b.dataset.sec === "milestones" ? "#milestones" : "#season"); } catch (e) {}
+      ["season", "milestones", "ranking"].forEach(function (k) {
+        document.getElementById("sec-" + k).style.display = b.dataset.sec === k ? "" : "none";
+      });
+      try { history.replaceState(null, "", "#" + b.dataset.sec); } catch (e) {}
+      if (b.dataset.sec === "ranking") {
+        showQa();
+        if (!rkLoaded) { rkLoaded = true; loadRanking(); }
+      }
     });
   });
   if (location.hash === "#milestones") document.querySelector('#sub-nav button[data-sec="milestones"]').click();
+  if (location.hash === "#ranking") document.querySelector('#sub-nav button[data-sec="ranking"]').click();
   document.getElementById("f-season").addEventListener("change", loadSeason);
   document.getElementById("f-view").addEventListener("change", renderMilestones);
   document.querySelectorAll("#tabs button").forEach(function (b) {
