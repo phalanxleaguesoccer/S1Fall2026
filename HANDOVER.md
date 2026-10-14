@@ -74,3 +74,11 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Site: match page "Lineups" card, schedule shows Rested/Absent counts, profile tables have Rested/Absent columns, team squad cards show Played/Rested/Absent, Stats page has Rested and Absent tabs (list + per-player totals), admin Records tab has a bulk "Match Lineup" form (default Played, saves whole squads).
 - Name mapping used: Vamsi=Vamshi, Ayush Jain=Ayush, Vivek Shrivatava=Vivek, Kaushik Apte=Kaushik, Rishab Devgon=Rishabh Devgon, Sagar (Desi)=Sagar, Sagar SJ (Scouts).
 - Tests: `tests/site/attendance_tests.py` (21).
+
+
+## Own goals (added 14 Oct)
+- Event type `own_goal`: player_id = the player who scored it, team_id = his OWN team; it counts for the opponent and is not a goal for him.
+- Run `sql/migration_own_goals.sql` (adds `own_goals` column to `player_season_stats`).
+- Shown on: match page (OWN GOAL chip, `(og)` under the scoreboard, Own goals stat row, OG column), Stats > Milestones > Own goals tab, player profile OG column, admin event form.
+- The match score itself is still the score entered on the match; enter it including the own goal.
+- Clean sheets are not tracked and were removed from all pages.

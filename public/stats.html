@@ -55,6 +55,7 @@
       <button type="button" data-tab="assists">Assists</button>
       <button type="button" data-tab="yellow">Yellow cards</button>
       <button type="button" data-tab="red">Red cards</button>
+      <button type="button" data-tab="owngoals">Own goals</button>
       <button type="button" data-tab="rested">Rested</button>
       <button type="button" data-tab="absent">Absent</button>
     </div>
@@ -80,6 +81,7 @@ var TABS = {
   assists: { type: "assist",      title: "Assist",      none: "No assists recorded yet." },
   yellow:  { type: "yellow_card", title: "Yellow card", none: "No yellow cards recorded yet." },
   red:     { type: "red_card",    title: "Red card",    none: "No red cards recorded yet." },
+  owngoals: { type: "own_goal",   title: "Own goal",    none: "No own goals recorded yet." },
   rested:  { att: "rested",       title: "Rested",      none: "Nobody has been rested yet." },
   absent:  { att: "absent",       title: "Absent",      none: "Nobody has been absent yet." }
 };
@@ -231,6 +233,7 @@ function renderMilestones() {
       var score = m.status === "completed" || m.status === "forfeited" ? tname(m.home_team_id) + " " + (m.home_score == null ? "–" : m.home_score) + " – " + (m.away_score == null ? "–" : m.away_score) + " " + tname(m.away_team_id) : "Not completed";
       var extra = "";
       if (cfg.type === "goal") { var a = pairs.assistOfGoal[e.id]; extra = '<div><span>Assist by</span>' + (a ? escapeHtml(pname(a.player_id)) : "None recorded") + "</div>"; }
+      if (cfg.type === "own_goal") extra = "<div><span>Counts as a goal for</span>" + escapeHtml(tname(opp)) + "</div>";
       if (cfg.type === "assist") { var g = pairs.goalOfAssist[e.id]; extra = '<div><span>Goal scored by</span>' + (g ? escapeHtml(pname(g.player_id)) : "Not linked") + "</div>"; }
       var det =
         '<div class="det-grid">' +
