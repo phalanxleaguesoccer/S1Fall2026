@@ -84,8 +84,8 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Clean sheets are not tracked and were removed from all pages.
 
 ## Fouls (added 14 Oct)
-- Event type `foul` (player_id = who committed it), tracked with or without a card. A yellow/red card is always also a foul: the admin form has an "Also record this as a foul" checkbox (default on) that logs foul + card together; the match page shows them as one row ("Foul · Yellow card").
-- Run `sql/migration_fouls.sql`: adds `fouls` to `player_season_stats` and back-fills a foul for every existing card (idempotent).
+- Event type `foul` (player_id = who committed it), recorded only when entered as a foul. Yellow/red cards are separate and are NOT counted as fouls (see the later update below).
+- Run `sql/migration_fouls.sql`: adds `fouls` to `player_season_stats`.
 - Shown on: match page (Fouls stat bar, FL column, FOUL chip, "N fouls" line), Stats > Milestones > Fouls tab (details say which card, if any), Season Stats Fouls and OG columns (not part of ranking), player profile Fouls column, team page totals (OG and Fouls).
 
 ## Week 2 (Match Day 2 = Matches 5-8) (added 14 Oct)
