@@ -15,6 +15,29 @@
   .filters select { min-width:200px; max-width:100%; }
   .ms-n { font-family:'Anton',sans-serif; font-size:1.15rem; color:var(--amber); width:48px; }
   tr.det td { background:rgba(255,255,255,.03); padding:10px 14px; }
+  /* Ranking (In QA): fit the screen, no sideways scroll */
+  #rk-body .table-scroll { overflow-x: visible; }
+  #rk-body table.data-table { width:100%; }
+  #rk-body table.data-table th, #rk-body table.data-table td { padding:9px 5px; }
+  #rk-body .rk-sub, #rk-body .rk-detbtn { display:none; }
+  @media (max-width: 1000px) {
+    #rk-body table.data-table th, #rk-body table.data-table td { padding:8px 3px; font-size:.8rem; }
+    #rk-body table.data-table th { letter-spacing:0; }
+  }
+  @media (max-width: 1060px) {
+    #rk-body table.data-table { table-layout:fixed; }
+    #rk-body col.c-n { width:18px; } #rk-body col.c-name { width:80px; } #rk-body col.c-team, #rk-body col.c-det { display:none; } #rk-body col.c-num { width:auto; } #rk-body col.c-pts { width:24px; }
+    #sec-ranking { padding-left:8px; padding-right:8px; }
+    #rk-body th.detcol, #rk-body td.detcol { display:none; }
+    #rk-body .rk-detbtn { display:inline-block; margin-top:3px; }
+    #rk-body table.data-table th, #rk-body table.data-table td { padding:7px 1px; font-size:.7rem; }
+    #rk-body th.team-name:nth-child(3), #rk-body td.team-name:nth-child(3) { display:none; }
+    #rk-body td.team-name:nth-child(2) { white-space:normal; word-break:break-word; line-height:1.2; padding-left:4px; }
+    #rk-body .rk-sub { display:block; color:var(--chalk-dim); font-size:.62rem; }
+    #rk-body th.num:not(:first-child) { writing-mode:vertical-rl; transform:rotate(180deg); height:56px; vertical-align:bottom; text-align:left; font-size:.62rem; padding:4px 0; white-space:nowrap; }
+    #rk-body .btn.small { padding:3px 2px; font-size:.58rem; min-width:0; }
+    .det-grid { grid-template-columns:repeat(2,1fr); }
+  }
   .det-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:6px 18px; }
   .det-grid div span { color:var(--chalk-dim); font-size:.78rem; display:block; }
   .btn.small { padding:3px 12px; font-size:.8rem; }
@@ -197,7 +220,8 @@ function renderSquadView(cfg, teamId) {
   box.querySelectorAll("[data-det]").forEach(function (b) {
     b.addEventListener("click", function () {
       var r = document.getElementById("det-" + b.dataset.det), open = r.style.display === "none";
-      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
+      r.style.display = open ? "" : "none";
+      box.querySelectorAll('[data-pdet="' + b.dataset.pdet + '"]').forEach(function (x) { x.textContent = open ? "Hide" : "Details"; x.setAttribute("aria-expanded", open); });
     });
   });
 }
@@ -234,7 +258,8 @@ function renderAttendance(cfg, view) {
   box.querySelectorAll("[data-det]").forEach(function (b) {
     b.addEventListener("click", function () {
       var r = document.getElementById("det-" + b.dataset.det), open = r.style.display === "none";
-      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
+      r.style.display = open ? "" : "none";
+      box.querySelectorAll('[data-pdet="' + b.dataset.pdet + '"]').forEach(function (x) { x.textContent = open ? "Hide" : "Details"; x.setAttribute("aria-expanded", open); });
     });
   });
 }
@@ -280,7 +305,8 @@ function renderMilestones() {
   box.querySelectorAll("[data-det]").forEach(function (b) {
     b.addEventListener("click", function () {
       var r = document.getElementById("det-" + b.dataset.det), open = r.style.display === "none";
-      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
+      r.style.display = open ? "" : "none";
+      box.querySelectorAll('[data-pdet="' + b.dataset.pdet + '"]').forEach(function (x) { x.textContent = open ? "Hide" : "Details"; x.setAttribute("aria-expanded", open); });
     });
   });
 }
@@ -342,21 +368,22 @@ function renderBoard(B) {
   var head = '<th class="num">#</th><th class="team-name sortable' + (st.sort === "name" ? " sorted" : "") + '" data-sort="name">Player' + arrow("name") + '</th><th class="team-name">Team</th>' +
     B.cols.map(function (c) {
       return '<th class="num sortable' + (st.sort === c[0] ? " sorted" : "") + '" data-sort="' + c[0] + '" title="' + c[2] + ' (click to rank by this)">' + c[1] + arrow(c[0]) + "</th>";
-    }).join("") + (B.details ? "<th></th>" : "");
+    }).join("") + (B.details ? '<th class="detcol"></th>' : "");
   var span = B.cols.length + 3 + (B.details ? 1 : 0);
   var body = rows.map(function (r, i) {
     if (q && r.name.toLowerCase().indexOf(q) < 0) return "";
-    var tr = '<tr><td class="ms-n num">' + ranks[i] + (tied[i] ? "=" : "") + '</td><td class="team-name"><a href="player.html?id=' + r.id + '">' + escapeHtml(r.name) + "</a></td><td class=\"team-name\">" + escapeHtml(r.team) + "</td>" +
+    var tr = '<tr><td class="ms-n num">' + ranks[i] + (tied[i] ? "=" : "") + '</td><td class="team-name"><a href="player.html?id=' + r.id + '">' + escapeHtml(r.name) + '</a>' + (B.details ? '<span class="rk-sub">' + escapeHtml(r.team) + '</span><button type="button" class="btn secondary small rk-detbtn" data-pdet="' + r.id + '" aria-expanded="false">Details</button>' : "") + "</td><td class=\"team-name\">" + escapeHtml(r.team) + "</td>" +
       B.cols.map(function (c) { return '<td class="num">' + (st.sort === c[0] || (st.sort === "default" && c[0] === B.hl) ? "<strong>" + r[c[0]] + "</strong>" : r[c[0]]) + "</td>"; }).join("");
     if (!B.details) return tr + "</tr>";
     var parts = POINT_RULES.map(function (p) { var n = r[p[1]] || 0; return "<div><span>" + p[0] + "</span>" + n + " &times; " + p[2] + " = <strong>" + (n * p[2]) + "</strong></div>"; }).join("");
-    return tr + '<td><button type="button" class="btn secondary small" data-pdet="' + r.id + '" aria-expanded="false">Details</button></td></tr>' +
+    return tr + '<td class="detcol"><button type="button" class="btn secondary small" data-pdet="' + r.id + '" aria-expanded="false">Details</button></td></tr>' +
       '<tr class="det" id="pdet-' + r.id + '" style="display:none;"><td colspan="' + span + '"><div class="det-grid">' + parts + "<div><span>Total points</span><strong>" + r.points + "</strong></div></div></td></tr>";
   }).join("");
   var note = B.details
     ? 'Points: win 2 · draw 1 · goal 3 · assist 2 · player of the match 1 · red card &minus;5 · yellow card &minus;2 · foul &minus;1. Win/draw points count only for matches the player actually played; losses and own goals score 0. Order: players with 0 matches last, then Points, then no cards, goals, assists, POTM, wins, draws, fewer losses, more played, fewer yellow, fewer red, more rested, fewer absent. Players equal on all of these share a rank, shown with "=" (e.g. 5=).'
     : 'P/W/D/L = matches the player actually played and the team\'s result in them. Players with 0 matches are always at the bottom. Above them, players with no yellow or red cards rank above players with any card. Within each group: Goals, Assists, POTM, Won, Drawn, fewer Lost, more Played, fewer Yellow, fewer Red, more Rested, fewer Absent. Players equal on all of these share a rank, shown with "=" (e.g. 5=).';
-  box.innerHTML = '<div class="table-scroll"><table class="data-table"><thead><tr>' + head + "</tr></thead><tbody>" + (body || '<tr><td colspan="' + span + '" class="text-center muted">No player matches that name.</td></tr>') + "</tbody></table></div>" +
+  var colg = B.details ? '<colgroup><col class="c-n"><col class="c-name"><col class="c-team">' + B.cols.map(function (c) { return '<col class="' + (c[0] === "points" ? "c-pts" : "c-num") + '">'; }).join("") + '<col class="c-det"></colgroup>' : "";
+  box.innerHTML = '<div class="table-scroll"><table class="data-table">' + colg + '<thead><tr>' + head + "</tr></thead><tbody>" + (body || '<tr><td colspan="' + span + '" class="text-center muted">No player matches that name.</td></tr>') + "</tbody></table></div>" +
     '<p class="muted" style="font-size:.78rem;margin-top:8px;">' + note + "</p>";
   box.querySelectorAll("th.sortable").forEach(function (th) {
     th.addEventListener("click", function () {
@@ -368,7 +395,8 @@ function renderBoard(B) {
   box.querySelectorAll("[data-pdet]").forEach(function (b) {
     b.addEventListener("click", function () {
       var r = document.getElementById("pdet-" + b.dataset.pdet), open = r.style.display === "none";
-      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
+      r.style.display = open ? "" : "none";
+      box.querySelectorAll('[data-pdet="' + b.dataset.pdet + '"]').forEach(function (x) { x.textContent = open ? "Hide" : "Details"; x.setAttribute("aria-expanded", open); });
     });
   });
 }

@@ -46,10 +46,10 @@ with sync_playwright() as pw:
     ok('0-match players below negative-points player',nm.index('Bhagyesh Rane')<nm.index('Bilal Yaser'),nm)
     ok('last row has 0 matches',R0[-1][hdr.index('p')].strip()=='0',R0[-1])
     ok('ranks 1..',[r[0].strip() for r in R0[:3]]==['1','2','3'],[r[0] for r in R0[:3]])
-    p.locator('button[data-pdet]').first.click()
+    p.locator('button[data-pdet]:visible').first.click()
     t=p.inner_text('tr.det:visible')
     ok('details breakdown shows total and rules',('Total points' in t) and ('Goals' in t) and ('Fouls' in t),t)
-    p.locator('button[data-pdet]').first.click()
+    p.locator('button[data-pdet]:visible').first.click()
     ok('details hides again',p.locator('tr.det:visible').count()==0)
     p.select_option('#r-team',label='Renegades');n=[r[1].strip() for r in rows()]
     ok('team filter',set(n)=={'Varun','Rishabh Devgon'} or 'Varun' in n and 'Ayush' not in n,n)
@@ -69,5 +69,9 @@ with sync_playwright() as pw:
     p3=s.page('stats.html#ranking',1200)
     p3.set_viewport_size({'width':375,'height':800});p3.click('#qa-accept')
     ok('phone: no page sideways scroll',p3.evaluate('document.documentElement.scrollWidth<=window.innerWidth+1'))
+    for w in (320,375,414,768,1024,1280):
+        p3.set_viewport_size({'width':w,'height':900});p3.wait_for_timeout(150)
+        r=p3.evaluate("(()=>{const t=document.querySelector('#rk-body .table-scroll');return [t.scrollWidth,t.clientWidth,document.documentElement.scrollWidth,window.innerWidth]})()")
+        ok('no sideways scroll at %dpx'%w,r[0]<=r[1] and r[2]<=r[3]+1,r)
     ok('no JS errors (all pages)',not p2.errs and not p3.errs,[p2.errs,p3.errs])
 print(sum(R),'/',len(R))
