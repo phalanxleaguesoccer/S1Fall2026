@@ -26,18 +26,27 @@
   }
   @media (max-width: 1060px) {
     #rk-body table.data-table { table-layout:fixed; }
-    #rk-body col.c-n { width:18px; } #rk-body col.c-name { width:80px; } #rk-body col.c-team, #rk-body col.c-det { display:none; } #rk-body col.c-num { width:auto; } #rk-body col.c-pts { width:24px; }
+    #rk-body col.c-n { width:26px; } #rk-body col.c-name { width:80px; } #rk-body col.c-team, #rk-body col.c-det { display:none; } #rk-body col.c-num { width:auto; } #rk-body col.c-pts { width:24px; }
     #sec-ranking { padding-left:8px; padding-right:8px; }
-    #rk-body th.detcol, #rk-body td.detcol { display:none; }
+    #rk-body table.data-table th.detcol, #rk-body table.data-table td.detcol { display:none; }
     #rk-body .rk-detbtn { display:inline-block; margin-top:3px; }
     #rk-body table.data-table th, #rk-body table.data-table td { padding:7px 1px; font-size:.7rem; }
     #rk-body th.team-name:nth-child(3), #rk-body td.team-name:nth-child(3) { display:none; }
     #rk-body td.team-name:nth-child(2) { white-space:normal; word-break:break-word; line-height:1.2; padding-left:4px; }
     #rk-body .rk-sub { display:block; color:var(--chalk-dim); font-size:.62rem; }
-    #rk-body th.num:not(:first-child) { writing-mode:vertical-rl; transform:rotate(180deg); height:56px; vertical-align:bottom; text-align:left; font-size:.62rem; padding:4px 0; white-space:nowrap; }
+    #rk-body table.data-table th.num:not(:first-child) { writing-mode:vertical-rl; transform:rotate(180deg); height:56px; vertical-align:bottom; text-align:left; font-size:.62rem; padding:4px 0; white-space:nowrap; }
     #rk-body .btn.small { padding:3px 2px; font-size:.58rem; min-width:0; }
+    #rk-body td.ms-n .mv { display:block; margin:0; font-size:.55rem; line-height:1; }
+    #rk-body table.wk-table th, #rk-body table.wk-table td { padding:4px 3px; font-size:.7rem; white-space:normal; }
     .det-grid { grid-template-columns:repeat(2,1fr); }
   }
+  .mv { font-size:.62rem; font-weight:700; margin-right:5px; white-space:nowrap; }
+  .mv.up { color:#3ecf6e; } .mv.down { color:#ff5c5c; }
+  .wk-wrap { margin-top:12px; } .wk-title { font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; color:var(--chalk-dim); margin-bottom:4px; }
+  table.wk-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+  table.wk-table th, table.wk-table td { padding:5px 6px; text-align:left; border-bottom:1px solid var(--card-edge); }
+  table.wk-table th.num, table.wk-table td.num { text-align:right; white-space:nowrap; }
+  table.wk-table th { font-size:.7rem; color:var(--chalk-dim); text-transform:uppercase; }
   .det-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:6px 18px; }
   .det-grid div span { color:var(--chalk-dim); font-size:.78rem; display:block; }
   .btn.small { padding:3px 12px; font-size:.8rem; }
@@ -357,11 +366,29 @@ function ssSame(B, a, b) {   // share a rank only when equal on every ranking ke
   if (B.st.sort !== "default" && a[B.st.sort] !== b[B.st.sort]) return false;
   return ssChainCmp(a, b, B.chain) === 0;
 }
+function moveHtml(n) {
+  if (!n) return "";
+  return n > 0 ? '<span class="mv up" title="Up ' + n + (n === 1 ? " place" : " places") + ' since the previous week">&#9650;' + n + "</span>"
+               : '<span class="mv down" title="Down ' + (-n) + (n === -1 ? " place" : " places") + ' since the previous week">&#9660;' + (-n) + "</span>";
+}
+function weekTable(h, r) {
+  if (!h || !h.weeks[r.id]) return '<p class="muted" style="margin:10px 0 0;font-size:.8rem;">Week-by-week ranking is shown when a single season is selected.</p>';
+  var rows = h.weeks[r.id].map(function (w, i) {
+    var pp = w.week;
+    var bits = [];
+    if (pp.played) bits.push(pp.played + " played" + (pp.won ? ", " + pp.won + "W" : "") + (pp.drawn ? ", " + pp.drawn + "D" : "") + (pp.lost ? ", " + pp.lost + "L" : ""));
+    else if (pp.rested) bits.push("rested"); else if (pp.absent) bits.push("absent"); else bits.push("&ndash;");
+    POINT_RULES.forEach(function (rule) { var n = pp[rule[1]]; if (rule[1] !== "won" && rule[1] !== "drawn" && n) bits.push(rule[0].toLowerCase() + " \u00d7" + n); });
+    return "<tr><td>Week " + (i + 1) + '</td><td class="wk-what">' + bits.join(" · ") + '</td><td class="num">' + (w.wpts > 0 ? "+" : "") + w.wpts + '</td><td class="num"><strong>' + w.total + '</strong></td><td class="num">' + moveHtml(w.move) + w.rank + (w.tied ? "=" : "") + "</td></tr>";
+  }).join("");
+  return '<div class="wk-wrap"><div class="wk-title">Week by week</div><table class="wk-table"><thead><tr><th>Week</th><th>What happened</th><th class="num">Points</th><th class="num">Total</th><th class="num">Rank</th></tr></thead><tbody>' + rows + "</tbody></table></div>";
+}
 function renderBoard(B) {
   var box = document.getElementById(B.ids.body), st = B.st;
   var rows = ssSorted(B), ranks = [];
   rows.forEach(function (r, i) { ranks[i] = i === 0 ? 1 : (ssSame(B, rows[i - 1], r) ? ranks[i - 1] : ranks[i - 1] + 1); });   // no gaps: 12=, 12=, 13
-  var tied = rows.map(function (r, i) { return (i > 0 && ranks[i] === ranks[i - 1]) || (i + 1 < rows.length && ranks[i] === ranks[i + 1] && ssSame(B, r, rows[i + 1])); });
+  if (B.details && st.rankOf) { rows.forEach(function (r, i) { ranks[i] = st.rankOf[r.id].r; }); }
+  var tied = B.details && st.rankOf ? rows.map(function (r) { return st.rankOf[r.id].tied; }) : rows.map(function (r, i) { return (i > 0 && ranks[i] === ranks[i - 1]) || (i + 1 < rows.length && ranks[i] === ranks[i + 1] && ssSame(B, r, rows[i + 1])); });
   var q = document.getElementById(B.ids.search).value.trim().toLowerCase();
   if (!rows.length) { box.innerHTML = '<p class="muted">No players for this selection yet.</p>'; return; }
   var arrow = function (k) { return st.sort === k ? (st.dir > 0 ? " ▲" : " ▼") : ""; };
@@ -372,12 +399,12 @@ function renderBoard(B) {
   var span = B.cols.length + 3 + (B.details ? 1 : 0);
   var body = rows.map(function (r, i) {
     if (q && r.name.toLowerCase().indexOf(q) < 0) return "";
-    var tr = '<tr><td class="ms-n num">' + ranks[i] + (tied[i] ? "=" : "") + '</td><td class="team-name"><a href="player.html?id=' + r.id + '">' + escapeHtml(r.name) + '</a>' + (B.details ? '<span class="rk-sub">' + escapeHtml(r.team) + '</span><button type="button" class="btn secondary small rk-detbtn" data-pdet="' + r.id + '" aria-expanded="false">Details</button>' : "") + "</td><td class=\"team-name\">" + escapeHtml(r.team) + "</td>" +
+    var tr = '<tr><td class="ms-n num">' + (B.details ? moveHtml(st.hist && st.hist.move[r.id]) : "") + ranks[i] + (tied[i] ? "=" : "") + '</td><td class="team-name"><a href="player.html?id=' + r.id + '">' + escapeHtml(r.name) + '</a>' + (B.details ? '<span class="rk-sub">' + escapeHtml(r.team) + '</span><button type="button" class="btn secondary small rk-detbtn" data-pdet="' + r.id + '" aria-expanded="false">Details</button>' : "") + "</td><td class=\"team-name\">" + escapeHtml(r.team) + "</td>" +
       B.cols.map(function (c) { return '<td class="num">' + (st.sort === c[0] || (st.sort === "default" && c[0] === B.hl) ? "<strong>" + r[c[0]] + "</strong>" : r[c[0]]) + "</td>"; }).join("");
     if (!B.details) return tr + "</tr>";
     var parts = POINT_RULES.map(function (p) { var n = r[p[1]] || 0; return "<div><span>" + p[0] + "</span>" + n + " &times; " + p[2] + " = <strong>" + (n * p[2]) + "</strong></div>"; }).join("");
     return tr + '<td class="detcol"><button type="button" class="btn secondary small" data-pdet="' + r.id + '" aria-expanded="false">Details</button></td></tr>' +
-      '<tr class="det" id="pdet-' + r.id + '" style="display:none;"><td colspan="' + span + '"><div class="det-grid">' + parts + "<div><span>Total points</span><strong>" + r.points + "</strong></div></div></td></tr>";
+      '<tr class="det" id="pdet-' + r.id + '" style="display:none;"><td colspan="' + span + '"><div class="det-grid">' + parts + "<div><span>Total points</span><strong>" + r.points + "</strong></div></div>" + weekTable(st.hist, r) + "</td></tr>";
   }).join("");
   var note = B.details
     ? 'Points: win 2 · draw 1 · goal 3 · assist 2 · player of the match 1 · red card &minus;5 · yellow card &minus;2 · foul &minus;1. Win/draw points count only for matches the player actually played; losses and own goals score 0. Order: players with 0 matches last, then Points, then no cards, goals, assists, POTM, wins, draws, fewer losses, more played, fewer yellow, fewer red, more rested, fewer absent. Players equal on all of these share a rank, shown with "=" (e.g. 5=).'
@@ -403,6 +430,81 @@ function renderBoard(B) {
 function renderSeasonStats() { renderBoard(BOARDS.ss); }
 function renderRanking() { renderBoard(BOARDS.rk); }
 
+async function fetchAllEvents(ids) {
+  var out = [], from = 0;
+  for (;;) {
+    var r = await window.sb.from("match_events").select("*").in("match_id", ids).range(from, from + 999);
+    var d = r.data || [];
+    out = out.concat(d);
+    if (d.length < 1000) break;
+    from += 1000;
+  }
+  return out;
+}
+var EV_KEY = { goal: "goals", assist: "assists", player_of_match: "potm", yellow_card: "yellow", red_card: "red", foul: "fouls" };
+var ZERO = function () { return { played: 0, won: 0, drawn: 0, lost: 0, goals: 0, assists: 0, potm: 0, yellow: 0, red: 0, fouls: 0, rested: 0, absent: 0 }; };
+// Week-by-week ranks for one season. A "week" is a match day. Ranks are among every player in the season (filters never change them).
+function buildHistory(matches, recs, appBy, teamHas, events) {
+  var done = matches.filter(function (m) { return m.status === "completed" && m.home_score != null && m.away_score != null; });
+  var days = [];
+  done.forEach(function (m) { if (days.indexOf(m.match_day) < 0) days.push(m.match_day); });
+  days.sort(function (a, b) { return a - b; });
+  if (!days.length) return null;
+  var byMatch = {}; done.forEach(function (m) { byMatch[m.id] = m; });
+  var wk = {};   // player -> day -> stats earned that week
+  var names = {};
+  recs.forEach(function (r) { wk[r.id] = wk[r.id] || {}; names[r.id] = pname(r.id); });
+  function slot(pid, day) { var w = wk[pid]; if (!w) return null; return w[day] || (w[day] = ZERO()); }
+  recs.forEach(function (r) {
+    done.forEach(function (m) {
+      if (m.home_team_id !== r.team_id && m.away_team_id !== r.team_id) return;
+      var a = appBy[m.id + "|" + r.id], st = a ? (a.status || "played") : (teamHas[m.id + "|" + r.team_id] ? "absent?" : "played");
+      var o = slot(r.id, m.match_day);
+      if (st === "rested") { o.rested++; return; }
+      if (st === "absent") { o.absent++; return; }
+      if (st !== "played") return;
+      o.played++;
+      var mine = m.home_team_id === r.team_id ? m.home_score : m.away_score, theirs = m.home_team_id === r.team_id ? m.away_score : m.home_score;
+      if (mine > theirs) o.won++; else if (mine < theirs) o.lost++; else o.drawn++;
+    });
+  });
+  events.forEach(function (e) {
+    var m = byMatch[e.match_id], k = EV_KEY[e.event_type];
+    if (!m || !k) return;
+    var o = slot(e.player_id, m.match_day);
+    if (o) o[k]++;
+  });
+  var ids = Object.keys(wk), cum = {}, out = { days: days, weeks: {}, rank: {}, tied: {} };
+  ids.forEach(function (id) { cum[id] = ZERO(); out.weeks[id] = []; });
+  days.forEach(function (day, di) {
+    var rows = ids.map(function (id) {
+      var w = wk[id][day] || ZERO(), c = cum[id], pts = calcPoints(w);
+      Object.keys(c).forEach(function (k) { c[k] += w[k]; });
+      var o = {}; Object.keys(c).forEach(function (k) { o[k] = c[k]; });
+      o.id = id; o.name = names[id]; o.points = calcPoints(c);
+      out.weeks[id].push({ day: day, week: w, wpts: pts, total: o.points, played: w.played });
+      return o;
+    });
+    rows.sort(function (a, b) { return ssChainCmp(a, b, RK_CHAIN) || a.name.localeCompare(b.name); });
+    var rk = 0;
+    rows.forEach(function (o, i) {
+      if (i === 0 || ssChainCmp(rows[i - 1], o, RK_CHAIN) !== 0) rk++;
+      o.rank = rk;
+    });
+    rows.forEach(function (o, i) {
+      var t = (i > 0 && rows[i - 1].rank === o.rank) || (i + 1 < rows.length && rows[i + 1].rank === o.rank);
+      var wkRow = out.weeks[o.id][di]; wkRow.rank = o.rank; wkRow.tied = t;
+    });
+  });
+  // movement after the latest week vs the week before (positive = climbed)
+  out.move = {};
+  ids.forEach(function (id) {
+    var w = out.weeks[id], n = w.length;
+    out.move[id] = n >= 2 ? w[n - 2].rank - w[n - 1].rank : 0;
+    for (var i = 0; i < n; i++) w[i].move = i > 0 ? w[i - 1].rank - w[i].rank : 0;
+  });
+  return out;
+}
 async function loadBoard(B) {
   var sid = document.getElementById(B.ids.season).value, all = sid === "all";
   var mq = window.sb.from("matches").select("*"), rq = window.sb.from("team_season_rosters").select("*"), vq = window.sb.from("player_season_stats").select("*");
@@ -438,18 +540,43 @@ async function loadBoard(B) {
   teamSel.innerHTML = '<option value="all">All teams</option>' + B.st.teamOpts.map(function (id) { return '<option value="' + id + '">' + escapeHtml(tname(id)) + "</option>"; }).join("");
   teamSel.value = B.st.teamOpts.indexOf(keep) >= 0 ? keep : "all";
   B.st.recs = recs;
+  B.st.hist = null;
+  if (B.details && !all && matches.length) {
+    try { B.st.hist = buildHistory(matches, recs, appBy, teamHas, await fetchAllEvents(matches.map(function (m) { return m.id; }))); } catch (e) { B.st.hist = null; }
+  }
   buildBoardRows(B);
 }
 function buildBoardRows(B) {
   var team = document.getElementById(B.ids.team).value, st = B.st;
-  var by = {};
-  st.recs.filter(function (r) { return team === "all" || r.team_id === team; }).forEach(function (r) {
-    var o = by[r.id] = by[r.id] || { id: r.id, name: pname(r.id), teams: [], played: 0, won: 0, drawn: 0, lost: 0, goals: 0, assists: 0, potm: 0, yellow: 0, red: 0, fouls: 0, og: 0, rested: 0, absent: 0 };
-    if (o.teams.indexOf(r.team_id) < 0) o.teams.push(r.team_id);
-    o.played += r.p; o.won += r.w; o.drawn += r.d; o.lost += r.l; o.goals += r.goals; o.assists += r.assists; o.potm += r.potm;
-    o.yellow += r.yellow; o.red += r.red; o.fouls += r.fouls; o.og += r.og; o.rested += r.rested; o.absent += r.absent;
-  });
-  st.rows = Object.keys(by).map(function (k) { var o = by[k]; o.team = o.teams.map(tname).join(", "); o.points = calcPoints(o); return o; });
+  function aggregate(filterTeam) {
+    var by = {};
+    st.recs.filter(function (r) { return !filterTeam || team === "all" || r.team_id === team; }).forEach(function (r) {
+      var o = by[r.id] = by[r.id] || { id: r.id, name: pname(r.id), teams: [], played: 0, won: 0, drawn: 0, lost: 0, goals: 0, assists: 0, potm: 0, yellow: 0, red: 0, fouls: 0, og: 0, rested: 0, absent: 0 };
+      if (o.teams.indexOf(r.team_id) < 0) o.teams.push(r.team_id);
+      o.played += r.p; o.won += r.w; o.drawn += r.d; o.lost += r.l; o.goals += r.goals; o.assists += r.assists; o.potm += r.potm;
+      o.yellow += r.yellow; o.red += r.red; o.fouls += r.fouls; o.og += r.og; o.rested += r.rested; o.absent += r.absent;
+    });
+    return Object.keys(by).map(function (k) { var o = by[k]; o.team = o.teams.map(tname).join(", "); o.points = calcPoints(o); return o; });
+  }
+  if (B.details) {
+    // Ranking (In QA): ranks always come from the full season list; team / rested / search filters only hide rows.
+    var allRows = aggregate(false).sort(function (a, b) { return ssChainCmp(a, b, B.chain) || a.name.localeCompare(b.name); });
+    st.rankOf = {};
+    var rk = 0;
+    allRows.forEach(function (o, i) {
+      if (i === 0 || ssChainCmp(allRows[i - 1], o, B.chain) !== 0) rk++;
+      st.rankOf[o.id] = { r: rk, tied: false };
+    });
+    allRows.forEach(function (o, i) {
+      var t = (i > 0 && st.rankOf[allRows[i - 1].id].r === st.rankOf[o.id].r) || (i + 1 < allRows.length && st.rankOf[allRows[i + 1].id].r === st.rankOf[o.id].r);
+      st.rankOf[o.id].tied = t;
+    });
+    var show = {};
+    st.recs.forEach(function (r) { if (team === "all" || r.team_id === team) show[r.id] = true; });
+    st.rows = allRows.filter(function (o) { return show[o.id]; });
+  } else {
+    st.rows = aggregate(true);
+  }
   var rest = document.getElementById(B.ids.rest).value;   // absent is not rested
   if (rest === "never") st.rows = st.rows.filter(function (o) { return o.rested === 0; });
   else if (rest === "rested") st.rows = st.rows.filter(function (o) { return o.rested > 0; });

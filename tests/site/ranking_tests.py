@@ -37,7 +37,7 @@ with sync_playwright() as pw:
     ok('not repeated within same visit',not p.is_visible('#qa-modal'))
     hdr=[h.strip().lower() for h in p.locator('#rk-body thead th').all_inner_texts()]
     ok('Points column after Team, then season columns',hdr[:5]==['#','player','team','points','p'] and 'absent' in hdr,hdr)
-    rows=lambda:[r.split('\t') for r in p.locator('#rk-body tbody tr:not(.det)').all_inner_texts()]
+    rows=lambda:[r.split('\t') for r in p.locator('#rk-body .table-scroll > table > tbody > tr:not(.det)').all_inner_texts()]
     R0=rows();pc=hdr.index('points')
     pts={r[1].strip():r[pc].strip() for r in R0}
     ok('points values',pts.get('Ayush')=='9' and pts.get('Nasiq')=='9' and pts.get('Varun')=='7' and pts.get('Rishabh Devgon')=='5' and pts.get('Bhagyesh Rane')=='-5' and pts.get('Bilal Yaser')=='-2',pts)

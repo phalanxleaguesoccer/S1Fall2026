@@ -71,6 +71,7 @@
         q.orders.forEach(function(o){rows=rows.slice().sort(function(a,b){var x=a[o[0]],y=b[o[0]];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return (x<y?-1:x>y?1:0)*(o[1]?1:-1);});});
         // stable multi-key: apply orders in reverse
         if(q.orders.length>1){rows=t.filter(match);q.orders.slice().reverse().forEach(function(o){rows=rows.slice().sort(function(a,b){var x=a[o[0]],y=b[o[0]];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return (x<y?-1:x>y?1:0)*(o[1]?1:-1);});});}
+        if(q.rng)rows=rows.slice(q.rng[0],q.rng[1]+1);
         if(q.lim!=null)rows=rows.slice(0,q.lim);
         var count=rows.length;
         rows=rows.map(function(r){return embed(r,q.sel,name);});
@@ -103,6 +104,7 @@
       is:function(c,v){q.filters.push(['is',c,v]);return api;},
       order:function(c,o){q.orders.push([c,!(o&&o.ascending===false)]);return api;},
       limit:function(n){q.lim=n;return api;},
+      range:function(a,b){q.rng=[a,b];return api;},
       single:function(){q.single='single';return api;},
       maybeSingle:function(){q.single='maybe';return api;},
       then:function(res,rej){return Promise.resolve(run()).then(res,rej);}
