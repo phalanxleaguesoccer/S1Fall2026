@@ -82,3 +82,8 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Shown on: match page (OWN GOAL chip, `(og)` under the scoreboard, Own goals stat row, OG column), Stats > Milestones > Own goals tab, player profile OG column, admin event form.
 - The match score itself is still the score entered on the match; enter it including the own goal.
 - Clean sheets are not tracked and were removed from all pages.
+
+## Fouls (added 14 Oct)
+- Event type `foul` (player_id = who committed it), tracked with or without a card. A yellow/red card is always also a foul: the admin form has an "Also record this as a foul" checkbox (default on) that logs foul + card together; the match page shows them as one row ("Foul · Yellow card").
+- Run `sql/migration_fouls.sql`: adds `fouls` to `player_season_stats` and back-fills a foul for every existing card (idempotent).
+- Shown on: match page (Fouls stat bar, FL column, FOUL chip, "N fouls" line), Stats > Milestones > Fouls tab (details say which card, if any), Season Stats Fouls and OG columns (not part of ranking), player profile Fouls column, team page totals (OG and Fouls).

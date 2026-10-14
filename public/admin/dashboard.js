@@ -350,6 +350,12 @@ async function populateEventMatchDropdown() {
   }).join("");
 }
 
+function syncAlsoFoul() {
+  var t = document.getElementById("e-type").value;
+  document.getElementById("e-also-foul-wrap").style.display = (t === "yellow_card" || t === "red_card") ? "" : "none";
+}
+document.getElementById("e-type").addEventListener("change", syncAlsoFoul);
+
 async function onLogEvent(e) {
   e.preventDefault();
   var msg = document.getElementById("event-msg");
@@ -362,9 +368,15 @@ async function onLogEvent(e) {
     minute: document.getElementById("e-minute").value ? parseInt(document.getElementById("e-minute").value, 10) : null
   };
   if (!payload.match_id || !payload.team_id || !payload.player_id) { showError(msg, "Match, team, and player are all required."); return; }
-  var res = await window.sb.from("match_events").insert(payload);
+  var rows = [payload];
+  // A card is always also a foul: log the foul first (1 ms earlier so it sorts just before the card).
+  if ((payload.event_type === "yellow_card" || payload.event_type === "red_card") && document.getElementById("e-also-foul").checked) {
+    var foul = Object.assign({}, payload, { event_type: "foul", created_at: new Date(Date.now() - 1).toISOString() });
+    rows = [foul, payload];
+  }
+  var res = await window.sb.from("match_events").insert(rows);
   if (res.error) { showError(msg, res.error.message); return; }
-  showSuccess(msg, "Event logged.");
+  showSuccess(msg, rows.length > 1 ? "Foul and card logged." : "Event logged.");
   loadEventsForSelectedMatch();
 }
 
@@ -374,7 +386,7 @@ async function loadEventsForSelectedMatch() {
   if (!matchId) { list.innerHTML = '<p class="muted">Pick a match to see its events.</p>'; return; }
   var res = await window.sb.from("match_events").select("*, players!match_events_player_id_fkey(*)").eq("match_id", matchId).order("minute");
   if (!res.data || res.data.length === 0) { list.innerHTML = '<p class="muted">No events logged for this match yet.</p>'; return; }
-  var typeLabel = { goal: "Goal", own_goal: "Own goal", assist: "Assist", yellow_card: "Yellow", red_card: "Red", substitution_in: "Sub on", substitution_out: "Sub off", player_of_match: "Player of the Match", save: "Goal Saved", player_of_tournament: "Player of the Tournament" };
+  var typeLabel = { goal: "Goal", own_goal: "Own goal", foul: "Foul", assist: "Assist", yellow_card: "Yellow", red_card: "Red", substitution_in: "Sub on", substitution_out: "Sub off", player_of_match: "Player of the Match", save: "Goal Saved", player_of_tournament: "Player of the Tournament" };
   list.innerHTML = res.data.map(function (ev) {
     return '<div class="list-row"><span>' + (typeLabel[ev.event_type] || ev.event_type) + " — " + escapeHtml(ev.players.full_name) +
       (ev.minute ? " (" + ev.minute + "')" : "") + "</span>" +

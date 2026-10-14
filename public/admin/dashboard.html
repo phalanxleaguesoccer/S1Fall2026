@@ -168,6 +168,7 @@
               <option value="goal">Goal</option>
               <option value="own_goal">Own goal (pick the player's OWN team; counts for the opponent)</option>
               <option value="assist">Assist</option>
+              <option value="foul">Foul (no card)</option>
               <option value="yellow_card">Yellow card</option>
               <option value="red_card">Red card</option>
               <option value="substitution_in">Substitution — in</option>
@@ -180,6 +181,7 @@
           <div><label>Half</label><select id="e-half"><option value="1">1st (1-10')</option><option value="2">2nd (11-20')</option></select></div>
           <div><label>Minute</label><input type="number" id="e-minute" min="1" max="20"></div>
         </div>
+        <label id="e-also-foul-wrap" style="display:none; margin-top:10px; font-weight:400;"><input type="checkbox" id="e-also-foul" checked style="width:auto; margin-right:8px;">Also record this as a foul (a card is always a foul)</label>
         <button class="btn mt-16" type="submit">Log Event</button>
         <p id="event-msg"></p>
       </form>

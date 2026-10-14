@@ -26,7 +26,7 @@ with sync_playwright() as pw:
     ok('Season Stats opens first, Milestones hidden',p.is_visible('#sec-season') and not p.is_visible('#sec-milestones'))
     hdr=lambda:[h.strip().lower() for h in p.locator('#ss-body thead th').all_inner_texts()]
     rows=lambda:[r.split('\t') for r in p.locator('#ss-body tbody tr').all_inner_texts()]
-    H=hdr();ok('column headers present',H[3:]==['p','w','d','l','goals','assists','potm','yellow','red','rested','absent'],H)
+    H=hdr();ok('column headers present',H[3:]==['p','w','d','l','goals','assists','potm','yellow','red','fouls','og','rested','absent'],H)
     M={'played':'p','won':'w','drawn':'d','lost':'l','goals':'goals','assists':'assists','potm':'potm','yellow':'yellow','red':'red','rested':'rested','absent':'absent'}
     def col(name): return H.index(M[name])
     R0=rows()
@@ -91,7 +91,7 @@ with sync_playwright() as pw:
     p.click('#sub-nav button[data-sec=season]');ok('back to Season Stats',p.is_visible('#sec-season'))
     pp=Site(pw,d).page('player.html?id='+P['Nasiq'],1200);pp.click('#history-toggle');pp.wait_for_timeout(600)
     ct=pp.locator('#career-totals-body td').all_inner_texts()
-    ok('player All Stats career totals match season (GP 2, goals 2, POTM 1)',ct[0]=='2' and ct[3]=='2' and ct[9]=='1' and not pp.errs,(ct,pp.errs))
+    ok('player All Stats career totals match season (GP 2, goals 2, POTM 1)',ct[0]=='2' and ct[3]=='2' and ct[10]=='1' and not pp.errs,(ct,pp.errs))
     mp=Site(pw,d).page('stats.html',1200);mp.set_viewport_size({'width':390,'height':800});mp.wait_for_timeout(300)
     ok('phone: no sideways page scroll',mp.evaluate('document.documentElement.scrollWidth')<=390,mp.evaluate('document.documentElement.scrollWidth'))
     q=Site(pw,finish(base())).page('stats.html',1200);ok('empty season: no errors',not q.errs,q.errs)

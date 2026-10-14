@@ -54,6 +54,7 @@
 .m-chip.rc { background:#C0392B; color:#fff; }
 .m-chip.sv { background:#2F5D8A; color:#F5F1E6; }
 .m-chip.og { background:#3A3A3E; color:#F5F1E6; border:1px solid var(--amber); }
+.m-chip.fl { background:#6B4E1E; color:#F5F1E6; }
 .m-chip.sub { background:#3A3A3E; color:#F5F1E6; }
 .m-ev .main { font-size:15px; font-weight:600; }
 .m-ev .main a { color:var(--chalk-white); }
@@ -165,14 +166,15 @@ async function loadMatch() {
   }
 
   // ---- per-player and per-team tallies ----
-  var T = {}; T[home.id] = { team: home, goals: 0, assists: 0, yc: 0, rc: 0, sv: 0, og: 0 }; T[away.id] = { team: away, goals: 0, assists: 0, yc: 0, rc: 0, sv: 0, og: 0 };
+  var T = {}; T[home.id] = { team: home, goals: 0, assists: 0, yc: 0, rc: 0, sv: 0, og: 0, fl: 0 }; T[away.id] = { team: away, goals: 0, assists: 0, yc: 0, rc: 0, sv: 0, og: 0, fl: 0 };
   var S = {};   // player id -> stats
-  function ps(e) { return S[e.player_id] = S[e.player_id] || { g: 0, a: 0, yc: 0, rc: 0, sv: 0, og: 0, team_id: e.team_id }; }
-  var potm = [], awards = [], anySave = false, anyOG = false;
+  function ps(e) { return S[e.player_id] = S[e.player_id] || { g: 0, a: 0, yc: 0, rc: 0, sv: 0, og: 0, fl: 0, team_id: e.team_id }; }
+  var potm = [], awards = [], anySave = false, anyOG = false, anyFoul = false;
   evs.forEach(function (e) {
     var t = T[e.team_id], s = ps(e);
     if (e.event_type === "goal") { s.g++; if (t) t.goals++; }
     else if (e.event_type === "own_goal") { s.og++; if (t) t.og++; anyOG = true; }   // own goal: team_id is the scorer's own team; the goal counts for the other team
+    else if (e.event_type === "foul") { s.fl++; if (t) t.fl++; anyFoul = true; }
     else if (e.event_type === "assist") { s.a++; if (t) t.assists++; }
     else if (e.event_type === "yellow_card") { s.yc++; if (t) t.yc++; }
     else if (e.event_type === "red_card") { s.rc++; if (t) t.rc++; }
@@ -200,14 +202,22 @@ async function loadMatch() {
     h.rows.push(e);
     if ((e.event_type === "goal" || e.event_type === "own_goal") && e.half !== 1 && e.half !== 2) allGoalsHaveHalf = false;
   });
-  var chipFor = { goal: ["GOAL", "goal"], own_goal: ["OWN GOAL", "og"], yellow_card: ["YELLOW", "yc"], red_card: ["RED", "rc"], save: ["SAVE", "sv"], substitution_in: ["SUB ON", "sub"], substitution_out: ["SUB OFF", "sub"] };
+  var chipFor = { goal: ["GOAL", "goal"], own_goal: ["OWN GOAL", "og"], foul: ["FOUL", "fl"], yellow_card: ["YELLOW", "yc"], red_card: ["RED", "rc"], save: ["SAVE", "sv"], substitution_in: ["SUB ON", "sub"], substitution_out: ["SUB OFF", "sub"] };
   var rh = 0, ra = 0, htHome = 0, htAway = 0, tl = "";
   halves.forEach(function (h) {
     if (!h.rows.length) return;
     var rows = ordered(h.rows), pa = pairAssists(rows);
+    // a foul that came with a card is shown once, on the card row ("Foul · Yellow card")
+    var foulWithCard = {}, cardHasFoul = {};
+    rows.forEach(function (c) {
+      if (c.event_type !== "yellow_card" && c.event_type !== "red_card") return;
+      var fl = rows.filter(function (x) { return x.event_type === "foul" && x.player_id === c.player_id && !foulWithCard[x.id]; })[0];
+      if (fl) { foulWithCard[fl.id] = 1; cardHasFoul[c.id] = 1; }
+    });
     tl += '<div class="m-break">' + h.title + "</div>";
     rows.forEach(function (e) {
       if (e.event_type === "assist" && pa.used[e.id]) return;
+      if (e.event_type === "foul" && foulWithCard[e.id]) return;
       var c = chipFor[e.event_type] || [e.event_type.replace(/_/g, " ").toUpperCase(), "sub"];
       var sub, score = "";
       if (e.event_type === "goal") {
@@ -221,8 +231,9 @@ async function loadMatch() {
         sub = "Counts for " + escapeHtml(benefit.name);
         score = rh + " – " + ra;
       } else if (e.event_type === "assist") sub = "Assist";
-      else if (e.event_type === "yellow_card") sub = "Yellow card";
-      else if (e.event_type === "red_card") sub = "Red card";
+      else if (e.event_type === "foul") sub = "Foul committed";
+      else if (e.event_type === "yellow_card") sub = (cardHasFoul[e.id] ? "Foul · " : "") + "Yellow card";
+      else if (e.event_type === "red_card") sub = (cardHasFoul[e.id] ? "Foul · " : "") + "Red card";
       else if (e.event_type === "save") sub = "Goal saved";
       else sub = "Substitution";
       tl += '<div class="m-ev"><span class="m-chip ' + c[1] + '">' + c[0] + '</span><div><div class="main">' + plink(e.players) + " (" + escapeHtml(e.teams.name) + ')</div><div class="m-sub">' + sub +
@@ -257,7 +268,7 @@ async function loadMatch() {
   }
 
   // ---- stats + timeline ----
-  var statDefs = [["Goals", "goals"], ["Assists", "assists"], ["Yellow cards", "yc"], ["Red cards", "rc"]];
+  var statDefs = [["Goals", "goals"], ["Assists", "assists"], ["Fouls", "fl"], ["Yellow cards", "yc"], ["Red cards", "rc"]];
   if (anyOG) statDefs.push(["Own goals", "og"]);
   if (anySave) statDefs.push(["Goals saved", "sv"]);
   var statsHtml = "";
@@ -284,6 +295,7 @@ async function loadMatch() {
     if (s.a) bits.push(plural(s.a, "assist", "assists"));
     if (s.og) bits.push(plural(s.og, "own goal", "own goals"));
     if (s.sv) bits.push(plural(s.sv, "save", "saves"));
+    if (s.fl) bits.push(plural(s.fl, "foul", "fouls"));
     if (s.yc) bits.push("Yellow");
     if (s.rc) bits.push("Red");
     return bits.join(" · ");
@@ -322,13 +334,13 @@ async function loadMatch() {
     html += '<section class="m-card"><div class="m-label">Player stats</div>' + squads.map(function (q) {
       if (!q.played.length) return "";
       return '<div class="m-tname" style="font-size:18px; margin:14px 0 4px;">' + escapeHtml(q.team.name) + '</div><div class="m-scroll"><table class="m-ptable"><thead><tr><th>PLAYER</th><th>POS</th><th class="num">G</th><th class="num">A</th>' +
-        (anyOG ? '<th class="num">OG</th>' : "") + (anySave ? '<th class="num">SV</th>' : "") + '<th class="num">YC</th><th class="num">RC</th></tr></thead><tbody>' +
+        (anyOG ? '<th class="num">OG</th>' : "") + (anySave ? '<th class="num">SV</th>' : "") + '<th class="num">FL</th><th class="num">YC</th><th class="num">RC</th></tr></thead><tbody>' +
         q.played.map(function (p) {
           var s = S[p.id] || { g: 0, a: 0, sv: 0, yc: 0, rc: 0 };
           return "<tr><td>" + plink(p) + '</td><td class="m-sub">' + escapeHtml(p.preferred_position || "—") + '</td><td class="num">' + s.g + '</td><td class="num">' + s.a + "</td>" +
-            (anyOG ? '<td class="num">' + s.og + "</td>" : "") + (anySave ? '<td class="num">' + s.sv + "</td>" : "") + '<td class="num">' + s.yc + '</td><td class="num">' + s.rc + "</td></tr>";
+            (anyOG ? '<td class="num">' + s.og + "</td>" : "") + (anySave ? '<td class="num">' + s.sv + "</td>" : "") + '<td class="num">' + s.fl + '</td><td class="num">' + s.yc + '</td><td class="num">' + s.rc + "</td></tr>";
         }).join("") + "</tbody></table></div>";
-    }).join("") + '<div class="m-sub" style="margin-top:8px;">POS = preferred position · G = goals · A = assists · ' + (anyOG ? "OG = own goals · " : "") + (anySave ? "SV = goals saved · " : "") + "YC / RC = yellow / red cards</div></section>";
+    }).join("") + '<div class="m-sub" style="margin-top:8px;">POS = preferred position · G = goals · A = assists · ' + (anyOG ? "OG = own goals · " : "") + (anySave ? "SV = goals saved · " : "") + "FL = fouls · YC / RC = yellow / red cards</div></section>";
   }
 
   root.innerHTML = html;

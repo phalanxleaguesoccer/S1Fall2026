@@ -56,6 +56,7 @@
       <button type="button" data-tab="yellow">Yellow cards</button>
       <button type="button" data-tab="red">Red cards</button>
       <button type="button" data-tab="owngoals">Own goals</button>
+      <button type="button" data-tab="fouls">Fouls</button>
       <button type="button" data-tab="rested">Rested</button>
       <button type="button" data-tab="absent">Absent</button>
     </div>
@@ -82,6 +83,7 @@ var TABS = {
   yellow:  { type: "yellow_card", title: "Yellow card", none: "No yellow cards recorded yet." },
   red:     { type: "red_card",    title: "Red card",    none: "No red cards recorded yet." },
   owngoals: { type: "own_goal",   title: "Own goal",    none: "No own goals recorded yet." },
+  fouls:   { type: "foul",        title: "Foul",        none: "No fouls recorded yet." },
   rested:  { att: "rested",       title: "Rested",      none: "Nobody has been rested yet." },
   absent:  { att: "absent",       title: "Absent",      none: "Nobody has been absent yet." }
 };
@@ -233,6 +235,12 @@ function renderMilestones() {
       var score = m.status === "completed" || m.status === "forfeited" ? tname(m.home_team_id) + " " + (m.home_score == null ? "–" : m.home_score) + " – " + (m.away_score == null ? "–" : m.away_score) + " " + tname(m.away_team_id) : "Not completed";
       var extra = "";
       if (cfg.type === "goal") { var a = pairs.assistOfGoal[e.id]; extra = '<div><span>Assist by</span>' + (a ? escapeHtml(pname(a.player_id)) : "None recorded") + "</div>"; }
+      if (cfg.type === "foul") {
+        var myFouls = all.filter(function (x) { return x.match_id === e.match_id && x.player_id === e.player_id; });
+        var myCards = sortChrono(EVENTS.filter(function (x) { return x.match_id === e.match_id && x.player_id === e.player_id && (x.event_type === "yellow_card" || x.event_type === "red_card"); }));
+        var card = myCards[myFouls.indexOf(e)];
+        extra = "<div><span>Card given</span>" + (card ? (card.event_type === "red_card" ? "Red card" : "Yellow card") : "No card") + "</div>";
+      }
       if (cfg.type === "own_goal") extra = "<div><span>Counts as a goal for</span>" + escapeHtml(tname(opp)) + "</div>";
       if (cfg.type === "assist") { var g = pairs.goalOfAssist[e.id]; extra = '<div><span>Goal scored by</span>' + (g ? escapeHtml(pname(g.player_id)) : "Not linked") + "</div>"; }
       var det =
@@ -266,7 +274,7 @@ var SS = { sort: "default", dir: -1, rows: [], teamOpts: [] };
 var SS_COLS = [
   ["played", "P", "Matches played"], ["won", "W", "Matches won"], ["drawn", "D", "Matches drawn"], ["lost", "L", "Matches lost"],
   ["goals", "Goals", "Goals scored"], ["assists", "Assists", "Assists"], ["potm", "POTM", "Player of the match awards"],
-  ["yellow", "Yellow", "Yellow cards"], ["red", "Red", "Red cards"],
+  ["yellow", "Yellow", "Yellow cards"], ["red", "Red", "Red cards"], ["fouls", "Fouls", "Fouls committed (with or without a card)"], ["og", "OG", "Own goals"],
   ["rested", "Rested", "Matches rested"], ["absent", "Absent", "Matches absent"]
 ];
 // Ranking order: no cards above any cards; then Goals > Assists > POTM > Won > Drawn > (played at all) > fewer Lost > more Played > fewer Yellow > fewer Red > more Rested > fewer Absent.
@@ -349,7 +357,7 @@ async function loadSeasonStats() {
       if (mine > theirs) w++; else if (mine < theirs) l++; else d++;
     });
     return { id: r.player_id, team_id: r.team_id, season_id: r.season_id, p: p, w: w, d: d, l: l,
-      goals: v.goals || 0, assists: v.assists || 0, potm: v.potm_awards || 0, yellow: v.yellow_cards || 0, red: v.red_cards || 0,
+      goals: v.goals || 0, assists: v.assists || 0, potm: v.potm_awards || 0, yellow: v.yellow_cards || 0, red: v.red_cards || 0, fouls: v.fouls || 0, og: v.own_goals || 0,
       rested: v.rested || 0, absent: v.absent || 0 };
   });
   var teamSel = document.getElementById("s-team"), keep = teamSel.value || "all";
@@ -363,10 +371,10 @@ function buildSeasonRows() {
   var team = document.getElementById("s-team").value;
   var by = {};
   SS.recs.filter(function (r) { return team === "all" || r.team_id === team; }).forEach(function (r) {
-    var o = by[r.id] = by[r.id] || { id: r.id, name: pname(r.id), teams: [], played: 0, won: 0, drawn: 0, lost: 0, goals: 0, assists: 0, potm: 0, yellow: 0, red: 0, rested: 0, absent: 0 };
+    var o = by[r.id] = by[r.id] || { id: r.id, name: pname(r.id), teams: [], played: 0, won: 0, drawn: 0, lost: 0, goals: 0, assists: 0, potm: 0, yellow: 0, red: 0, fouls: 0, og: 0, rested: 0, absent: 0 };
     if (o.teams.indexOf(r.team_id) < 0) o.teams.push(r.team_id);
     o.played += r.p; o.won += r.w; o.drawn += r.d; o.lost += r.l; o.goals += r.goals; o.assists += r.assists; o.potm += r.potm;
-    o.yellow += r.yellow; o.red += r.red; o.rested += r.rested; o.absent += r.absent;
+    o.yellow += r.yellow; o.red += r.red; o.fouls += r.fouls; o.og += r.og; o.rested += r.rested; o.absent += r.absent;
   });
   SS.rows = Object.keys(by).map(function (k) { var o = by[k]; o.team = o.teams.map(tname).join(", "); return o; });
   var rest = document.getElementById("s-rest").value;   // absent is not rested

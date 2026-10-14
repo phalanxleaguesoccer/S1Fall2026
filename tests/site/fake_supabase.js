@@ -38,7 +38,7 @@
           if(st==='played'||(!mine&&!teamHas))gp++; if(st==='rested')rest++; if(st==='absent')abs++;
         });
         var app=gp;gp=0;
-        return {player_id:r.player_id,full_name:p.full_name,season_id:r.season_id,team_id:r.team_id,games_played:app,rested:rest,absent:abs,goals:c('goal'),assists:c('assist'),yellow_cards:c('yellow_card'),red_cards:c('red_card'),potm_awards:c('player_of_match'),saves:c('save'),tournament_awards:c('player_of_tournament'),clean_sheets:0,own_goals:c('own_goal')};
+        return {player_id:r.player_id,full_name:p.full_name,season_id:r.season_id,team_id:r.team_id,games_played:app,rested:rest,absent:abs,goals:c('goal'),assists:c('assist'),yellow_cards:c('yellow_card'),red_cards:c('red_card'),potm_awards:c('player_of_match'),saves:c('save'),tournament_awards:c('player_of_tournament'),clean_sheets:0,own_goals:c('own_goal'),fouls:c('foul')};
       });
     }
     return null;

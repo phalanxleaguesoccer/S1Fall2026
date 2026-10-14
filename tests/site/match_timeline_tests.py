@@ -23,7 +23,7 @@ with sync_playwright() as pw:
     ok('FULL TIME pill and full-time line','FULL TIME' in t and 'FULL TIME  1 – 2'.replace('  ',' ') in t.replace('\xa0',' ').replace('  ',' '),t)
     ok('yellow card sits in first half (before SECOND HALF)',t.find('YELLOW')<t.find('SECOND HALF'),t)
     ok('POTM banner with goals/assists in this match','PLAYER OF THE MATCH' in t and 'BHAGYESH RANE' in t.upper() and p.inner_text('.m-potm .nums').replace('\n',' ').split()[0]=='1',p.inner_text('.m-potm'))
-    ok('match stats bars: goals 1 vs 2, yellow 1 vs 0','MATCH STATS' in t.upper() and p.locator('.m-stat').count()==4,p.locator('.m-stat').count())
+    ok('match stats bars: goals 1 vs 2, yellow 1 vs 0','MATCH STATS' in t.upper() and p.locator('.m-stat').count()==5,p.locator('.m-stat').count())
     ok('player stats table lists Bhagyesh G=1 (events-only lineup)','PLAYER STATS' in t.upper() and p.locator('.m-ptable').count()==2,p.locator('.m-ptable').count())
     p.screenshot(path='/var/tmp/site/timeline.png',full_page=True)
     q=s.page('match.html?id=m1',1200);tt=q.inner_text('#match-root');ok('events without half go under "Half not recorded"','Half not recorded' in tt.lower() or 'HALF NOT RECORDED' in tt,tt)
