@@ -61,3 +61,19 @@ with sync_playwright() as pw:
     ok('All seasons: details explain week table is single-season',('single season' in p.inner_text('tr.det:visible').lower()))
     ok('no JS errors at end',not p.errs,p.errs)
 print(sum(R),'/',len(R))
+# --- regression: a player whose position did not change must show no arrow even when rank numbers jump (tie groups splitting)
+b=base();m=b['m'];T=b['T'];P=b['P']
+m(1,1,'Desi Steelers FC','Muggles FC','completed',0,0);m(1,2,'Renegades','Scouts FC','completed',0,0)
+m(2,1,'Desi Steelers FC','Scouts FC','completed',1,0);m(2,2,'Renegades','Muggles FC','completed',0,0)
+d=finish(b);d['match_events']=[{'id':'e0','match_id':'m2','team_id':T['Desi Steelers FC'],'player_id':P['Nasiq'],'event_type':'goal','half':1,'minute':None,'related_player_id':None,'created_at':'2026-10-07T01:00:00+00:00'}];d['match_appearances']=[]
+R2=[]
+with sync_playwright() as pw:
+    s=Site(pw,d);p=s.page('stats.html#ranking',1500);p.click('#qa-accept')
+    bad=p.evaluate("""(()=>{const ids=RK.rows.map(r=>r.id),H=RK.hist,bad=[];
+      const pos=(w,id)=>1+ids.filter(o=>H.weeks[o][w].rank<H.weeks[id][w].rank).length;
+      ids.forEach(id=>{const exp=pos(0,id)-pos(1,id);if(H.move[id]!==exp)bad.push([id,H.move[id],exp])});return bad})()""")
+    ok('movement = change in number of players strictly ahead (not change of rank number) for every player',not bad,bad)
+    jumped=p.evaluate("RK.rows.filter(r=>RK.hist.move[r.id]===0&&RK.hist.weeks[r.id][0].rank!==RK.hist.weeks[r.id][1].rank).length")
+    print('players whose rank number changed but have no arrow:',jumped)
+    ok('no JS errors (regression)',not p.errs,p.errs)
+print(sum(R),'/',len(R))

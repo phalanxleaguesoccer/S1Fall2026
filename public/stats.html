@@ -368,8 +368,8 @@ function ssSame(B, a, b) {   // share a rank only when equal on every ranking ke
 }
 function moveHtml(n) {
   if (!n) return "";
-  return n > 0 ? '<span class="mv up" title="Up ' + n + (n === 1 ? " place" : " places") + ' since the previous week">&#9650;' + n + "</span>"
-               : '<span class="mv down" title="Down ' + (-n) + (n === -1 ? " place" : " places") + ' since the previous week">&#9660;' + (-n) + "</span>";
+  return n > 0 ? '<span class="mv up" title="' + n + (n === 1 ? " player" : " players") + ' fewer ahead than the previous week">&#9650;' + n + "</span>"
+               : '<span class="mv down" title="' + (-n) + (n === -1 ? " player" : " players") + ' more ahead than the previous week">&#9660;' + (-n) + "</span>";
 }
 function weekTable(h, r) {
   if (!h || !h.weeks[r.id]) return '<p class="muted" style="margin:10px 0 0;font-size:.8rem;">Week-by-week ranking is shown when a single season is selected.</p>';
@@ -381,7 +381,7 @@ function weekTable(h, r) {
     POINT_RULES.forEach(function (rule) { var n = pp[rule[1]]; if (rule[1] !== "won" && rule[1] !== "drawn" && n) bits.push(rule[0].toLowerCase() + " \u00d7" + n); });
     return "<tr><td>Week " + (i + 1) + '</td><td class="wk-what">' + bits.join(" · ") + '</td><td class="num">' + (w.wpts > 0 ? "+" : "") + w.wpts + '</td><td class="num"><strong>' + w.total + '</strong></td><td class="num">' + moveHtml(w.move) + w.rank + (w.tied ? "=" : "") + "</td></tr>";
   }).join("");
-  return '<div class="wk-wrap"><div class="wk-title">Week by week</div><table class="wk-table"><thead><tr><th>Week</th><th>What happened</th><th class="num">Points</th><th class="num">Total</th><th class="num">Rank</th></tr></thead><tbody>' + rows + "</tbody></table></div>";
+  return '<div class="wk-wrap"><div class="wk-title">Week by week</div><table class="wk-table"><thead><tr><th>Week</th><th>What happened</th><th class="num">Points</th><th class="num">Total</th><th class="num">Rank</th></tr></thead><tbody>' + rows + '</tbody></table><p class="muted" style="font-size:.72rem;margin:4px 0 0;">Arrows count how many more or fewer players are ahead of this player than the week before. Rank numbers can jump when a big tied group splits up, without any arrow.</p></div>';
 }
 function renderBoard(B) {
   var box = document.getElementById(B.ids.body), st = B.st;
@@ -494,14 +494,16 @@ function buildHistory(matches, recs, appBy, teamHas, events) {
     rows.forEach(function (o, i) {
       var t = (i > 0 && rows[i - 1].rank === o.rank) || (i + 1 < rows.length && rows[i + 1].rank === o.rank);
       var wkRow = out.weeks[o.id][di]; wkRow.rank = o.rank; wkRow.tied = t;
+      var first = i; while (first > 0 && rows[first - 1].rank === o.rank) first--;
+      wkRow.pos = first + 1;   // 1 + number of players strictly ahead: tie groups growing or splitting must not count as movement
     });
   });
   // movement after the latest week vs the week before (positive = climbed)
   out.move = {};
   ids.forEach(function (id) {
     var w = out.weeks[id], n = w.length;
-    out.move[id] = n >= 2 ? w[n - 2].rank - w[n - 1].rank : 0;
-    for (var i = 0; i < n; i++) w[i].move = i > 0 ? w[i - 1].rank - w[i].rank : 0;
+    out.move[id] = n >= 2 ? w[n - 2].pos - w[n - 1].pos : 0;
+    for (var i = 0; i < n; i++) w[i].move = i > 0 ? w[i - 1].pos - w[i].pos : 0;
   });
   return out;
 }
