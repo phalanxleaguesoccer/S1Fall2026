@@ -39,7 +39,7 @@ with sync_playwright() as pw:
     bl=rec('Bilal Yaser');ok('Bilal rested 1, played 0',bl[col('rested')].strip()=='1' and bl[col('played')].strip()=='0',bl)
     vv=rec('Varun');ok('Varun yellow 1',vv[col('yellow')].strip()=='1',vv)
     full=names()
-    ok('no-card group: anyone who played above a non-player; every card-free player above every carded player',full.index('Amritpal Singh')<full.index('Ajinkya P') and max(full.index(n) for n in ['Ayush','Nasiq','Rishabh Devgon','Vignesh','Amritpal Singh','Ajinkya P'])<min(full.index(n) for n in ['Varun','Bhagyesh Rane','Bilal Yaser']),full)
+    ok('players with 0 matches (Ajinkya, Bilal) are last; everyone who played is above them, even with cards',set(full[-2:])=={'Ajinkya P','Bilal Yaser'} and full.index('Bhagyesh Rane')<full.index('Ajinkya P'),full)
     ok('draws above loss: Amritpal/Vignesh (1 draw) above Bhagyesh (1 loss)',max(full.index('Amritpal Singh'),full.index('Vignesh'))<full.index('Bhagyesh Rane'),full)
     ok('more played breaks tie: Vignesh (2 draws) above Amritpal (1 draw)',full.index('Vignesh')<full.index('Amritpal Singh'),full)
     ok('Ayush (absent) ranks below... equal goals/assists but see rank 1 by assists',full[0]=='Ayush')
