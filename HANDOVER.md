@@ -87,3 +87,9 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Event type `foul` (player_id = who committed it), tracked with or without a card. A yellow/red card is always also a foul: the admin form has an "Also record this as a foul" checkbox (default on) that logs foul + card together; the match page shows them as one row ("Foul · Yellow card").
 - Run `sql/migration_fouls.sql`: adds `fouls` to `player_season_stats` and back-fills a foul for every existing card (idempotent).
 - Shown on: match page (Fouls stat bar, FL column, FOUL chip, "N fouls" line), Stats > Milestones > Fouls tab (details say which card, if any), Season Stats Fouls and OG columns (not part of ranking), player profile Fouls column, team page totals (OG and Fouls).
+
+## Week 2 (Match Day 2 = Matches 5-8) (added 14 Oct)
+- New: toss (`matches.toss_winner_team_id`, `toss_choice` side|kickoff), event seconds (`match_events.second`) and penalty flag (`is_penalty`). Run `sql/migration_day2_fields.sql`, then `sql/day2_results.sql` (scores, toss, lineups, events; re-runnable; validates every name/squad).
+- Match page shows the toss, times as m:ss when seconds were entered, "(pen)" under the scoreboard and "Penalty" on the goal row; an own goal can carry an assist (assist.related_player_id = own-goal scorer).
+- Admin: event form has Second + Penalty; the Match Lineup card has Toss won by / Chose.
+- "Saurabh" in the sheet = Vija (Desi Steelers FC); "Rishab" = Rishabh Devgon; "Amrit" = Amritpal Singh; "Vamsi" = Vamshi.

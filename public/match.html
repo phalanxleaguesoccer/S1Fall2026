@@ -114,13 +114,17 @@ function crest(t, size) {
     : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:Anton,sans-serif;font-size:' + (size || "30px") + ';color:var(--chalk-dim);">' + escapeHtml(t.name.slice(0, 1).toUpperCase()) + "</div>";
 }
 function plink(p, text) { return '<a href="player.html?id=' + p.id + '">' + escapeHtml(text || p.full_name) + "</a>"; }
+function clock(e) {   // "8:20" when seconds were recorded, "8'" otherwise
+  if (e.minute == null) return "";
+  return e.second != null ? e.minute + ":" + (e.second < 10 ? "0" : "") + e.second : e.minute + "'";
+}
 function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
 
 // Order inside a half: by minute when every event in that half has one, otherwise the order they were entered.
 function ordered(arr) {
   var allMin = arr.every(function (e) { return e.minute != null; });
   return arr.map(function (e, i) { return { e: e, i: i }; }).sort(function (x, y) {
-    return (allMin ? x.e.minute - y.e.minute : 0) || x.i - y.i;
+    return (allMin ? (x.e.minute * 60 + (x.e.second || 0)) - (y.e.minute * 60 + (y.e.second || 0)) : 0) || x.i - y.i;
   }).map(function (o) { return o.e; });
 }
 // Pair each goal with its assist (explicit link first, else next unused assist from the same team in that half).
@@ -128,13 +132,14 @@ function pairAssists(arr) {
   var used = {}, goalAssist = {};
   var assists = arr.filter(function (e) { return e.event_type === "assist"; });
   arr.forEach(function (g) {
-    if (g.event_type !== "goal") return;
+    if (g.event_type !== "goal" && g.event_type !== "own_goal") return;
     var hit = assists.filter(function (a) { return !used[a.id] && ((g.related_player_id && a.player_id === g.related_player_id) || a.related_player_id === g.player_id); })[0];
     if (hit) { used[hit.id] = 1; goalAssist[g.id] = hit; }
   });
   arr.forEach(function (g) {
-    if (g.event_type !== "goal" || goalAssist[g.id]) return;
-    var hit = assists.filter(function (a) { return !used[a.id] && a.team_id === g.team_id && a.player_id !== g.player_id; })[0];
+    if ((g.event_type !== "goal" && g.event_type !== "own_goal") || goalAssist[g.id]) return;
+    var og = g.event_type === "own_goal";   // an own goal's assist comes from the other team
+    var hit = assists.filter(function (a) { return !used[a.id] && (og ? a.team_id !== g.team_id : a.team_id === g.team_id) && a.player_id !== g.player_id; })[0];
     if (hit) { used[hit.id] = 1; goalAssist[g.id] = hit; }
   });
   return { used: used, goalAssist: goalAssist };
@@ -183,14 +188,14 @@ async function loadMatch() {
     else if (e.event_type === "player_of_tournament") awards.push(e);
   });
   function scorersText(teamId) {
-    var by = {}, order = [], ogs = [];
+    var by = {}, order = [], ogs = [], pens = {};
     evs.forEach(function (e) {
       if (e.event_type === "own_goal" && e.team_id !== teamId) { ogs.push(plink(P[e.player_id]) + " (og)"); return; }   // other team's player put it in
       if (e.event_type !== "goal" || e.team_id !== teamId) return;
-      if (!by[e.player_id]) { by[e.player_id] = 0; order.push(e.player_id); }
-      by[e.player_id]++;
+      if (!by[e.player_id]) { by[e.player_id] = 0; pens[e.player_id] = 0; order.push(e.player_id); }
+      by[e.player_id]++; if (e.is_penalty) pens[e.player_id]++;
     });
-    return order.map(function (id) { return plink(P[id]) + (by[id] > 1 ? " ×" + by[id] : ""); }).concat(ogs).join(" · ");
+    return order.map(function (id) { return plink(P[id]) + (by[id] > 1 ? " ×" + by[id] : "") + (pens[id] ? " (" + (by[id] > 1 ? pens[id] + " " : "") + "pen)" : ""); }).concat(ogs).join(" · ");
   }
 
   // ---- timeline pieces (halves, running score) ----
@@ -223,12 +228,13 @@ async function loadMatch() {
       if (e.event_type === "goal") {
         if (e.team_id === home.id) rh++; else if (e.team_id === away.id) ra++;
         var as = pa.goalAssist[e.id];
-        sub = as ? "Assist: " + plink(as.players) : "Unassisted";
+        sub = (e.is_penalty ? "Penalty · " : "") + (as ? "Assist: " + plink(as.players) : (e.is_penalty ? "" : "Unassisted")); sub = sub.replace(/ · $/, "");
         score = rh + " – " + ra;
       } else if (e.event_type === "own_goal") {
         var benefit = e.team_id === home.id ? away : home;
         if (benefit.id === home.id) rh++; else ra++;
-        sub = "Counts for " + escapeHtml(benefit.name);
+        var oas = pa.goalAssist[e.id];
+        sub = "Counts for " + escapeHtml(benefit.name) + (oas ? " · Assist: " + plink(oas.players) : "");
         score = rh + " – " + ra;
       } else if (e.event_type === "assist") sub = "Assist";
       else if (e.event_type === "foul") sub = "Foul committed";
@@ -237,7 +243,7 @@ async function loadMatch() {
       else if (e.event_type === "save") sub = "Goal saved";
       else sub = "Substitution";
       tl += '<div class="m-ev"><span class="m-chip ' + c[1] + '">' + c[0] + '</span><div><div class="main">' + plink(e.players) + " (" + escapeHtml(e.teams.name) + ')</div><div class="m-sub">' + sub +
-        (e.minute != null ? " · " + e.minute + "'" : "") + '</div></div><span class="score">' + score + "</span></div>";
+        (e.minute != null ? " · " + clock(e) : "") + '</div></div><span class="score">' + score + "</span></div>";
     });
     if (h.key === 1) { htHome = rh; htAway = ra; }
   });
@@ -247,6 +253,8 @@ async function loadMatch() {
   var html = "";
 
   // ---- hero ----
+  var tossTeam = m.toss_winner_team_id === home.id ? home : (m.toss_winner_team_id === away.id ? away : null);
+  var tossText = tossTeam ? "<span>Toss: " + escapeHtml(tossTeam.name) + (m.toss_choice === "kickoff" ? " · chose to kick off" : (m.toss_choice === "side" ? " · chose side" : "")) + "</span>" : "";
   var scoreBig = done ? m.home_score + " <span>–</span> " + m.away_score : (m.status === "forfeited" ? '<span style="font-size:48px;">Forfeit</span>' : "<span>vs</span>");
   var pillText = done ? "FULL TIME" : m.status.toUpperCase();
   html += '<section class="m-card m-hero"><div class="m-hero-top"><span>Match Day ' + m.match_day + " · Match " + m.match_number + '</span><span class="m-ft' + (done ? "" : " other") + '">' + pillText + "</span>" +
@@ -255,7 +263,7 @@ async function loadMatch() {
       '<div class="m-side home"><div><div class="m-team"><a href="team.html?id=' + home.id + '">' + escapeHtml(home.name) + '</a></div><div class="m-scorers">' + (done ? scorersText(home.id) : "") + '</div></div><div class="m-crest">' + crest(home) + "</div></div>" +
       '<div class="m-score"><div class="big">' + scoreBig + "</div>" + (hasHalfTime ? '<div class="m-sub" style="margin-top:8px;">Half-time ' + htHome + " – " + htAway + "</div>" : "") + "</div>" +
       '<div class="m-side away"><div class="m-crest">' + crest(away) + '</div><div><div class="m-team"><a href="team.html?id=' + away.id + '">' + escapeHtml(away.name) + '</a></div><div class="m-scorers">' + (done ? scorersText(away.id) : "") + "</div></div></div>" +
-    '</div><div class="m-meta"><span id="page-views"></span></div></section>';
+    '</div><div class="m-meta">' + tossText + '<span id="page-views"></span></div></section>';
 
   // ---- player of the match ----
   if (potm.length) {

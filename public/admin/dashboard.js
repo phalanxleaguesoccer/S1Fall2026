@@ -365,7 +365,9 @@ async function onLogEvent(e) {
     player_id: document.getElementById("e-player").value,
     event_type: document.getElementById("e-type").value,
     half: parseInt(document.getElementById("e-half").value, 10),
-    minute: document.getElementById("e-minute").value ? parseInt(document.getElementById("e-minute").value, 10) : null
+    minute: document.getElementById("e-minute").value ? parseInt(document.getElementById("e-minute").value, 10) : null,
+    second: document.getElementById("e-second").value !== "" ? parseInt(document.getElementById("e-second").value, 10) : null,
+    is_penalty: document.getElementById("e-pen").checked && (document.getElementById("e-type").value === "goal")
   };
   if (!payload.match_id || !payload.team_id || !payload.player_id) { showError(msg, "Match, team, and player are all required."); return; }
   var rows = [payload];
@@ -438,7 +440,10 @@ async function loadLineup() {
   var existing = {}; (apRes.data || []).forEach(function (a) { existing[a.player_id] = a; });
   var teamsById = {}; TEAMS_CACHE.forEach(function (t) { teamsById[t.id] = t; });
   LINEUP = { match: m, rows: rosterRes.data || [], existing: existing };
-  body.innerHTML = [m.home_team_id, m.away_team_id].map(function (tid) {
+  var tossHtml = '<div class="row" style="margin-top:6px;"><div><label>Toss won by</label><select id="lu-toss"><option value="">— not recorded —</option>' +
+    [m.home_team_id, m.away_team_id].map(function (tid) { return '<option value="' + tid + '"' + (m.toss_winner_team_id === tid ? " selected" : "") + ">" + escapeHtml(teamsById[tid] ? teamsById[tid].name : "?") + "</option>"; }).join("") +
+    '</select></div><div><label>Chose</label><select id="lu-toss-choice"><option value="">—</option><option value="side"' + (m.toss_choice === "side" ? " selected" : "") + '>Side</option><option value="kickoff"' + (m.toss_choice === "kickoff" ? " selected" : "") + ">Start / kick off</option></select></div></div>";
+  body.innerHTML = tossHtml + [m.home_team_id, m.away_team_id].map(function (tid) {
     var squad = LINEUP.rows.filter(function (r) { return r.team_id === tid && r.players; })
       .sort(function (a, b) { return (b.is_owner ? 1 : 0) - (a.is_owner ? 1 : 0) || a.players.full_name.localeCompare(b.players.full_name); });
     return '<h3 style="margin:14px 0 6px;">' + escapeHtml(teamsById[tid] ? teamsById[tid].name : "?") + "</h3>" +
@@ -464,7 +469,9 @@ async function saveLineup() {
   });
   var res = await window.sb.from("match_appearances").upsert(rows, { onConflict: "match_id,player_id" });
   if (res.error) { showError(msg, res.error.message); return; }
-  showSuccess(msg, "Lineup saved: " + c.played + " played, " + c.rested + " rested, " + c.absent + " absent.");
+  var tossRes = await window.sb.from("matches").update({ toss_winner_team_id: document.getElementById("lu-toss").value || null, toss_choice: document.getElementById("lu-toss-choice").value || null }).eq("id", LINEUP.match.id);
+  if (tossRes.error) { showError(msg, "Lineup saved, but the toss could not be saved (run sql/migration_day2_fields.sql first): " + tossRes.error.message); return; }
+  showSuccess(msg, "Lineup and toss saved: " + c.played + " played, " + c.rested + " rested, " + c.absent + " absent.");
 }
 
 async function onLogAppearance(e) {

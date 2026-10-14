@@ -103,7 +103,7 @@ function sortChrono(list) {
     var ma = MATCHES[a.match_id], mb = MATCHES[b.match_id];
     if (ma.match_day !== mb.match_day) return ma.match_day - mb.match_day;
     if (ma.match_number !== mb.match_number) return ma.match_number - mb.match_number;
-    if (allMin[a.match_id] && a.minute !== b.minute) return a.minute - b.minute;
+    if (allMin[a.match_id]) { var ta0 = a.minute * 60 + (a.second || 0), tb0 = b.minute * 60 + (b.second || 0); if (ta0 !== tb0) return ta0 - tb0; }
     var ta = a.created_at || "", tb = b.created_at || "";
     if (ta !== tb) return ta < tb ? -1 : 1;
     return String(a.id) < String(b.id) ? -1 : 1;
@@ -113,17 +113,17 @@ function sortChrono(list) {
 // Link each goal with its assist (goal.related_player_id when set, otherwise the
 // next unmatched assist by the same team in the same match).
 function pairAssists(events) {
-  var goals = sortChrono(events.filter(function (e) { return e.event_type === "goal"; }));
+  var goals = sortChrono(events.filter(function (e) { return e.event_type === "goal" || e.event_type === "own_goal"; }));
   var assists = sortChrono(events.filter(function (e) { return e.event_type === "assist"; }));
   var goalOfAssist = {}, assistOfGoal = {}, used = {};
   goals.forEach(function (g) {
     if (!g.related_player_id) return;
-    var a = assists.find(function (x) { return !used[x.id] && x.match_id === g.match_id && x.team_id === g.team_id && x.player_id === g.related_player_id; });
+    var a = assists.find(function (x) { return !used[x.id] && x.match_id === g.match_id && (g.event_type === "own_goal" || x.team_id === g.team_id) && x.player_id === g.related_player_id; });
     if (a) { used[a.id] = true; assistOfGoal[g.id] = a; goalOfAssist[a.id] = g; }
   });
   goals.forEach(function (g) {
     if (assistOfGoal[g.id] || g.related_player_id) return;
-    var a = assists.find(function (x) { return !used[x.id] && x.match_id === g.match_id && x.team_id === g.team_id; });
+    var a = assists.find(function (x) { return !used[x.id] && x.match_id === g.match_id && (g.event_type === "own_goal" ? x.team_id !== g.team_id : x.team_id === g.team_id); });
     if (a) { used[a.id] = true; assistOfGoal[g.id] = a; goalOfAssist[a.id] = g; }
   });
   return { assistOfGoal: assistOfGoal, goalOfAssist: goalOfAssist };
@@ -241,8 +241,9 @@ function renderMilestones() {
         var card = myCards[myFouls.indexOf(e)];
         extra = "<div><span>Card given</span>" + (card ? (card.event_type === "red_card" ? "Red card" : "Yellow card") : "No card") + "</div>";
       }
-      if (cfg.type === "own_goal") extra = "<div><span>Counts as a goal for</span>" + escapeHtml(tname(opp)) + "</div>";
-      if (cfg.type === "assist") { var g = pairs.goalOfAssist[e.id]; extra = '<div><span>Goal scored by</span>' + (g ? escapeHtml(pname(g.player_id)) : "Not linked") + "</div>"; }
+      if (cfg.type === "own_goal") { var oa = pairs.assistOfGoal[e.id]; extra = "<div><span>Counts as a goal for</span>" + escapeHtml(tname(opp)) + "</div>" + (oa ? "<div><span>Assist by</span>" + escapeHtml(pname(oa.player_id)) + "</div>" : ""); }
+      if (e.is_penalty) extra += "<div><span>Penalty</span>Yes</div>";
+      if (cfg.type === "assist") { var g = pairs.goalOfAssist[e.id]; extra = '<div><span>Goal scored by</span>' + (g ? escapeHtml(pname(g.player_id)) + (g.event_type === "own_goal" ? " (own goal)" : "") : "Not linked") + "</div>"; }
       var det =
         '<div class="det-grid">' +
         "<div><span>Season</span>" + escapeHtml(seasonName) + "</div>" +
@@ -251,7 +252,7 @@ function renderMilestones() {
         "<div><span>Opponent</span>" + escapeHtml(tname(opp)) + "</div>" +
         "<div><span>Final score</span>" + escapeHtml(score) + "</div>" +
         "<div><span>Half</span>" + halfText(e) + "</div>" +
-        (e.minute != null ? "<div><span>Minute</span>" + e.minute + "'</div>" : "") +
+        (e.minute != null ? "<div><span>Time</span>" + (e.second != null ? e.minute + ":" + (e.second < 10 ? "0" : "") + e.second : e.minute + "'") + "</div>" : "") +
         extra +
         "<div><span>" + cfg.title + " number in tournament</span>" + ordinal(tourN[e.id]) + "</div>" +
         "<div><span>" + cfg.title + " number for " + escapeHtml(tname(e.team_id)) + "</span>" + ordinal(teamN[e.id]) + "</div>" +
