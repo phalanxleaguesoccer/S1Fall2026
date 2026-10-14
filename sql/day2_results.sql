@@ -107,7 +107,7 @@ begin
 end $$;
 
 -- Check: results and event counts for Match Day 2
-select m.match_number, h.name as home, m.home_score, m.away_score, a.name as away, m.status,
+select m.match_number, h.name as team_1, m.home_score as team_1_goals, m.away_score as team_2_goals, a.name as team_2, m.status,
   (select name from teams where id = m.toss_winner_team_id) as toss_won_by, m.toss_choice,
   (select count(*) from match_appearances x where x.match_id = m.id and x.status = 'played') as played,
   (select count(*) from match_appearances x where x.match_id = m.id and x.status = 'rested') as rested,
