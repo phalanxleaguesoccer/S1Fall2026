@@ -25,7 +25,7 @@ with sync_playwright() as pw:
     p.locator('#ms-body table').nth(1).locator('[data-det]').first.click()
     link=p.locator('tr.det:visible a[href^="match.html"]')
     ok('Bilal details: played/rested/absent counts + rested match linking to match page',link.count()==1 and link.first.get_attribute('href')=='match.html?id=m0' and 'Day 1 · Match 1' in link.first.inner_text() and 'Desi Steelers FC' in link.first.inner_text(),p.inner_text('tr.det:visible'))
-    link.first.click();p.wait_for_timeout(1200);ok('click on match opens that match page',p.url.endswith('match.html?id=m0') and 'muggles fc' in p.inner_text('#match-title').lower(),(p.url,p.inner_text('#match-title'),p.errs))
+    link.first.click();p.wait_for_timeout(1200);ok('click on match opens that match page',p.url.endswith('match.html?id=m0') and 'muggles fc' in p.inner_text('.m-board').lower(),(p.url,p.errs))
     p.go_back();p.wait_for_timeout(1200);p.click('[data-tab=rested]');p.select_option('#f-view',T['Muggles FC'])
     p.locator('#ms-body table').first.locator('[data-det]').first.click()
     ok('never-rested player details list matches played (Amritpal played Day1 M1)','Matches played' in p.inner_text('tr.det:visible') and p.locator('tr.det:visible a[href="match.html?id=m0"]').count()==1,p.inner_text('tr.det:visible'))
@@ -36,9 +36,9 @@ with sync_playwright() as pw:
     ok('Absent per team (Desi): never absent 2 (Nasiq owner, Vignesh), absent at least once 1 (Ayush)',hh==['never absent (2)','absent at least once (1)'] and 'ayush' in p.inner_text('#ms-body').lower().split('absent at least once')[1],hh)
     p.select_option('#f-view',T['Renegades']);ok('Absent tab, team with nobody absent: everyone listed under never absent',p.inner_text('#ms-body').lower().count('never absent (2)')==1 and 'absent at least once (0)' in p.inner_text('#ms-body').lower(),p.inner_text('#ms-body'))
     # match page
-    q=s.page('match.html?id=m0',1500);lt=q.inner_text('#lineups')
-    ok('match page lineups: played/rested/absent per team',q.is_visible('#lineups-card') and 'Rested (1): Bilal Yaser' in lt and 'Absent (1): Ayush' in lt and 'Played (2): Amritpal Singh' in lt.replace('\n',' ') or ('Played (2)' in lt and 'Nasiq' in lt),lt)
-    q=s.page('match.html?id=m3',1200);ok('match page without lineup: no lineup card, no errors',not q.is_visible('#lineups-card') and not q.errs,q.errs)
+    q=s.page('match.html?id=m0',1500);lt=q.inner_text('#match-root').replace('\n',' ')
+    ok('match page lineups: played/rested/absent per team','RESTED (1)' in lt and 'Bilal Yaser' in lt and 'ABSENT (1)' in lt and 'Ayush' in lt and 'PLAYED (2)' in lt and 'Amritpal Singh' in lt,lt)
+    q=s.page('match.html?id=m3',1200);ok('match page without lineup: no lineup card, no errors','WHO PLAYED' not in q.inner_text('#match-root').upper() and not q.errs,q.errs)
     # schedule
     q=s.page('matches.html',1500);bt=q.inner_text('#days-list')
     ok('schedule shows rested/absent counts',('Rested: Muggles FC 1' in bt) and ('Absent: Desi Steelers FC 1' in bt) and ('Rested: Scouts FC 1' in bt),bt)
