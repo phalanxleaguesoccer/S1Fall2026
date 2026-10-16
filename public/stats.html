@@ -19,7 +19,7 @@
   #rk-body .table-scroll { overflow-x: visible; }
   #rk-body table.data-table { width:100%; }
   #rk-body table.data-table th, #rk-body table.data-table td { padding:9px 5px; }
-  #rk-body .rk-sub, #rk-body .rk-detbtn { display:none; }
+  #rk-body .rk-sub, #rk-body .rk-detbtn, #rk-body th .sh, #rk-body .rk-legend { display:none; }
   @media (max-width: 1000px) {
     #rk-body table.data-table th, #rk-body table.data-table td { padding:8px 3px; font-size:.8rem; }
     #rk-body table.data-table th { letter-spacing:0; }
@@ -33,8 +33,10 @@
     #rk-body table.data-table th, #rk-body table.data-table td { padding:7px 1px; font-size:.7rem; }
     #rk-body th.team-name:nth-child(3), #rk-body td.team-name:nth-child(3) { display:none; }
     #rk-body td.team-name:nth-child(2) { white-space:normal; word-break:break-word; line-height:1.2; padding-left:4px; }
+    #rk-body .rk-legend { display:block; }
     #rk-body .rk-sub { display:block; color:var(--chalk-dim); font-size:.62rem; }
-    #rk-body table.data-table th.num:not(:first-child) { writing-mode:vertical-rl; transform:rotate(180deg); height:56px; vertical-align:bottom; text-align:left; font-size:.62rem; padding:4px 0; white-space:nowrap; }
+    #rk-body table.data-table th.num { font-size:.58rem; padding:6px 0; white-space:nowrap; overflow:visible; letter-spacing:0; }
+    #rk-body th .lg { display:none; } #rk-body th .sh { display:inline; }
     #rk-body .btn.small { padding:3px 2px; font-size:.58rem; min-width:0; }
     #rk-body td.ms-n .mv { display:block; margin:0; font-size:.55rem; line-height:1; }
     #rk-body table.wk-table th, #rk-body table.wk-table td { padding:4px 3px; font-size:.7rem; white-space:normal; }
@@ -47,6 +49,7 @@
   table.wk-table th, table.wk-table td { padding:5px 6px; text-align:left; border-bottom:1px solid var(--card-edge); }
   table.wk-table th.num, table.wk-table td.num { text-align:right; white-space:nowrap; }
   table.wk-table th { font-size:.7rem; color:var(--chalk-dim); text-transform:uppercase; }
+  @media (max-width: 360px) { #rk-body col.c-name { width:68px; } #rk-body table.data-table th.num { font-size:.5rem; } }
   .det-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:6px 18px; }
   .det-grid div span { color:var(--chalk-dim); font-size:.78rem; display:block; }
   .btn.small { padding:3px 12px; font-size:.8rem; }
@@ -330,6 +333,7 @@ var SS_COLS = [
   ["yellow", "Yellow", "Yellow cards"], ["red", "Red", "Red cards"], ["fouls", "Fouls", "Fouls committed"], ["og", "OG", "Own goals"],
   ["rested", "Rested", "Matches rested"], ["absent", "Absent", "Matches absent"]
 ];
+var SHORT = { points: "Pts", played: "P", won: "W", drawn: "D", lost: "L", goals: "G", assists: "A", potm: "PM", yellow: "YC", red: "RC", fouls: "F", og: "OG", rested: "Rs", absent: "Ab" };
 var RK_COLS = [["points", "Points", "Player points (see Details for the breakdown)"]].concat(SS_COLS);
 // Season Stats order: players who played at least one match first (0-match players are always last); then no cards above any cards;
 // then Goals > Assists > POTM > Won > Drawn > fewer Lost > more Played > fewer Yellow > fewer Red > more Rested > fewer Absent.
@@ -394,7 +398,7 @@ function renderBoard(B) {
   var arrow = function (k) { return st.sort === k ? (st.dir > 0 ? " ▲" : " ▼") : ""; };
   var head = '<th class="num">#</th><th class="team-name sortable' + (st.sort === "name" ? " sorted" : "") + '" data-sort="name">Player' + arrow("name") + '</th><th class="team-name">Team</th>' +
     B.cols.map(function (c) {
-      return '<th class="num sortable' + (st.sort === c[0] ? " sorted" : "") + '" data-sort="' + c[0] + '" title="' + c[2] + ' (click to rank by this)">' + c[1] + arrow(c[0]) + "</th>";
+      return '<th class="num sortable' + (st.sort === c[0] ? " sorted" : "") + '" data-sort="' + c[0] + '" title="' + c[2] + ' (click to rank by this)">' + (B.details ? '<span class="lg">' + c[1] + '</span><span class="sh">' + SHORT[c[0]] + '</span>' : c[1]) + arrow(c[0]) + "</th>";
     }).join("") + (B.details ? '<th class="detcol"></th>' : "");
   var span = B.cols.length + 3 + (B.details ? 1 : 0);
   var body = rows.map(function (r, i) {
@@ -411,7 +415,7 @@ function renderBoard(B) {
     : 'P/W/D/L = matches the player actually played and the team\'s result in them. Players with 0 matches are always at the bottom. Above them, players with no yellow or red cards rank above players with any card. Within each group: Goals, Assists, POTM, Won, Drawn, fewer Lost, more Played, fewer Yellow, fewer Red, more Rested, fewer Absent. Players equal on all of these share a rank, shown with "=" (e.g. 5=).';
   var colg = B.details ? '<colgroup><col class="c-n"><col class="c-name"><col class="c-team">' + B.cols.map(function (c) { return '<col class="' + (c[0] === "points" ? "c-pts" : "c-num") + '">'; }).join("") + '<col class="c-det"></colgroup>' : "";
   box.innerHTML = '<div class="table-scroll"><table class="data-table">' + colg + '<thead><tr>' + head + "</tr></thead><tbody>" + (body || '<tr><td colspan="' + span + '" class="text-center muted">No player matches that name.</td></tr>') + "</tbody></table></div>" +
-    '<p class="muted" style="font-size:.78rem;margin-top:8px;">' + note + "</p>";
+    (B.details ? '<p class="muted rk-legend" style="font-size:.72rem;margin-top:8px;">Pts points &middot; P played &middot; W won &middot; D drawn &middot; L lost &middot; G goals &middot; A assists &middot; PM player of the match &middot; YC yellow &middot; RC red &middot; F fouls &middot; OG own goals &middot; Rs rested &middot; Ab absent</p>' : "") + '<p class="muted" style="font-size:.78rem;margin-top:8px;">' + note + "</p>";
   box.querySelectorAll("th.sortable").forEach(function (th) {
     th.addEventListener("click", function () {
       var k = th.dataset.sort;
