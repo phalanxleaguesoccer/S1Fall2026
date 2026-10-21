@@ -2,7 +2,7 @@
 -- Run sql/migration_captains.sql FIRST. Safe to re-run. Re-run this file after re-running any day*_results.sql
 -- (those rebuild the lineups and clear captain flags).
 -- No stand-in concept: whoever captained a match is its captain (Match 5 Bhagyesh Rane, Match 9 Vija).
--- Captain changes in order: Match 5 Bhagyesh (Scouts), Match 9 Vija (Desi), Match 10 Chirag (Renegades), plus the switches back.
+-- Captain changes in order: Match 5 Bhagyesh (Scouts), Match 9 Vija (Desi), Match 10 Chirag (Renegades), Match 12 Nuhu Okikiri (Renegades; Chirag rested), plus the switches back.
 do $$
 declare
   s uuid := (select id from seasons where is_current limit 1);
@@ -24,7 +24,7 @@ begin
       (3,1,'Muggles FC','Amritpal Singh',false),(3,1,'Desi Steelers FC','Vija',true),
       (3,2,'Renegades','Chirag',false),(3,2,'Scouts FC','Pradnyal Gandhi',false),
       (3,3,'Desi Steelers FC','Nasiq',false),(3,3,'Scouts FC','Pradnyal Gandhi',false),
-      (3,4,'Muggles FC','Amritpal Singh',false),(3,4,'Renegades','Chirag',false)
+      (3,4,'Muggles FC','Amritpal Singh',false),(3,4,'Renegades','Nuhu Okikiri',false)
     ) v(d, n, team, who, stand)
   loop
     select id into mid from matches where season_id = s and match_day = r.d and match_number = r.n;

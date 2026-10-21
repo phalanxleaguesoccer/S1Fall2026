@@ -113,7 +113,7 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Results: M9 Muggles 1-0 Desi, M10 Renegades 1-0 Scouts, M11 Scouts 2-0 Desi (Pradnyal's goal a penalty), M12 Muggles 2-0 Renegades (sheet said "Desi Steelers 0-0 Renegades"; owner confirmed 2-0 Muggles).
 
 ## Captains
-- Data lives on `match_appearances.is_captain` (existing column) + new `captain_stand_in` (run `sql/migration_captains.sql`; one captain per team per match via a partial unique index). `sql/captains.sql` records Day 1-3 (Varun to Chirag on Renegades from Day 3 = first captain change of the league; Bhagyesh stood in for Pradnyal in Match 5; Vija for Nasiq in Match 9; Chirag stayed Renegades captain in Match 12 although rested). Re-run `captains.sql` after re-running any `dayN_results.sql` (they rebuild lineups and clear the flags).
+- Data lives on `match_appearances.is_captain` (existing column) + new `captain_stand_in` (run `sql/migration_captains.sql`; one captain per team per match via a partial unique index). `sql/captains.sql` records Day 1-3 (Varun to Chirag on Renegades from Day 3 = first captain change of the league; Bhagyesh stood in for Pradnyal in Match 5; Vija for Nasiq in Match 9; Nuhu Okikiri captained Renegades in Match 12 (Chirag rested)). Re-run `captains.sql` after re-running any `dayN_results.sql` (they rebuild lineups and clear the flags).
 - `captainTimeline()` in `common.js` derives changes/stand-ins/current captain; used by Stats > Milestones > Captains, team page "Captains" card, player page "Captaincy" card. Match page shows (C) badges + "Captain:" line. Admin > Records > Match Lineup has a Captain select per team and a stand-in tick box (saving needs the migration).
 - Tests: `tests/site/captain_tests.py`.
 
@@ -139,3 +139,4 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - League order of changes: Match 5 Bhagyesh (Scouts) = 1st (flagged "first captain change"), Match 9 Vija (Desi) = 2nd, Match 10 Chirag (Renegades) = 3rd, then Pradnyal (M7) and Nasiq (M11) return.
 - Captains stats table: Player, Team, Matches, Won, Drawn, Lost, Win %, Goals for, POTM. Admin lineup has only the captain selector.
 - DB column `match_appearances.captain_stand_in` is left in place but unused (captains.sql resets it to false).
+- Correction: Match 12 (Day 3 M4) Renegades captain was Nuhu Okikiri, not Chirag (Chirag rested). Renegades timeline: Varun (M2-M3, M6, M8), Chirag (M10), Nuhu (M12). Changes now 6 league-wide; Nuhu's switch is the latest.
