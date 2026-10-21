@@ -64,7 +64,7 @@ begin
     select * from (values
       -- Match 9: Muggles FC 1-0 Desi Steelers FC
       (1,'Muggles FC','Amritpal Singh','goal',1,8,5,null::text,false),
-      (1,'Desi Steelers FC','Kaushik','foul',2,16,10,null,false),
+      (1,'Desi Steelers FC','Kaushik Apte','foul',2,16,10,null,false),
       (1,'Muggles FC','Amritpal Singh','player_of_match',null,null,null,null,false),
       -- Match 10: Renegades 1-0 Scouts FC
       (2,'Renegades','Varun','goal',1,5,48,null,false),
