@@ -110,6 +110,7 @@
       <button type="button" data-tab="rested">Rested</button>
       <button type="button" data-tab="absent">Absent</button>
       <button type="button" data-tab="captains">Captains</button>
+      <button type="button" data-tab="injury">Injury</button>
     </div>
     <div class="filters">
       <div><label class="muted" for="f-season">Season</label><select id="f-season"></select></div>
@@ -144,7 +145,8 @@ var TABS = {
   fouls:   { type: "foul",        title: "Foul",        none: "No fouls recorded yet." },
   rested:  { att: "rested",       title: "Rested",      none: "Nobody has been rested yet." },
   absent:  { att: "absent",       title: "Absent",      none: "Nobody has been absent yet." },
-  captains: { cap: true,          title: "Captain",     none: "No captains recorded yet." }
+  captains: { cap: true,          title: "Captain",     none: "No captains recorded yet." },
+  injury:  { inj: true,           title: "Injury",      none: "No injuries recorded yet." }
 };
 var TAB = "goals", SEASONS = [], TEAMS = {}, PLAYERS = {}, MATCHES = {}, EVENTS = [], APPS = [], ROSTER = [], SEASON_ID = null;
 
@@ -326,8 +328,54 @@ function renderCaptains(cfg, view) {
     '<h3 style="margin:18px 0 6px;">Captain in every match</h3>' + log;
 }
 
+var INJ = { season: "current", rows: null };
+async function renderInjuries(cfg) {
+  var box = document.getElementById("ms-body");
+  if (!INJ.rows) {
+    box.innerHTML = '<p class="muted">Loading…</p>';
+    var aRes = await window.sb.from("match_appearances").select("*").eq("absent_reason", "injury");
+    var apps = (aRes.data || []).filter(function (a) { return a.status === "absent"; });
+    var mids = apps.map(function (a) { return a.match_id; });
+    var mm = {};
+    if (mids.length) { var mRes = await window.sb.from("matches").select("*").in("id", mids); (mRes.data || []).forEach(function (m) { mm[m.id] = m; }); }
+    INJ.rows = apps.filter(function (a) { return mm[a.match_id] && mm[a.match_id].status === "completed"; }).map(function (a) { return { app: a, match: mm[a.match_id] }; });
+  }
+  var cur = INJ.season === "current" ? SEASON_ID : INJ.season;
+  var seasonOpts = SEASONS.map(function (x) { return '<option value="' + x.id + '"' + (cur === x.id ? " selected" : "") + ">" + escapeHtml(x.name) + "</option>"; }).join("") +
+    '<option value="all"' + (cur === "all" ? " selected" : "") + ">All seasons</option>";
+  var rows = INJ.rows.filter(function (r) { return cur === "all" || r.match.season_id === cur; });
+  var sname = {}; SEASONS.forEach(function (x) { sname[x.id] = x.name; });
+  rows.sort(function (a, b) {
+    return (sname[a.match.season_id] || "").localeCompare(sname[b.match.season_id] || "") || a.match.match_day - b.match.match_day || a.match.match_number - b.match.match_number || pname(a.app.player_id).localeCompare(pname(b.app.player_id));
+  });
+  var head = '<div class="filters"><div><label class="muted" for="inj-season">Season</label><select id="inj-season">' + seasonOpts + "</select></div></div>";
+  if (!rows.length) { box.innerHTML = head + '<p class="muted">' + cfg.none + "</p>"; wireInj(); return; }
+  var tot = {};
+  rows.forEach(function (r) { var k = r.app.player_id + "|" + r.app.team_id; var t = tot[k] = tot[k] || { player: r.app.player_id, team: r.app.team_id, n: 0 }; t.n++; });
+  var sum = Object.keys(tot).map(function (k) { return tot[k]; }).sort(function (a, b) { return b.n - a.n || pname(a.player).localeCompare(pname(b.player)); });
+  var link = function (id) { return '<a href="player.html?id=' + id + '">' + escapeHtml(pname(id)) + "</a>"; };
+  box.innerHTML = head + '<h3 style="margin:4px 0 6px;">Matches missed through injury</h3>' +
+    '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Player</th><th class="team-name">Team</th><th>Matches missed</th></tr></thead><tbody>' +
+    sum.map(function (t) { return '<tr><td class="team-name">' + link(t.player) + '</td><td class="team-name">' + escapeHtml(tname(t.team)) + "</td><td><strong>" + t.n + "</strong></td></tr>"; }).join("") + "</tbody></table></div>" +
+    '<h3 style="margin:18px 0 6px;">Every match missed</h3>' +
+    '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Season</th><th class="team-name">Match</th><th class="team-name">Player</th><th class="team-name">Team</th><th class="team-name">Against</th><th class="team-name">Result</th></tr></thead><tbody>' +
+    rows.map(function (r) {
+      var m = r.match, a = r.app, opp = m.home_team_id === a.team_id ? m.away_team_id : m.home_team_id;
+      var mine = m.home_team_id === a.team_id ? m.home_score : m.away_score, theirs = m.home_team_id === a.team_id ? m.away_score : m.home_score;
+      var res = mine == null || theirs == null ? "–" : (mine > theirs ? "Won " : mine < theirs ? "Lost " : "Drew ") + mine + "–" + theirs;
+      return '<tr><td class="team-name">' + escapeHtml(sname[m.season_id] || "") + '</td><td class="team-name"><a href="match.html?id=' + m.id + '">' + matchLabelShort(m) + '</a></td><td class="team-name">' + link(a.player_id) +
+        '</td><td class="team-name">' + escapeHtml(tname(a.team_id)) + '</td><td class="team-name">' + escapeHtml(tname(opp)) + '</td><td class="team-name">' + res + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+  wireInj();
+}
+function wireInj() {
+  var sel = document.getElementById("inj-season");
+  if (sel) sel.addEventListener("change", function () { INJ.season = sel.value; renderInjuries(TABS.injury); });
+}
+
 function renderMilestones() {
   var cfg = TABS[TAB], view = document.getElementById("f-view").value;
+  if (cfg.inj) { renderInjuries(cfg); return; }
   if (cfg.cap) { renderCaptains(cfg, view); return; }
   if (cfg.att) { renderAttendance(cfg, view); return; }
   var all = sortChrono(EVENTS.filter(function (e) { return e.event_type === cfg.type; }));
@@ -440,13 +488,15 @@ function weekTable(h, r) {
 function renderBoard(B) {
   var box = document.getElementById(B.ids.body), st = B.st;
   var rows = ssSorted(B), ranks = [];
+  var rev = st.sort === "default" && st.dir === 1;   // "#" header clicked twice: worst ranked first (rank numbers stay the same)
   rows.forEach(function (r, i) { ranks[i] = i === 0 ? 1 : (ssSame(B, rows[i - 1], r) ? ranks[i - 1] : ranks[i - 1] + 1); });   // no gaps: 12=, 12=, 13
   if (B.details && st.rankOf) { rows.forEach(function (r, i) { ranks[i] = st.rankOf[r.id].r; }); }
   var tied = B.details && st.rankOf ? rows.map(function (r) { return st.rankOf[r.id].tied; }) : rows.map(function (r, i) { return (i > 0 && ranks[i] === ranks[i - 1]) || (i + 1 < rows.length && ranks[i] === ranks[i + 1] && ssSame(B, r, rows[i + 1])); });
+  if (rev) { rows.reverse(); ranks.reverse(); tied.reverse(); }
   var q = document.getElementById(B.ids.search).value.trim().toLowerCase();
   if (!rows.length) { box.innerHTML = '<p class="muted">No players for this selection yet.</p>'; return; }
   var arrow = function (k) { return st.sort === k ? (st.dir > 0 ? " ▲" : " ▼") : ""; };
-  var head = '<th class="num">#</th><th class="team-name sortable' + (st.sort === "name" ? " sorted" : "") + '" data-sort="name">Player' + arrow("name") + '</th><th class="team-name">Team</th>' +
+  var head = '<th class="num sortable' + (st.sort === "default" ? " sorted" : "") + '" data-sort="default" title="Rank order (click again to reverse)">#' + (st.sort === "default" && st.dir === 1 ? " ▲" : "") + '</th><th class="team-name sortable' + (st.sort === "name" ? " sorted" : "") + '" data-sort="name">Player' + arrow("name") + '</th><th class="team-name">Team</th>' +
     B.cols.map(function (c) {
       return '<th class="num sortable' + (st.sort === c[0] ? " sorted" : "") + '" data-sort="' + c[0] + '" title="' + c[2] + ' (click to rank by this)">' + (B.details ? '<span class="lg">' + c[1] + '</span><span class="sh">' + SHORT[c[0]] + '</span>' : c[1]) + arrow(c[0]) + "</th>";
     }).join("") + (B.details ? '<th class="detcol"></th>' : "");

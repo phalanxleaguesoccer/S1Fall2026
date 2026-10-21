@@ -446,7 +446,7 @@ async function loadLineup() {
         return '<div class="list-row" style="gap:10px;"><span>' + escapeHtml(r.players.full_name) + (r.is_owner ? " (owner)" : "") + "</span>" +
           '<select data-lu-player="' + r.player_id + '" data-lu-team="' + tid + '" style="max-width:140px;">' +
           ["played", "rested", "absent"].map(function (s) { return '<option value="' + s + '"' + (s === cur ? " selected" : "") + ">" + s.charAt(0).toUpperCase() + s.slice(1) + "</option>"; }).join("") +
-          "</select></div>";
+          '</select><label style="display:flex;align-items:center;gap:4px;margin:0;font-size:.8rem;" title="Only used when the player is Absent"><input type="checkbox" data-lu-injury="' + r.player_id + '" style="width:auto;"' + (existing[r.player_id] && existing[r.player_id].absent_reason === "injury" ? " checked" : "") + "> injury</label></div>";
       }).join("") : '<p class="muted">No squad members yet.</p>');
   }).join("");
   save.style.display = LINEUP.rows.length ? "" : "none";
@@ -461,7 +461,8 @@ async function saveLineup() {
     var standBox = document.querySelector('#lu-body input[data-lu-standin="' + s.dataset.luTeam + '"]');
     var isCap = !!capSel && capSel.value === s.dataset.luPlayer;
     rows.push({ match_id: LINEUP.match.id, player_id: s.dataset.luPlayer, team_id: s.dataset.luTeam, status: s.value, started: s.value === "played",
-      position_played: old.position_played || null, minutes_played: old.minutes_played || null, is_captain: isCap, captain_stand_in: isCap && !!(standBox && standBox.checked) });
+      position_played: old.position_played || null, minutes_played: old.minutes_played || null, is_captain: isCap, captain_stand_in: isCap && !!(standBox && standBox.checked),
+      absent_reason: s.value === "absent" && !!document.querySelector('#lu-body input[data-lu-injury="' + s.dataset.luPlayer + '"]:checked') ? "injury" : null });
     c[s.value]++;
   });
   // clear this match's captain flags first so changing captain never trips the one-captain-per-team rule

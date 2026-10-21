@@ -116,3 +116,9 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Data lives on `match_appearances.is_captain` (existing column) + new `captain_stand_in` (run `sql/migration_captains.sql`; one captain per team per match via a partial unique index). `sql/captains.sql` records Day 1-3 (Varun to Chirag on Renegades from Day 3 = first captain change of the league; Bhagyesh stood in for Pradnyal in Match 5; Vija for Nasiq in Match 9; Chirag stayed Renegades captain in Match 12 although rested). Re-run `captains.sql` after re-running any `dayN_results.sql` (they rebuild lineups and clear the flags).
 - `captainTimeline()` in `common.js` derives changes/stand-ins/current captain; used by Stats > Milestones > Captains, team page "Captains" card, player page "Captaincy" card. Match page shows (C) badges + "Captain:" line. Admin > Records > Match Lineup has a Captain select per team and a stand-in tick box (saving needs the migration).
 - Tests: `tests/site/captain_tests.py`.
+
+## Injuries + sort by ranking
+- `match_appearances.absent_reason` ('injury' or null; `sql/migration_injuries.sql`). `sql/injuries.sql` marks Vamshi absent (injury) in every completed match of his team except the one he was rested (re-run after any dayN_results.sql / captains.sql order: day results, captains, injuries).
+- Stats > Milestones > Injury tab: own season filter (each season + All seasons, current preselected); counts only completed matches; lists matches missed per player and every match. Match page tags absent injured players "(injury)". Admin lineup form has an "injury" tick next to each player (only used when Absent).
+- Season Stats and Ranking (In QA): the "#" header is sortable: click = ranking order (best first), click again = worst first (rank numbers unchanged).
+- Tests: `injury_tests.py`, `rank_sort_tests.py`.

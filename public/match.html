@@ -325,7 +325,8 @@ async function loadMatch() {
   });
   if (squads.some(function (q) { return q.played.length || q.rested.length || q.absent.length; })) {
     html += '<section class="m-card"><div class="m-label">Who played</div><div class="m-lineups">' + squads.map(function (q) {
-      var names = function (l) { return l.length ? l.map(function (p) { return plink(p) + capTag(p, q.team.id); }).join(", ") : "—"; };
+      var injured = {}; apps.forEach(function (a) { if (a.status === "absent" && a.absent_reason === "injury") injured[a.player_id] = true; });
+      var names = function (l) { return l.length ? l.map(function (p) { return plink(p) + capTag(p, q.team.id) + (injured[p.id] ? ' <span class="muted">(injury)</span>' : ""); }).join(", ") : "—"; };
       return "<div><div class=\"m-tname\"><a href=\"team.html?id=" + q.team.id + '">' + escapeHtml(q.team.name) + "</a></div>" +
         (capOf[q.team.id] && P[capOf[q.team.id].player_id] ? '<div class="m-sub" style="margin-bottom:4px;">Captain: ' + plink(P[capOf[q.team.id].player_id]) + (capOf[q.team.id].captain_stand_in ? " (stand-in)" : "") + "</div>" : "") +
         '<div class="m-sm">PLAYED (' + q.played.length + ")</div>" +
