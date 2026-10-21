@@ -55,6 +55,8 @@ with sync_playwright() as pw:
     p.click('#cap-reset');ok('Reset sort restores the default order',names_()==dflt and p.locator('#cap-reset').is_disabled(),(names_(),dflt))
     ok('current captain marked (Rishabh for Renegades)','(current captain)' in t and any('Rishabh' in r[0] and 'current' in r[0] for r in rows),rows)
     log=p.locator('#ms-body table').nth(2).locator('tbody tr').count()
+    hrefs=p.locator('#ms-body table').nth(2).locator('tbody tr td:first-child a').evaluate_all('e=>e.map(x=>x.getAttribute("href"))')
+    ok('every match row links to its results page',len(hrefs)==10 and all(h.startswith('match.html?id=m') for h in hrefs) and 'match.html?id=m0' in hrefs,hrefs)
     ok('captain listed for every team in every match (10 rows)',log==10,log)
     p.select_option('#f-view',label='Renegades');p.wait_for_timeout(200);t2=p.inner_text('#ms-body')
     ok('team filter keeps Renegades only',('Nasiq' not in t2) and 'Rishabh' in t2 and 'Varun' in t2,t2)

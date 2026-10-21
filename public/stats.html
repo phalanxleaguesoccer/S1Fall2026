@@ -324,7 +324,7 @@ function renderCaptains(cfg, view) {
   var log = '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Match</th><th class="team-name">Team</th><th class="team-name">Captain</th></tr></thead><tbody>' +
     byMatch.map(function (e) {
       var st = statusOf[e.match.id + "|" + e.player_id];
-      return '<tr><td class="team-name">' + matchLabelShort(e.match) + '</td><td class="team-name">' + escapeHtml(tname(e.team_id)) + '</td><td class="team-name">' + link(e.player_id) +
+      return '<tr><td class="team-name"><a href="match.html?id=' + e.match.id + '">' + matchLabelShort(e.match) + '</a></td><td class="team-name">' + escapeHtml(tname(e.team_id)) + '</td><td class="team-name">' + link(e.player_id) +
         (st && st !== "played" ? ' <span class="muted">(' + st + ")</span>" : "") + "</td></tr>";
     }).join("") + "</tbody></table></div>";
   box.innerHTML = '<h3 style="margin:4px 0 6px;">Captain changes</h3>' + changes +
