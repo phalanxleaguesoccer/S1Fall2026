@@ -15,6 +15,13 @@
   --coral-2: #C0392B;
   --radius: 14px;
   --max-width: 1100px;
+  /* match-event colours: the same everywhere (chips, markers, bars) */
+  --ev-goal: #3ECF6E;   --ev-goal-ink: #04210F;
+  --ev-assist: #8E7CC3; --ev-assist-ink: #FFFFFF; --ev-assist-text: #B9A9E8;
+  --ev-yellow: #E8C547; --ev-yellow-ink: #1C1C1F;
+  --ev-red: #C0392B;    --ev-red-ink: #FFFFFF;
+  --ev-save: #2F5D8A;   --ev-save-ink: #F5F1E6;
+  --ev-foul: #6B4E1E;   --ev-foul-ink: #F5F1E6;
 }
 
 * { box-sizing: border-box; }
@@ -331,3 +338,21 @@ footer.site-footer {
   #players-grid .player-card .meta { font-size: 0.6rem; margin-top: 2px; }
 }
 .chip { display:inline-block; padding:2px 10px; border-radius:999px; background:var(--card-charcoal); border:1px solid var(--card-edge); font-size:.78rem; }
+
+/* event chips (player page) */
+.chip.ev-goal   { background:var(--ev-goal);   color:var(--ev-goal-ink);   border-color:transparent; font-weight:700; }
+.chip.ev-assist { background:var(--ev-assist); color:var(--ev-assist-ink); border-color:transparent; font-weight:700; }
+.chip.ev-yellow { background:var(--ev-yellow); color:var(--ev-yellow-ink); border-color:transparent; font-weight:700; }
+.chip.ev-red    { background:var(--ev-red);    color:var(--ev-red-ink);    border-color:transparent; font-weight:700; }
+.chip.ev-save   { background:var(--ev-save);   color:var(--ev-save-ink);   border-color:transparent; font-weight:700; }
+.chip.ev-foul   { background:var(--ev-foul);   color:var(--ev-foul-ink);   border-color:transparent; font-weight:700; }
+/* small markers next to a name: goal = green dot, assist = purple diamond, cards = yellow/red tab, own goal = ring, saves = blue tab */
+.evm { display:inline-block; margin-right:7px; vertical-align:middle; flex:none; }
+.evm.goal { width:9px; height:9px; border-radius:50%; background:var(--ev-goal); box-shadow:0 0 0 2px rgba(62,207,110,.25); }
+.evm.assist { width:8px; height:8px; border-radius:2px; background:var(--ev-assist); transform:rotate(45deg); margin:0 8px 0 3px; }
+.evm.yellow { width:8px; height:11px; border-radius:2px; background:var(--ev-yellow); }
+.evm.red { width:8px; height:11px; border-radius:2px; background:var(--ev-red); }
+.evm.save { width:8px; height:11px; border-radius:2px; background:var(--ev-save); }
+.evm.og { width:9px; height:9px; border-radius:50%; border:2px solid var(--chalk-white); box-sizing:border-box; }
+.ev-ast { color:var(--ev-assist-text); font-weight:600; }
+.ev-ast a { color:#D6CCF5; }

@@ -16,7 +16,7 @@ with sync_playwright() as pw:
     s=Site(pw,d);p=s.page('match.html?id=m0',1500);t=p.inner_text('#match-root')
     ok('no JS errors',not p.errs,p.errs)
     ok('OWN GOAL chip, counts for opposing team, running score 1–2','OWN GOAL' in t and 'Counts for Scouts FC' in t and '1 – 2' in t,t)
-    ok('scoreboard lists "(og)" under the team it counts for',p.locator('.m-side.away .m-scorers').inner_text().find('Amritpal Singh (og)')>=0 and 'og' not in p.locator('.m-side.home .m-scorers').inner_text().replace('Amritpal','').lower().replace('bhagyesh',''),p.locator('.m-board').inner_text())
+    ok('scoreboard lists the own goal under the team it counts for',p.locator('.m-side.away .m-scorers').inner_text().replace('\n',' ').find('Amritpal Singh own goal')>=0 and 'own goal' not in p.locator('.m-side.home .m-scorers').inner_text().lower(),(p.locator('.m-side.away .m-scorers').inner_text(),p.locator('.m-side.home .m-scorers').inner_text()))
     ok('own goal is not a goal for the player: Amritpal G=0, OG=1 in stats table','OG' in t and p.locator('.m-ptable').first.inner_text().replace('\n',' ').find('Amritpal Singh')>=0,p.locator('.m-ptable').first.inner_text())
     row=[r for r in p.locator('.m-ptable tbody tr').all_inner_texts() if 'Amritpal' in r][0].split('\t')
     ok('Amritpal row: G 0, A 0, OG 1',row[2:5]==['0','0','1'],row)

@@ -162,3 +162,8 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Everything is computed in the browser from matches, rosters, match_appearances and match_events (no new SQL). Fastest/latest goals use only goals with a recorded minute. Clean sheet = team conceded 0. Per-goalkeeper clean sheets are NOT tracked (no GK flag).
 - Season Stats tab is unchanged and still to be redesigned.
 - UI audit: tests/site/ui_audit.py checks every page/tab at 375/768/1280/1600px for sideways scroll and content wider than its card (index.html watermark circle is clipped on purpose, so it still reports there).
+
+## Event colours (consistent everywhere)
+- CSS variables in `css/app.css`: `--ev-goal` green #3ECF6E, `--ev-assist` purple #8E7CC3, `--ev-yellow`, `--ev-red`, `--ev-save` blue, `--ev-foul`. Goal is no longer amber (it looked like the yellow card). Change a colour there and every page follows.
+- Match page: timeline chips, Match stats bars coloured per stat (goals green, assists purple, yellow, red, saves blue, others amber), header records under each team (green dot per goal, purple diamond + "assist X", own goal ring (counted under the team it benefits), yellow/red tabs, blue saves; fouls not shown in header).
+- Player page Match-by-Match chips use the same colours (`.chip.ev-*`). Test: `tests/site/event_colors_tests.py`.

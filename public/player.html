@@ -352,7 +352,7 @@ async function loadMatchByMatch() {
     var label = { played: "Played", rested: "Rested", absent: "Absent", notlisted: "Not in lineup", scheduled: "Upcoming" }[status];
     var inj = a && a.status !== "played" && a.absent_reason === "injury" ? " (injury)" : "";
     var evs = (evBy[id] || []).slice().sort(function (x, y) { return (x.minute || 0) - (y.minute || 0); });
-    var evHtml = evs.length ? evs.map(function (e) { return '<span class="chip" style="margin:2px 6px 0 0;">' + (typeLabel[e.event_type] || e.event_type) + (e.minute ? " &middot; " + e.minute + "'" : "") + "</span>"; }).join("")
+    var evHtml = evs.length ? evs.map(function (e) { return '<span class="chip ' + ({ goal: "ev-goal", assist: "ev-assist", yellow_card: "ev-yellow", red_card: "ev-red", save: "ev-save", foul: "ev-foul" }[e.event_type] || "") + '" style="margin:2px 6px 0 0;">' + (typeLabel[e.event_type] || e.event_type) + (e.minute ? " &middot; " + e.minute + "'" : "") + "</span>"; }).join("")
       : (status === "played" ? '<span class="muted" style="font-size:.82rem;">No goals, cards or awards</span>' : "");
     return '<div style="padding:10px 0; border-bottom:1px solid var(--card-edge);">' +
       '<div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;"><span>' +

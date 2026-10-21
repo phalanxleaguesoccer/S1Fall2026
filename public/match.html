@@ -23,6 +23,10 @@
 .m-team { font-family:'Anton',sans-serif; font-size:40px; text-transform:uppercase; line-height:1.05; overflow-wrap:anywhere; }
 .m-team a { color:var(--chalk-white); }
 .m-scorers { font-size:14px; color:var(--chalk-dim); margin-top:8px; line-height:1.6; }
+.m-rec { color:var(--chalk-white); line-height:1.75; }
+.m-rec a { color:var(--chalk-white); font-weight:600; }
+.m-rec .x { color:var(--chalk-dim); font-size:12.5px; }
+.m-rec .ev-ast { display:inline-block; white-space:nowrap; }
 .m-score { text-align:center; min-width:220px; }
 .m-score .big { font-family:'Anton',sans-serif; font-size:96px; line-height:1; letter-spacing:.04em; white-space:nowrap; }
 .m-score .big span { color:#6E6A60; }
@@ -50,12 +54,13 @@
 .m-ev { display:grid; grid-template-columns:76px minmax(0,1fr) 60px; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #26262A; }
 .m-cap { display:inline-block; margin-left:6px; padding:0 6px; border-radius:4px; background:var(--amber); color:#082A20; font-size:11px; font-weight:800; letter-spacing:.04em; vertical-align:middle; }
 .m-chip { font-size:11px; font-weight:700; letter-spacing:.06em; text-align:center; padding:4px 0; border-radius:6px; }
-.m-chip.goal { background:var(--amber); color:#082A20; }
-.m-chip.yc { background:#E8C547; color:#1C1C1F; }
-.m-chip.rc { background:#C0392B; color:#fff; }
-.m-chip.sv { background:#2F5D8A; color:#F5F1E6; }
+.m-chip.goal { background:var(--ev-goal); color:var(--ev-goal-ink); }
+.m-chip.as { background:var(--ev-assist); color:var(--ev-assist-ink); }
+.m-chip.yc { background:var(--ev-yellow); color:var(--ev-yellow-ink); }
+.m-chip.rc { background:var(--ev-red); color:var(--ev-red-ink); }
+.m-chip.sv { background:var(--ev-save); color:var(--ev-save-ink); }
 .m-chip.og { background:#3A3A3E; color:#F5F1E6; border:1px solid var(--amber); }
-.m-chip.fl { background:#6B4E1E; color:#F5F1E6; }
+.m-chip.fl { background:var(--ev-foul); color:var(--ev-foul-ink); }
 .m-chip.sub { background:#3A3A3E; color:#F5F1E6; }
 .m-ev .main { font-size:15px; font-weight:600; }
 .m-ev .main a { color:var(--chalk-white); }
@@ -188,15 +193,34 @@ async function loadMatch() {
     else if (e.event_type === "player_of_match") potm.push(e);
     else if (e.event_type === "player_of_tournament") awards.push(e);
   });
-  function scorersText(teamId) {
-    var by = {}, order = [], ogs = [], pens = {};
-    evs.forEach(function (e) {
-      if (e.event_type === "own_goal" && e.team_id !== teamId) { ogs.push(plink(P[e.player_id]) + " (og)"); return; }   // other team's player put it in
-      if (e.event_type !== "goal" || e.team_id !== teamId) return;
-      if (!by[e.player_id]) { by[e.player_id] = 0; pens[e.player_id] = 0; order.push(e.player_id); }
-      by[e.player_id]++; if (e.is_penalty) pens[e.player_id]++;
+  // header records under each team: goals (green dot) with their assist (purple), own goals, cards, saves
+  var pairsAll = pairAssists(ordered(evs));
+  function teamRecords(teamId) {
+    var lines = [], goals = {}, gOrder = [], ogs = [], cards = { yellow_card: {}, red_card: {} }, cOrder = { yellow_card: [], red_card: [] }, saves = {}, sOrder = [];
+    ordered(evs).forEach(function (e) {
+      if (e.event_type === "own_goal") { if (e.team_id !== teamId) ogs.push(e); return; }   // other team's player put it in: counts for this team
+      if (e.team_id !== teamId) return;
+      if (e.event_type === "goal") {
+        var g = goals[e.player_id]; if (!g) { g = goals[e.player_id] = { n: 0, pen: 0, ast: [] }; gOrder.push(e.player_id); }
+        g.n++; if (e.is_penalty) g.pen++;
+        var as = pairsAll.goalAssist[e.id]; if (as) g.ast.push(as.player_id);
+      } else if (cards[e.event_type]) {
+        if (!cards[e.event_type][e.player_id]) { cards[e.event_type][e.player_id] = 0; cOrder[e.event_type].push(e.player_id); }
+        cards[e.event_type][e.player_id]++;
+      } else if (e.event_type === "save") { if (!saves[e.player_id]) { saves[e.player_id] = 0; sOrder.push(e.player_id); } saves[e.player_id]++; }
     });
-    return order.map(function (id) { return plink(P[id]) + (by[id] > 1 ? " ×" + by[id] : "") + (pens[id] ? " (" + (by[id] > 1 ? pens[id] + " " : "") + "pen)" : ""); }).concat(ogs).join(" · ");
+    var x = function (t) { return ' <span class="x">' + t + "</span>"; };
+    gOrder.forEach(function (id) {
+      var g = goals[id];
+      lines.push('<div><i class="evm goal"></i>' + plink(P[id]) + (g.n > 1 ? x("×" + g.n) : "") + (g.pen ? x("(" + (g.n > 1 ? g.pen + " " : "") + "pen)") : "") +
+        (g.ast.length ? ' <span class="ev-ast"><i class="evm assist"></i>assist ' + g.ast.map(function (a) { return plink(P[a]); }).join(", ") + "</span>" : "") + "</div>");
+    });
+    ogs.forEach(function (e) { lines.push('<div><i class="evm og"></i>' + plink(P[e.player_id]) + x("own goal") + "</div>"); });
+    [["yellow_card", "yellow", "yellow"], ["red_card", "red", "red"]].forEach(function (c) {
+      cOrder[c[0]].forEach(function (id) { lines.push('<div><i class="evm ' + c[1] + '"></i>' + plink(P[id]) + x(c[2] + (cards[c[0]][id] > 1 ? " ×" + cards[c[0]][id] : "")) + "</div>"); });
+    });
+    sOrder.forEach(function (id) { lines.push('<div><i class="evm save"></i>' + plink(P[id]) + x(saves[id] + (saves[id] === 1 ? " save" : " saves")) + "</div>"); });
+    return lines.length ? '<div class="m-rec">' + lines.join("") + "</div>" : "";
   }
 
   // ---- timeline pieces (halves, running score) ----
@@ -208,7 +232,7 @@ async function loadMatch() {
     h.rows.push(e);
     if ((e.event_type === "goal" || e.event_type === "own_goal") && e.half !== 1 && e.half !== 2) allGoalsHaveHalf = false;
   });
-  var chipFor = { goal: ["GOAL", "goal"], own_goal: ["OWN GOAL", "og"], foul: ["FOUL", "fl"], yellow_card: ["YELLOW", "yc"], red_card: ["RED", "rc"], save: ["SAVE", "sv"], substitution_in: ["SUB ON", "sub"], substitution_out: ["SUB OFF", "sub"] };
+  var chipFor = { goal: ["GOAL", "goal"], own_goal: ["OWN GOAL", "og"], foul: ["FOUL", "fl"], assist: ["ASSIST", "as"], yellow_card: ["YELLOW", "yc"], red_card: ["RED", "rc"], save: ["SAVE", "sv"], substitution_in: ["SUB ON", "sub"], substitution_out: ["SUB OFF", "sub"] };
   var rh = 0, ra = 0, htHome = 0, htAway = 0, tl = "";
   halves.forEach(function (h) {
     if (!h.rows.length) return;
@@ -221,13 +245,13 @@ async function loadMatch() {
       if (e.event_type === "goal") {
         if (e.team_id === home.id) rh++; else if (e.team_id === away.id) ra++;
         var as = pa.goalAssist[e.id];
-        sub = (e.is_penalty ? "Penalty · " : "") + (as ? "Assist: " + plink(as.players) : (e.is_penalty ? "" : "Unassisted")); sub = sub.replace(/ · $/, "");
+        sub = (e.is_penalty ? "Penalty · " : "") + (as ? '<span class="ev-ast">Assist: ' + plink(as.players) + "</span>" : (e.is_penalty ? "" : "Unassisted")); sub = sub.replace(/ · $/, "");
         score = rh + " – " + ra;
       } else if (e.event_type === "own_goal") {
         var benefit = e.team_id === home.id ? away : home;
         if (benefit.id === home.id) rh++; else ra++;
         var oas = pa.goalAssist[e.id];
-        sub = "Counts for " + teamLink(benefit.id, benefit.name) + (oas ? " · Assist: " + plink(oas.players) : "");
+        sub = "Counts for " + teamLink(benefit.id, benefit.name) + (oas ? ' · <span class="ev-ast">Assist: ' + plink(oas.players) + "</span>" : "");
         score = rh + " – " + ra;
       } else if (e.event_type === "assist") sub = "Assist";
       else if (e.event_type === "foul") sub = "Foul committed";
@@ -253,9 +277,9 @@ async function loadMatch() {
   html += '<section class="m-card m-hero"><div class="m-hero-top"><span>Match Day ' + m.match_day + " · Match " + m.match_number + '</span><span class="m-ft' + (done ? "" : " other") + '">' + pillText + "</span>" +
     (m.kickoff_at ? "<span>" + formatKickoff(m.kickoff_at) + "</span>" : "") + "</div>" +
     '<div class="m-board">' +
-      '<div class="m-side home"><div><div class="m-team"><a href="team.html?id=' + home.id + '">' + escapeHtml(home.name) + '</a></div><div class="m-scorers">' + (done ? scorersText(home.id) : "") + '</div></div><div class="m-crest">' + crest(home) + "</div></div>" +
+      '<div class="m-side home"><div><div class="m-team"><a href="team.html?id=' + home.id + '">' + escapeHtml(home.name) + '</a></div><div class="m-scorers">' + (done ? teamRecords(home.id) : "") + '</div></div><div class="m-crest">' + crest(home) + "</div></div>" +
       '<div class="m-score"><div class="big">' + scoreBig + "</div>" + (hasHalfTime ? '<div class="m-sub" style="margin-top:8px;">Half-time ' + htHome + " – " + htAway + "</div>" : "") + "</div>" +
-      '<div class="m-side away"><div class="m-crest">' + crest(away) + '</div><div><div class="m-team"><a href="team.html?id=' + away.id + '">' + escapeHtml(away.name) + '</a></div><div class="m-scorers">' + (done ? scorersText(away.id) : "") + "</div></div></div>" +
+      '<div class="m-side away"><div class="m-crest">' + crest(away) + '</div><div><div class="m-team"><a href="team.html?id=' + away.id + '">' + escapeHtml(away.name) + '</a></div><div class="m-scorers">' + (done ? teamRecords(away.id) : "") + "</div></div></div>" +
     '</div><div class="m-meta">' + tossText + '<span id="page-views"></span></div></section>';
 
   // ---- player of the match ----
@@ -270,6 +294,7 @@ async function loadMatch() {
 
   // ---- stats + timeline ----
   var statDefs = [["Goals", "goals"], ["Assists", "assists"], ["Fouls", "fl"], ["Yellow cards", "yc"], ["Red cards", "rc"]];
+  var barColor = { goals: "var(--ev-goal)", assists: "var(--ev-assist)", yc: "var(--ev-yellow)", rc: "var(--ev-red)", sv: "var(--ev-save)" };
   if (anyOG) statDefs.push(["Own goals", "og"]);
   if (anySave) statDefs.push(["Goals saved", "sv"]);
   var statsHtml = "";
@@ -279,7 +304,7 @@ async function loadMatch() {
       statDefs.map(function (d) {
         var a = T[home.id][d[1]], b = T[away.id][d[1]], mx = Math.max(a, b, 1);
         if (d[1] === "goals") { a = m.home_score; b = m.away_score; mx = Math.max(a, b, 1); }
-        return '<div class="m-stat"><div class="m-stat-row"><b>' + a + "</b><span>" + d[0] + "</span><b>" + b + '</b></div><div class="m-bars"><div><i style="width:' + Math.round(a / mx * 100) + '%; background:var(--amber);"></i></div><div><i style="width:' + Math.round(b / mx * 100) + '%; background:var(--chalk-white);"></i></div></div></div>';
+        return '<div class="m-stat"><div class="m-stat-row"><b>' + a + "</b><span>" + d[0] + "</span><b>" + b + '</b></div><div class="m-bars"><div><i style="width:' + Math.round(a / mx * 100) + '%; background:' + (barColor[d[1]] || "var(--amber)") + ';"></i></div><div><i style="width:' + Math.round(b / mx * 100) + '%; background:' + (barColor[d[1]] || "var(--amber)") + ';"></i></div></div></div>';
       }).join("") + "</section>";
   }
   var tlHtml = '<section class="m-card"><div class="m-label">How it happened</div>' +
