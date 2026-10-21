@@ -50,7 +50,13 @@
   table.wk-table th.num, table.wk-table td.num { text-align:right; white-space:nowrap; }
   table.wk-table th { font-size:.7rem; color:var(--chalk-dim); text-transform:uppercase; }
   @media (max-width: 360px) { #rk-body col.c-name { width:68px; } #rk-body table.data-table th.num { font-size:.5rem; } }
-  .rec-layout { display:grid; grid-template-columns:200px 1fr; gap:16px; align-items:start; }
+  .rec-layout { display:grid; grid-template-columns:170px 1fr; gap:14px; align-items:start; }
+  .rec-layout > * { min-width:0; }
+  #rec-body { min-width:0; }
+  #rec-body .table-scroll { overflow-x:auto; max-width:100%; }
+  table.rec-table td, table.rec-table th { white-space:nowrap; padding:9px 5px; }
+  table.rec-table th { letter-spacing:.02em; font-size:.7rem; }
+  table.rec-table td.team-name { white-space:nowrap; }
   .rec-menu { background:#232326; border:1px solid var(--card-edge); border-radius:12px; padding:8px 6px; }
   .rec-menu h4 { margin:10px 10px 4px; font-size:.68rem; letter-spacing:.09em; color:var(--amber); text-transform:uppercase; }
   .rec-menu a { display:block; padding:6px 10px; border-radius:8px; color:var(--chalk-white); font-size:.86rem; text-decoration:none; }

@@ -161,3 +161,4 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Filters: Season (or all seasons), Team, "Min. matches for per-match rates" (default 2 — number still to be agreed with the owner). Per-match rates show "–" for players below the minimum; totals include everyone.
 - Everything is computed in the browser from matches, rosters, match_appearances and match_events (no new SQL). Fastest/latest goals use only goals with a recorded minute. Clean sheet = team conceded 0. Per-goalkeeper clean sheets are NOT tracked (no GK flag).
 - Season Stats tab is unchanged and still to be redesigned.
+- UI audit: tests/site/ui_audit.py checks every page/tab at 375/768/1280/1600px for sideways scroll and content wider than its card (index.html watermark circle is clipped on purpose, so it still reports there).

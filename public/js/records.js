@@ -173,7 +173,7 @@ var recPCols = function (extra) {
           { k: "team", t: "Team", l: 1, get: function (r) { return tlink(r.team_id); }, val: function (r) { return tname(r.team_id); } },
           { k: "played", t: "Matches", title: "Matches played", get: function (r) { return r.played; }, val: function (r) { return r.played; } }].concat(extra);
 };
-var recBestCell = function (r) { return r.best ? '<a href="match.html?id=' + r.bestMatch + '">' + r.best + " (" + matchLabelShort(REC.data.M[r.bestMatch]) + ")</a>" : "–"; };
+var recBestCell = function (r) { return r.best ? '<a href="match.html?id=' + r.bestMatch + '">' + r.best + " (D" + REC.data.M[r.bestMatch].match_day + "·M" + REC.data.M[r.bestMatch].match_number + ")</a>" : "–"; };
 
 // ---------- player stat definitions (hub cards + leaderboards) ----------
 function recStats() {
