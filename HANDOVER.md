@@ -146,3 +146,7 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - `common.js` helpers `teamLink(id,name)`, `matchLink(m,label)`, `playerLink(id,name)`; stats.html wraps them as `tlink(id)` / `plink(id)`.
 - Rule: wherever a team name, match label ("Day 3 · M4", "Day 3", a result) or player name is shown it is a link to team.html / match.html / player.html. Exceptions: whole-card links (teams.html, players.html cards), admin dashboard, dropdown options, headings of the page itself.
 - matches.html rows and team.html schedule rows are clickable via JS (not wrapping `<a>`) so team names inside can be real links; click handlers ignore clicks on anchors. Test: `tests/site/links_tests.py`.
+
+## Player Match-by-Match + Teams page
+- player.html Match-by-Match now lists EVERY completed match of the player's team(s): result (link), Played/Rested/Absent(+injury)/Not in lineup, Captain chip, and his events in that match. Previously it only listed events, so players with none showed "No events logged yet". Test: `tests/site/match_by_match_tests.py`.
+- teams.html no longer shows "N pts left" (auction budget); that stays on the Auction page ("Points left" per team).

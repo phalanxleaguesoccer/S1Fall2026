@@ -329,3 +329,4 @@ footer.site-footer {
   #players-grid .player-card .name { font-size: 0.68rem; line-height: 1.2; }
   #players-grid .player-card .meta { font-size: 0.6rem; margin-top: 2px; }
 }
+.chip { display:inline-block; padding:2px 10px; border-radius:999px; background:var(--card-charcoal); border:1px solid var(--card-edge); font-size:.78rem; }

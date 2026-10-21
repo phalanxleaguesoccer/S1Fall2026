@@ -70,8 +70,7 @@ async function loadTeams() {
       (owner
         ? '<div class="info" style="padding-top:0;"><a class="meta" href="player.html?id=' + owner.id + '" style="text-decoration:none;">Owner: <strong style="color:inherit;">' + escapeHtml(owner.full_name) + "</strong></a></div>"
         : "") +
-      '<div class="info" style="padding-top:0;"><div class="meta">' + (squadCount[t.id] || 0) + " player" + ((squadCount[t.id] || 0) === 1 ? "" : "s") +
-        " &middot; " + (budget - (spent[t.id] || 0)) + " pts left</div></div>" +
+      '<div class="info" style="padding-top:0;"><div class="meta">' + (squadCount[t.id] || 0) + " player" + ((squadCount[t.id] || 0) === 1 ? "" : "s") + "</div></div>" +
       "</div>";
   }).join("");
 }

@@ -301,25 +301,69 @@ function loadCurrentHistoryView() {
 }
 
 async function loadMatchByMatch() {
-  var eventsRes = await window.sb
-    .from("match_events")
-    .select("*, matches(*)")
-    .eq("player_id", playerId)
-    .order("created_at", { ascending: false });
-
   var list = document.getElementById("events-list");
-  if (!eventsRes.data || eventsRes.data.length === 0) {
-    list.innerHTML = '<p class="muted">No events logged yet.</p>';
-    return;
+  // 1. every match the player's team(s) played, 2. the player's lineup status in each, 3. his events in each
+  var rosRes = await window.sb.from("team_season_rosters").select("season_id, team_id").eq("player_id", playerId);
+  var appRes = await window.sb.from("match_appearances").select("match_id, team_id, status, absent_reason, is_captain").eq("player_id", playerId);
+  var evRes = await window.sb.from("match_events").select("*").eq("player_id", playerId);
+  var rosters = rosRes.data || [], apps = appRes.data || [], events = evRes.data || [];
+  var seasonIds = {}; rosters.forEach(function (r) { seasonIds[r.season_id] = true; });
+  var matches = {};
+  if (Object.keys(seasonIds).length) {
+    var mRes = await window.sb.from("matches").select("*").in("season_id", Object.keys(seasonIds));
+    (mRes.data || []).forEach(function (m) {
+      if (rosters.some(function (r) { return r.season_id === m.season_id && (r.team_id === m.home_team_id || r.team_id === m.away_team_id); })) matches[m.id] = m;
+    });
   }
+  var extra = {}; apps.concat(events).forEach(function (x) { if (!matches[x.match_id]) extra[x.match_id] = true; });   // matches outside his roster seasons
+  if (Object.keys(extra).length) {
+    var xRes = await window.sb.from("matches").select("*").in("id", Object.keys(extra));
+    (xRes.data || []).forEach(function (m) { matches[m.id] = m; });
+  }
+  var ids = Object.keys(matches).filter(function (id) { return matches[id].status === "completed" || matches[id].status === "forfeited" || events.some(function (e) { return e.match_id === id; }) || apps.some(function (a) { return a.match_id === id; }); });
+  if (!ids.length) { list.innerHTML = '<p class="muted">No matches played yet.</p>'; return; }
+  // does the team have any lineup entered for the match? (a completed match with no lineup counts everyone as played)
+  var lineupHas = {};
+  var lRes = await window.sb.from("match_appearances").select("match_id, team_id").in("match_id", ids);
+  (lRes.data || []).forEach(function (a) { lineupHas[a.match_id + "|" + a.team_id] = true; });
+  var teamIds = {}; ids.forEach(function (id) { teamIds[matches[id].home_team_id] = true; teamIds[matches[id].away_team_id] = true; });
+  var T = {}; var tRes = await window.sb.from("teams").select("id, name").in("id", Object.keys(teamIds));
+  (tRes.data || []).forEach(function (t) { T[t.id] = t.name; });
+  var sRes = await window.sb.from("seasons").select("id, name, created_at").order("created_at", { ascending: true });
+  var S = {}, rank = {}; (sRes.data || []).forEach(function (x, i) { S[x.id] = x.name; rank[x.id] = i; });
+  var multi = Object.keys(seasonIds).length > 1;
+  var appOf = {}; apps.forEach(function (a) { appOf[a.match_id] = a; });
   var typeLabel = { goal: "Goal", own_goal: "Own goal", foul: "Foul", assist: "Assist", yellow_card: "Yellow card", red_card: "Red card", substitution_in: "Sub on", substitution_out: "Sub off", player_of_match: "⭐ Player of the Match", save: "🧤 Goal Saved", player_of_tournament: "🏆 Player of the Tournament" };
-  list.innerHTML = eventsRes.data.map(function (e) {
-    var m = e.matches;
-    return '<div style="padding:8px 0; border-bottom:1px solid var(--card-edge); display:flex; justify-content:space-between; gap:10px;">' +
-      "<span>" + (typeLabel[e.event_type] || e.event_type) + (e.minute ? " &middot; " + e.minute + "'" : "") + "</span>" +
-      '<a class="muted" href="match.html?id=' + m.id + '">Day ' + m.match_day + " Match " + m.match_number + "</a>" +
-      "</div>";
+  var evBy = {}; events.forEach(function (e) { (evBy[e.match_id] = evBy[e.match_id] || []).push(e); });
+  ids.sort(function (x, y) {
+    var a = matches[x], b = matches[y];
+    return (rank[b.season_id] || 0) - (rank[a.season_id] || 0) || b.match_day - a.match_day || b.match_number - a.match_number;
+  });
+  var tally = { played: 0, rested: 0, absent: 0 };
+  list.innerHTML = ids.map(function (id) {
+    var m = matches[id], a = appOf[id];
+    var tid = a ? a.team_id : (rosters.filter(function (r) { return r.season_id === m.season_id; }).map(function (r) { return r.team_id; }).filter(function (t) { return t === m.home_team_id || t === m.away_team_id; })[0] || m.home_team_id);
+    var opp = m.home_team_id === tid ? m.away_team_id : m.home_team_id;
+    var done = m.status === "completed" || m.status === "forfeited";
+    var mine = m.home_team_id === tid ? m.home_score : m.away_score, theirs = m.home_team_id === tid ? m.away_score : m.home_score;
+    var result = m.status === "forfeited" ? "Forfeit" : (!done || mine == null || theirs == null) ? "Not played yet" : (mine > theirs ? "Won " : mine < theirs ? "Lost " : "Drew ") + mine + "–" + theirs;
+    var status = a ? (a.status || "played") : (done ? (lineupHas[id + "|" + tid] ? "notlisted" : "played") : "scheduled");
+    if (tally[status] != null && done) tally[status]++;
+    var label = { played: "Played", rested: "Rested", absent: "Absent", notlisted: "Not in lineup", scheduled: "Upcoming" }[status];
+    var inj = a && a.status !== "played" && a.absent_reason === "injury" ? " (injury)" : "";
+    var evs = (evBy[id] || []).slice().sort(function (x, y) { return (x.minute || 0) - (y.minute || 0); });
+    var evHtml = evs.length ? evs.map(function (e) { return '<span class="chip" style="margin:2px 6px 0 0;">' + (typeLabel[e.event_type] || e.event_type) + (e.minute ? " &middot; " + e.minute + "'" : "") + "</span>"; }).join("")
+      : (status === "played" ? '<span class="muted" style="font-size:.82rem;">No goals, cards or awards</span>' : "");
+    return '<div style="padding:10px 0; border-bottom:1px solid var(--card-edge);">' +
+      '<div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;"><span>' +
+        '<strong>' + matchLink(m, "Day " + m.match_day + " &middot; M" + m.match_number) + "</strong>" + (multi ? ' <span class="muted">' + escapeHtml(S[m.season_id] || "") + "</span>" : "") +
+        " &middot; " + teamLink(tid, T[tid]) + " vs " + teamLink(opp, T[opp]) +
+        "</span><span>" + (done && result !== "Forfeit" ? matchLink(m, result) : escapeHtml(result)) + "</span></div>" +
+      '<div style="margin-top:4px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;"><span class="pill ' + (status === "played" ? "completed" : "scheduled") + '">' + label + inj + "</span>" +
+        (a && a.is_captain ? '<span class="chip">Captain</span>' : "") + evHtml + "</div></div>";
   }).join("");
+  var done = tally.played + tally.rested + tally.absent;
+  list.insertAdjacentHTML("afterbegin", '<p class="muted" style="font-size:.82rem; margin:0 0 6px;">' + tally.played + " played &middot; " + tally.rested + " rested &middot; " + tally.absent + " absent" + (done ? " (of " + done + " completed matches)" : "") + ". Newest first.</p>");
 }
 
 async function loadAwardsAndSuspensions() {
