@@ -21,7 +21,7 @@ e('m1','Renegades','Varun','yellow_card');e('m1','Scouts FC','Bhagyesh Rane','re
 e('m0','Muggles FC','Bilal Yaser','yellow_card')
 d['match_events']=ev
 with sync_playwright() as pw:
-    s=Site(pw,d);p=s.page('stats.html',1500)
+    s=Site(pw,d);p=s.page('stats.html#season',1500)
     ok('no JS errors',not p.errs,p.errs)
     def data(sel='#ss-body'): return [(r.split('\t')[0].strip(),r.split('\t')[1].strip()) for r in p.locator(sel+' tbody tr:not(.det)').all_inner_texts()]
     ok('# header is clickable (sortable)',p.locator('#ss-body th[data-sort=default]').count()==1)
@@ -35,7 +35,7 @@ with sync_playwright() as pw:
     p.click('#ss-body th[data-sort=default]');ok('third click: back to best first',data()==base_)
     ok('0-match players still last in default order',base_[-1][1] in ('Bilal Yaser',) or True)
     # ranking (in QA) page too
-    q=s.page('stats.html#ranking',1500);q.click('#qa-accept')
+    q=s.page('stats.html#ranking',1500)
     dd=lambda:[(r.split('\t')[0].strip().lstrip('▲▼0123456789') if False else r.split('\t')[1].strip()) for r in q.locator('#rk-body .table-scroll > table > tbody > tr:not(.det)').all_inner_texts()]
     b2=dd();q.click('#rk-body th[data-sort=goals]');q.click('#rk-body th[data-sort=default]');ok('Ranking page: # returns to ranking order',dd()==b2)
     q.click('#rk-body th[data-sort=default]');ok('Ranking page: second click reverses',dd()==list(reversed(b2)))

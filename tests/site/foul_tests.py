@@ -28,7 +28,7 @@ with sync_playwright() as pw:
     st.locator('[data-det]').nth(0).click();d0=st.inner_text('tr.det:visible')
     st.locator('[data-det]').nth(1).click();d1=st.locator('tr.det:visible').last.inner_text()
     ok('details: ordinals, no "card given" line (a card is not a foul)','Foul number in tournament' in d1 and 'Card given' not in d1 and 'Card given' not in d0,(d0,d1))
-    ss=s.page('stats.html',1500);H=[h.strip().lower() for h in ss.locator('#ss-body thead th').all_inner_texts()]
+    ss=s.page('stats.html#season',1500);H=[h.strip().lower() for h in ss.locator('#ss-body thead th').all_inner_texts()]
     ok('Season Stats has Fouls and OG columns, no effect on ranking',H.count('fouls')==1 and H.count('og')==1,H)
     ix=H.index('fouls');rr=[r.split('\t') for r in ss.locator('#ss-body tbody tr').all_inner_texts()]
     ok('Season Stats: Bilal fouls 1, Amritpal 1, Vignesh 0',[r[ix] for r in rr if r[1].strip() in('Bilal Yaser','Amritpal Singh')]==['1','1'] or sorted([r[ix].strip() for r in rr if r[1].strip() in('Bilal Yaser','Amritpal Singh')])==['1','1'],rr[:4])

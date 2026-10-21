@@ -150,3 +150,7 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 ## Player Match-by-Match + Teams page
 - player.html Match-by-Match now lists EVERY completed match of the player's team(s): result (link), Played/Rested/Absent(+injury)/Not in lineup, Captain chip, and his events in that match. Previously it only listed events, so players with none showed "No events logged yet". Test: `tests/site/match_by_match_tests.py`.
 - teams.html no longer shows "N pts left" (auction budget); that stays on the Auction page ("Points left" per team).
+
+## Stats page order
+- Sub-nav is now Ranking (default) | Milestones | Season Stats ("(In QA)" label and the "Don't take it seriously yet" pop-up removed). `stats.html` = Ranking, `#milestones`, `#season`.
+- Movement arrows count change in players strictly AHEAD, so with ties an arrow can differ from the change in the rank number (e.g. Dhruv 8 -> 4 shows ▲6). By design; see ranking notes above.

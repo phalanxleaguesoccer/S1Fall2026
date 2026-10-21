@@ -23,18 +23,8 @@ d['match_events']=ev
 with sync_playwright() as pw:
     s=Site(pw,d);p=s.page('stats.html#ranking',1500)
     ok('no JS errors',not p.errs,p.errs)
-    ok('third sub-nav item labelled Ranking (In QA)',p.locator('#sub-nav button').all_inner_texts()[-1].strip()=='Ranking (In QA)' and p.locator('#sub-nav button').count()==3)
-    ok('modal visible with text and button',p.is_visible('#qa-modal') and "don't take it seriously yet" in p.inner_text('#qa-modal').lower() and p.inner_text('#qa-accept').strip()=='I accept',p.inner_text('#qa-modal'))
-    blocked=True
-    try:
-        p.locator('#sub-nav button[data-sec="season"]').click(timeout=1500,trial=True);blocked=False
-    except Exception: pass
-    ok('other controls are blocked while modal is open',blocked)
-    p.keyboard.press('Escape');ok('Esc does not close',p.is_visible('#qa-modal'))
-    p.mouse.click(5,5);ok('backdrop click does not close',p.is_visible('#qa-modal'))
-    p.click('#qa-accept');ok('I accept closes it',not p.is_visible('#qa-modal'))
-    p.click('#sub-nav button[data-sec="season"]');p.click('#sub-nav button[data-sec="ranking"]')
-    ok('not repeated within same visit',not p.is_visible('#qa-modal'))
+    ok('sub-nav order: Ranking (default, selected), Milestones, Season Stats',p.locator('#sub-nav button').all_inner_texts()==['Ranking','Milestones','Season Stats'] and p.locator('#sub-nav button.on').inner_text()=='Ranking' and p.is_visible('#sec-ranking') and not p.is_visible('#sec-season'))
+    ok('no QA pop-up any more',p.locator('#qa-modal').count()==0 and 'in qa' not in p.inner_text('body').lower())
     hdr=[h.strip().lower() for h in p.locator('#rk-body thead th').all_inner_texts()]
     ok('Points column after Team, then season columns',hdr[:5]==['#','player','team','points','p'] and 'absent' in hdr,hdr)
     rows=lambda:[r.split('\t') for r in p.locator('#rk-body .table-scroll > table > tbody > tr:not(.det)').all_inner_texts()]
@@ -62,12 +52,11 @@ with sync_playwright() as pw:
     p.click('#sub-nav button[data-sec="season"]')
     ok('Season Stats has no Points column','points' not in [h.strip().lower() for h in p.locator('#ss-body thead th').all_inner_texts()])
     p.close() if hasattr(p,'close') else None
-    # fresh load of plain stats page: no modal
-    p2=s.page('stats.html',1200);ok('no modal when Ranking not opened',not p2.is_visible('#qa-modal'))
-    p2.click('#sub-nav button[data-sec="ranking"]');ok('modal when tab opened by click',p2.is_visible('#qa-modal'))
+    p2=s.page('stats.html',1200);ok('plain stats.html opens Ranking by default',p2.is_visible('#sec-ranking') and p2.locator('#rk-body table').count()>=1)
+    p2=s.page('stats.html#season',1200);ok('#season opens Season Stats',p2.is_visible('#sec-season') and not p2.is_visible('#sec-ranking'))
     # phone width
     p3=s.page('stats.html#ranking',1200)
-    p3.set_viewport_size({'width':375,'height':800});p3.click('#qa-accept')
+    p3.set_viewport_size({'width':375,'height':800})
     ok('phone: no page sideways scroll',p3.evaluate('document.documentElement.scrollWidth<=window.innerWidth+1'))
     for w in (320,375,414,768,1024,1280):
         p3.set_viewport_size({'width':w,'height':900});p3.wait_for_timeout(150)

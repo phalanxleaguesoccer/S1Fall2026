@@ -15,7 +15,7 @@
   .filters select { min-width:200px; max-width:100%; }
   .ms-n { font-family:'Anton',sans-serif; font-size:1.15rem; color:var(--amber); width:48px; }
   tr.det td { background:rgba(255,255,255,.03); padding:10px 14px; }
-  /* Ranking (In QA): fit the screen, no sideways scroll */
+  /* Ranking: fit the screen, no sideways scroll */
   #rk-body .table-scroll { overflow-x: visible; }
   #rk-body table.data-table { width:100%; }
   #rk-body table.data-table th, #rk-body table.data-table td { padding:9px 5px; }
@@ -84,12 +84,12 @@
   <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
 
   <div class="tabs" id="sub-nav" style="margin-bottom:16px;">
-    <button type="button" data-sec="season" class="on">Season Stats</button>
+    <button type="button" data-sec="ranking" class="on">Ranking</button>
     <button type="button" data-sec="milestones">Milestones</button>
-    <button type="button" data-sec="ranking">Ranking (In QA)</button>
+    <button type="button" data-sec="season">Season Stats</button>
   </div>
 
-  <div class="card" id="sec-season">
+  <div class="card" id="sec-season" style="display:none;">
     <div class="card-title">Season Stats</div>
     <p class="muted" style="margin-top:0;">Cumulative record of every player. Ranked by goals, then assists, then player of the match. Click any column heading to re-rank by that stat.</p>
     <div class="filters">
@@ -101,9 +101,9 @@
     <div id="ss-body"><p class="muted">Loading…</p></div>
   </div>
 
-  <div class="card" id="sec-ranking" style="display:none;">
-    <div class="card-title">Ranking (In QA)</div>
-    <p class="muted" style="margin-top:0;">Work in progress: same record as Season Stats plus a Points column. Ranked by Points; click any column heading to re-rank by that stat, or Details for how a player's points were worked out.</p>
+  <div class="card" id="sec-ranking">
+    <div class="card-title">Ranking</div>
+    <p class="muted" style="margin-top:0;">Same record as Season Stats plus a Points column. Ranked by Points; click any column heading to re-rank by that stat, or Details for how a player's points were worked out.</p>
     <div class="filters">
       <div><label class="muted" for="r-season">Season</label><select id="r-season"></select></div>
       <div><label class="muted" for="r-team">Team</label><select id="r-team"></select></div>
@@ -132,13 +132,6 @@
       <div><label class="muted" for="f-view">View</label><select id="f-view"></select></div>
     </div>
     <div id="ms-body"><p class="muted">Loading…</p></div>
-  </div>
-</div>
-
-<div id="qa-modal" role="dialog" aria-modal="true" aria-labelledby="qa-title" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.78); align-items:center; justify-content:center; padding:20px;">
-  <div style="background:var(--card-charcoal); border:1px solid var(--amber); border-radius:16px; padding:32px 28px; max-width:420px; width:100%; text-align:center;">
-    <h2 id="qa-title" style="margin:0 0 20px; font-size:1.6rem;">Don't take it seriously yet</h2>
-    <button type="button" class="btn" id="qa-accept">I accept</button>
   </div>
 </div>
 
@@ -451,7 +444,7 @@ var RK_COLS = [["points", "Points", "Player points (see Details for the breakdow
 // Season Stats order: players who played at least one match first (0-match players are always last); then no cards above any cards;
 // then Goals > Assists > POTM > Won > Drawn > fewer Lost > more Played > fewer Yellow > fewer Red > more Rested > fewer Absent.
 var SS_CHAIN = [["hasPlayed", -1], ["hasCard", 1], ["goals", -1], ["assists", -1], ["potm", -1], ["won", -1], ["drawn", -1], ["lost", 1], ["played", -1], ["yellow", 1], ["red", 1], ["rested", -1], ["absent", 1]];
-// Ranking (In QA) order: 0-match players last, then Points, then the same order as Season Stats.
+// Ranking order: 0-match players last, then Points, then the same order as Season Stats.
 var RK_CHAIN = [["hasPlayed", -1], ["points", -1]].concat(SS_CHAIN.slice(1));
 // Points: win 2, draw 1, goal 3, assist 2, player of the match 1, red card -5, yellow card -2, foul -1 (own goals and losses: 0).
 var POINT_RULES = [["Wins", "won", 2], ["Draws", "drawn", 1], ["Goals", "goals", 3], ["Assists", "assists", 2], ["Player of the match", "potm", 1], ["Red cards", "red", -5], ["Yellow cards", "yellow", -2], ["Fouls", "fouls", -1]];
@@ -680,7 +673,7 @@ function buildBoardRows(B) {
     return Object.keys(by).map(function (k) { var o = by[k]; o.team = o.teams.map(tname).join(", "); o.points = calcPoints(o); return o; });
   }
   if (B.details) {
-    // Ranking (In QA): ranks always come from the full season list; team / rested / search filters only hide rows.
+    // Ranking: ranks always come from the full season list; team / rested / search filters only hide rows.
     var allRows = aggregate(false).sort(function (a, b) { return ssChainCmp(a, b, B.chain) || a.name.localeCompare(b.name); });
     st.rankOf = {};
     var rk = 0;
@@ -753,18 +746,7 @@ async function loadSeason() {
   document.getElementById("r-team").addEventListener("change", function () { buildBoardRows(BOARDS.rk); });
   document.getElementById("r-rest").addEventListener("change", function () { buildBoardRows(BOARDS.rk); });
   document.getElementById("r-search").addEventListener("input", renderRanking);
-  var rkLoaded = false, qaShown = false;
-  function showQa() {
-    if (qaShown) return;
-    qaShown = true;
-    var m = document.getElementById("qa-modal");
-    m.style.display = "flex";
-    document.getElementById("qa-accept").focus();
-  }
-  document.getElementById("qa-accept").addEventListener("click", function () { document.getElementById("qa-modal").style.display = "none"; });
-  document.getElementById("qa-modal").addEventListener("keydown", function (e) {   // keep keyboard focus on the button while the pop-up is open
-    if (e.key === "Tab") { e.preventDefault(); document.getElementById("qa-accept").focus(); }
-  });
+  var rkLoaded = false;
   document.querySelectorAll("#sub-nav button").forEach(function (b) {
     b.addEventListener("click", function () {
       document.querySelectorAll("#sub-nav button").forEach(function (x) { x.classList.toggle("on", x === b); });
@@ -773,13 +755,13 @@ async function loadSeason() {
       });
       try { history.replaceState(null, "", "#" + b.dataset.sec); } catch (e) {}
       if (b.dataset.sec === "ranking") {
-        showQa();
         if (!rkLoaded) { rkLoaded = true; loadRanking(); }
       }
     });
   });
-  if (location.hash === "#milestones") document.querySelector('#sub-nav button[data-sec="milestones"]').click();
-  if (location.hash === "#ranking") document.querySelector('#sub-nav button[data-sec="ranking"]').click();
+  // Ranking is the default page; #milestones and #season open the other two.
+  var startSec = location.hash === "#milestones" ? "milestones" : location.hash === "#season" ? "season" : "ranking";
+  document.querySelector('#sub-nav button[data-sec="' + startSec + '"]').click();
   document.getElementById("f-season").addEventListener("change", loadSeason);
   document.getElementById("f-view").addEventListener("change", renderMilestones);
   document.querySelectorAll("#tabs button").forEach(function (b) {

@@ -12,7 +12,7 @@ e('m0','Desi Steelers FC','Nasiq','goal');e('m2','Muggles FC','Amritpal Singh','
 e('m3','Desi Steelers FC','Nasiq','goal');e('m3','Renegades','Varun','yellow_card');e('m1','Scouts FC','Bhagyesh Rane','foul')
 d['match_events']=ev;d['match_appearances']=[]
 with sync_playwright() as pw:
-    s=Site(pw,d);p=s.page('stats.html#ranking',1500);p.click('#qa-accept')
+    s=Site(pw,d);p=s.page('stats.html#ranking',1500)
     ok('no JS errors',not p.errs,p.errs)
     rowsel='#rk-body .table-scroll > table > tbody > tr:not(.det)'
     hdr=[h.strip().lower() for h in p.locator('#rk-body thead th').all_inner_texts()]
@@ -68,7 +68,7 @@ m(2,1,'Desi Steelers FC','Scouts FC','completed',1,0);m(2,2,'Renegades','Muggles
 d=finish(b);d['match_events']=[{'id':'e0','match_id':'m2','team_id':T['Desi Steelers FC'],'player_id':P['Nasiq'],'event_type':'goal','half':1,'minute':None,'related_player_id':None,'created_at':'2026-10-07T01:00:00+00:00'}];d['match_appearances']=[]
 R2=[]
 with sync_playwright() as pw:
-    s=Site(pw,d);p=s.page('stats.html#ranking',1500);p.click('#qa-accept')
+    s=Site(pw,d);p=s.page('stats.html#ranking',1500)
     bad=p.evaluate("""(()=>{const ids=RK.rows.map(r=>r.id),H=RK.hist,bad=[];
       const pos=(w,id)=>1+ids.filter(o=>H.weeks[o][w].rank<H.weeks[id][w].rank).length;
       ids.forEach(id=>{const exp=pos(0,id)-pos(1,id);if(H.move[id]!==exp)bad.push([id,H.move[id],exp])});return bad})()""")
