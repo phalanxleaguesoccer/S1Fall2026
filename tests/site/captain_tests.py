@@ -17,7 +17,9 @@ def build():
             for pl in ros[t]:
                 st='rested' if (mt=='m0' and pl=='Nasiq') else 'played'
                 c=caps.get((mt,t));ap.append({'id':'a%03d'%len(ap),'match_id':mt,'team_id':T[t],'player_id':P[pl],'status':st,'started':st=='played','is_captain':bool(c and c[0]==pl),'captain_stand_in':bool(c and c[0]==pl and c[1])})
-    d['match_appearances']=ap;d['match_events']=[]
+    d['match_appearances']=ap
+    def ev(i,mt,t,pl): return {'id':'e%d'%i,'match_id':mt,'team_id':T[t],'player_id':P[pl],'event_type':'player_of_match','half':None,'minute':None,'related_player_id':None,'created_at':'2026-10-07T01:00:0%d+00:00'%i}
+    d['match_events']=[ev(1,'m0','Muggles FC','Amritpal Singh'),ev(2,'m0','Desi Steelers FC','Vignesh'),ev(3,'m3','Scouts FC','Bhagyesh Rane'),ev(4,'m1','Scouts FC','Ajinkya P')]
     return d,T,P
 d,T,P=build()
 with sync_playwright() as pw:
@@ -31,6 +33,24 @@ with sync_playwright() as pw:
     rows=[r.split('\t') for r in p.locator('#ms-body table').nth(1).locator('tbody tr').all_inner_texts()]
     tot={r[0].split(' (')[0].strip():(r[2].strip(),r[3].strip(),r[4].strip()) for r in rows}
     ok('totals: Nasiq 2 as captain, Vignesh 1 stand-in, Varun 1, Rishabh 2, Amritpal 2',tot.get('Nasiq')==('2','0','2') and tot.get('Vignesh')==('0','1','1') and tot.get('Varun')==('1','0','1') and tot.get('Rishabh Devgon')==('2','0','2') and tot.get('Amritpal Singh')==('2','0','2'),tot)
+    hd=[h.strip().lower() for h in p.locator('#cap-totals thead th').all_inner_texts()]
+    ok('totals columns: player, team, as captain, as stand-in, total, won, drawn, lost, win %, goals for, potm',hd==['player','team','as captain','as stand-in','total','won','drawn','lost','win %','goals for','potm'],hd)
+    full={r[0].split(' (')[0].strip():[x.strip() for x in r[2:]] for r in rows}
+    ok('Amritpal: 2 captained, W1 D0 L1, 50%, GF 1, POTM 1',full.get('Amritpal Singh')==['2','0','2','1','0','1','50%','1','1'],full.get('Amritpal Singh'))
+    ok('Vignesh (stand-in): total 1, L1, POTM 1 counts while captaining',full.get('Vignesh')==['0','1','1','0','0','1','0%','0','1'],full.get('Vignesh'))
+    ok('Bhagyesh: W1 L1 GF 2 POTM 1; Ajinkya POTM in a match he did not captain is ignored',full.get('Bhagyesh Rane')==['2','0','2','1','0','1','50%','2','1'],full.get('Bhagyesh Rane'))
+    ok('Nasiq: 2 matches, 2 draws, 0%',full.get('Nasiq')==['2','0','2','0','2','0','0%','0','0'],full.get('Nasiq'))
+    ok('Varun: 1 match, 100%',full.get('Varun')[3:7]==['1','0','0','100%'],full.get('Varun'))
+    names_=lambda:[r.split('\t')[0].split(' (')[0].strip() for r in p.locator('#cap-totals tbody tr').all_inner_texts()]
+    dflt=names_()
+    ok('default order: most matches captained first, then name',dflt[:2]==['Amritpal Singh','Bhagyesh Rane'] or dflt[0] in ('Amritpal Singh','Bhagyesh Rane','Nasiq','Rishabh Devgon'),dflt)
+    ok('reset button disabled while default',p.locator('#cap-reset').is_disabled())
+    p.click('#cap-totals th[data-csort=won]');o1=names_()
+    ok('sort by Won: highest first',o1[0] in ('Amritpal Singh','Bhagyesh Rane','Varun') and p.locator('#cap-reset').is_enabled(),o1)
+    p.click('#cap-totals th[data-csort=won]');o2=names_();ok('click again reverses (lowest first)',o2[0] not in ('Amritpal Singh','Bhagyesh Rane','Varun'),o2)
+    p.click('#cap-totals th[data-csort=name]');o3=names_();ok('sort by Player A to Z',o3==sorted(o3),o3)
+    p.click('#cap-totals th[data-csort=potm]');ok('sort by POTM works',names_()[0] in ('Amritpal Singh','Bhagyesh Rane','Vignesh'),names_())
+    p.click('#cap-reset');ok('Reset sort restores the default order',names_()==dflt and p.locator('#cap-reset').is_disabled(),(names_(),dflt))
     ok('current captain marked (Rishabh for Renegades)','(current captain)' in t and any('Rishabh' in r[0] and 'current' in r[0] for r in rows),rows)
     log=p.locator('#ms-body table').nth(2).locator('tbody tr').count()
     ok('captain listed for every team in every match (10 rows)',log==10,log)

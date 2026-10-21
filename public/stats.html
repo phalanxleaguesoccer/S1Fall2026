@@ -56,9 +56,9 @@
   .filters input[type=search] { min-width:200px; max-width:100%; }
   .det-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:6px 18px; font-size:.85rem; padding:4px 0; }
   .det-grid span { display:block; color:var(--text-muted,#999); font-size:.75rem; }
-  #ss-body th.sortable, #rk-body th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
-  #ss-body th.sortable:hover, #rk-body th.sortable:hover { color:var(--chalk-white); }
-  #ss-body th.sorted, #rk-body th.sorted { color:var(--amber); }
+  #ss-body th.sortable, #rk-body th.sortable, #cap-totals th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+  #ss-body th.sortable:hover, #rk-body th.sortable:hover, #cap-totals th.sortable:hover { color:var(--chalk-white); }
+  #ss-body th.sorted, #rk-body th.sorted, #cap-totals th.sorted { color:var(--amber); }
   #ss-body td.num, #ss-body th.num, #rk-body td.num, #rk-body th.num { text-align:center; }
 </style>
 </head>
@@ -278,6 +278,7 @@ function renderAttendance(cfg, view) {
   });
 }
 
+var CAPS = { sort: "default", dir: -1 };
 function renderCaptains(cfg, view) {
   var box = document.getElementById("ms-body");
   var order = {}; SEASONS.slice().reverse().forEach(function (x, i) { order[x.id] = i; });
@@ -301,18 +302,42 @@ function renderCaptains(cfg, view) {
           (e.leagueFirst ? ' <span class="m-cap" style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:4px;background:var(--amber);color:#082A20;font-size:.7rem;font-weight:800;">FIRST CAPTAIN CHANGE OF THE LEAGUE</span>' : "");
       return '<tr><td class="team-name">' + matchLabelShort(e.match) + '</td><td class="team-name">' + escapeHtml(tname(e.team_id)) + '</td><td class="team-name">' + what + "</td></tr>";
     }).join("") + "</tbody></table></div>" : '<p class="muted">The captain has not changed yet.</p>';
-  // 2. matches captained per player
+  // 2. matches captained per player: record while captaining (stand-in matches count; the team result counts even if the captain was rested)
+  var potm = {}; EVENTS.forEach(function (x) { if (x.event_type === "player_of_match") potm[x.match_id + "|" + x.player_id] = true; });
   var tot = {};
   all.forEach(function (e) {
     var k = e.player_id + "|" + e.team_id;
-    var t = tot[k] = tot[k] || { player: e.player_id, team: e.team_id, reg: 0, stand: 0 };
+    var t = tot[k] = tot[k] || { player: e.player_id, team: e.team_id, reg: 0, stand: 0, total: 0, won: 0, drawn: 0, lost: 0, gf: 0, potm: 0, done: 0 };
     if (e.kind === "standin") t.stand++; else t.reg++;
+    t.total++;
+    var m = e.match;
+    if (m.status === "completed" && m.home_score != null && m.away_score != null) {
+      var mine = m.home_team_id === e.team_id ? m.home_score : m.away_score, theirs = m.home_team_id === e.team_id ? m.away_score : m.home_score;
+      t.done++; t.gf += mine;
+      if (mine > theirs) t.won++; else if (mine < theirs) t.lost++; else t.drawn++;
+    }
+    if (potm[m.id + "|" + e.player_id]) t.potm++;
   });
   var latest = {}; Object.keys(tl.teams).forEach(function (tid) { var reg = tl.teams[tid].filter(function (e) { return e.kind === "captain"; }); if (reg.length) latest[tid] = reg[reg.length - 1].player_id; });
-  var sum = Object.keys(tot).map(function (k) { return tot[k]; }).sort(function (a, b) { return (b.reg + b.stand) - (a.reg + a.stand) || pname(a.player).localeCompare(pname(b.player)); });
-  var totals = '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Player</th><th class="team-name">Team</th><th>As captain</th><th>As stand-in</th><th>Total</th></tr></thead><tbody>' +
+  var sum = Object.keys(tot).map(function (k) { var t = tot[k]; t.pct = t.done ? Math.round(1000 * t.won / t.done) / 10 : 0; t.name = pname(t.player); t.teamName = tname(t.team); return t; });
+  var CC = [["reg", "As captain", "Matches as regular captain"], ["stand", "As stand-in", "Matches as stand-in captain"], ["total", "Total", "Matches captained"],
+            ["won", "Won", "Won while captaining"], ["drawn", "Drawn", "Drawn while captaining"], ["lost", "Lost", "Lost while captaining"],
+            ["pct", "Win %", "Wins divided by completed matches captained"], ["gf", "Goals for", "Goals scored by the team while he captained"], ["potm", "POTM", "Player of the match awards won while captaining"]];
+  var base = function (a, b) { return (b.total - a.total) || a.name.localeCompare(b.name); };
+  var cs = CAPS.sort, cd = CAPS.dir;
+  sum.sort(function (a, b) {
+    if (cs === "default") return base(a, b);
+    if (cs === "name" || cs === "teamName") return cd * a[cs].localeCompare(b[cs]) || base(a, b);
+    return cd * (a[cs] - b[cs]) || base(a, b);
+  });
+  var arrow = function (k) { return cs === k ? (cd > 0 ? " ▲" : " ▼") : ""; };
+  var totals = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 6px;"><span class="muted" style="font-size:.78rem;">Click a heading to sort; click again to reverse. Record counts every match captained (stand-in too; a rested captain\'s team result still counts).</span>' +
+    '<button type="button" class="btn secondary small" id="cap-reset"' + (cs === "default" ? " disabled" : "") + '>Reset sort</button></div>' +
+    '<div class="table-scroll"><table class="data-table" id="cap-totals"><thead><tr><th class="team-name sortable' + (cs === "name" ? " sorted" : "") + '" data-csort="name">Player' + arrow("name") + '</th><th class="team-name sortable' + (cs === "teamName" ? " sorted" : "") + '" data-csort="teamName">Team' + arrow("teamName") + "</th>" +
+    CC.map(function (c) { return '<th class="sortable' + (cs === c[0] ? " sorted" : "") + '" data-csort="' + c[0] + '" title="' + c[2] + '">' + c[1] + arrow(c[0]) + "</th>"; }).join("") + "</tr></thead><tbody>" +
     sum.map(function (t) {
-      return '<tr><td class="team-name">' + link(t.player) + (latest[t.team] === t.player ? ' <span class="muted" style="font-size:.75rem;">(current captain)</span>' : "") + '</td><td class="team-name">' + escapeHtml(tname(t.team)) + "</td><td>" + t.reg + "</td><td>" + t.stand + "</td><td><strong>" + (t.reg + t.stand) + "</strong></td></tr>";
+      return '<tr><td class="team-name">' + link(t.player) + (latest[t.team] === t.player ? ' <span class="muted" style="font-size:.75rem;">(current captain)</span>' : "") + '</td><td class="team-name">' + escapeHtml(t.teamName) + "</td><td>" + t.reg + "</td><td>" + t.stand + "</td><td><strong>" + t.total + "</strong></td><td>" +
+        t.won + "</td><td>" + t.drawn + "</td><td>" + t.lost + "</td><td>" + (t.done ? t.pct + "%" : "–") + "</td><td>" + t.gf + "</td><td>" + t.potm + "</td></tr>";
     }).join("") + "</tbody></table></div>";
   // 3. match by match
   var byMatch = all.slice().sort(function (a, b) { return a.match.match_day - b.match.match_day || a.match.match_number - b.match.match_number || tname(a.team_id).localeCompare(tname(b.team_id)); });
@@ -326,6 +351,15 @@ function renderCaptains(cfg, view) {
   box.innerHTML = '<h3 style="margin:4px 0 6px;">Captain changes</h3>' + changes +
     '<h3 style="margin:18px 0 6px;">Matches captained</h3>' + totals +
     '<h3 style="margin:18px 0 6px;">Captain in every match</h3>' + log;
+  box.querySelectorAll("th[data-csort]").forEach(function (th) {
+    th.addEventListener("click", function () {
+      var k = th.dataset.csort;
+      if (CAPS.sort === k) CAPS.dir = -CAPS.dir; else { CAPS.sort = k; CAPS.dir = (k === "name" || k === "teamName") ? 1 : -1; }
+      renderCaptains(cfg, view);
+    });
+  });
+  var rs = document.getElementById("cap-reset");
+  if (rs) rs.addEventListener("click", function () { CAPS.sort = "default"; CAPS.dir = -1; renderCaptains(cfg, view); });
 }
 
 var INJ = { season: "current", rows: null };
