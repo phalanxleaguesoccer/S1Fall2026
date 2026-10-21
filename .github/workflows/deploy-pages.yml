@@ -3,6 +3,9 @@ name: Deploy site to GitHub Pages
 on:
   push:
     branches: ["main"]
+  # Rebuild hourly so the exported data/ JSON picks up results saved in Admin.
+  schedule:
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -34,6 +37,14 @@ jobs:
             cp -r public/. _site/preprod/
             cp preprod/config.js _site/preprod/js/config.js
             echo "Preprod copy built at /preprod/"
+          fi
+      - name: Export league data as JSON (data/*.json)
+        # Never blocks the deploy: if Supabase is unreachable the site still
+        # publishes, just without the data/ folder.
+        continue-on-error: true
+        run: |
+          if ! node scripts/export-data.mjs _site/data; then
+            echo "::warning::League data export failed; publishing the site without data/*.json"
           fi
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
