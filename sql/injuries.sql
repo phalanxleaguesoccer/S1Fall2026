@@ -1,5 +1,6 @@
--- Vamshi (Desi Steelers FC) missed every match through injury: Absent (injury) in all completed matches
--- except the one where he was Rested (that stays Rested).
+-- Vamshi (Desi Steelers FC) missed every match through injury: Absent in all completed matches except the one where he
+-- was Rested (that stays Rested). EVERY one of those matches is flagged as an injury, so he has 6 injury matches
+-- (1 rested + 5 absent).
 -- Run sql/migration_injuries.sql FIRST. Safe to re-run. Re-run it after re-running any dayN_results.sql
 -- (those rebuild the lineups and clear this flag).
 do $$
@@ -17,11 +18,11 @@ begin
   select m.id, pid, tid, 'absent', false from matches m
   where m.season_id = s and m.status = 'completed' and tid in (m.home_team_id, m.away_team_id)
   on conflict (match_id, player_id) do nothing;
-  update match_appearances set status = 'absent', started = false, absent_reason = 'injury'
-  where player_id = pid and status <> 'rested'
+  update match_appearances set status = case when status = 'rested' then 'rested' else 'absent' end, started = false, absent_reason = 'injury'
+  where player_id = pid
     and match_id in (select id from matches where season_id = s and status = 'completed' and tid in (home_team_id, away_team_id));
   get diagnostics n = row_count;
-  raise notice 'Vamshi marked absent (injury) in % match(es)', n;
+  raise notice 'Vamshi: % match(es) flagged as injury (rested stays rested, the rest are absent)', n;
 end $$;
 
 select m.match_day, m.match_number, ma.status, ma.absent_reason

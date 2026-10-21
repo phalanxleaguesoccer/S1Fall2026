@@ -126,3 +126,10 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 
 ## Availability tab (replaces the Rested and Absent tabs)
 - Stats > Milestones > Availability: "Not rested yet" first (a card per team, played counts; absent-only players still count as not rested), then "Rested and absent": a grid per team, columns = that team's completed matches (header links to the match), R = rested, A = absent, A+ = absent (injury). The old Rested/Absent tabs and their code were removed. Tests updated (`attendance_tests.py`, `injury_tests.py`, `season_stats_tests.py`).
+
+## Injury counting (rested + absent)
+- A match counts as an injury miss when `absent_reason = 'injury'` and status is `rested` OR `absent`.
+- `sql/injuries.sql` flags all of Vamshi's completed matches (rested one stays `rested`, others `absent`) -> Missed 6 = Rested 1 + Absent 5.
+- Injury tab: Player/Team/Missed/Rested/Absent; match list has a Status column. Availability grid shows `R✚` / `A✚`.
+- Admin lineup: the injury checkbox saves for Rested or Absent rows.
+- Re-run order after any results script: dayN_results -> captains.sql -> injuries.sql.
