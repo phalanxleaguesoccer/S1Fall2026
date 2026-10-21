@@ -140,3 +140,4 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Captains stats table: Player, Team, Matches, Won, Drawn, Lost, Win %, Goals for, POTM. Admin lineup has only the captain selector.
 - DB column `match_appearances.captain_stand_in` is left in place but unused (captains.sql resets it to false).
 - Correction: Match 12 (Day 3 M4) Renegades captain was Nuhu Okikiri, not Chirag (Chirag rested). Renegades timeline: Varun (M2-M3, M6, M8), Chirag (M10), Nuhu (M12). Changes now 6 league-wide; Nuhu's switch is the latest.
+- Captains table also has Draw % and Loss % (draws/losses divided by completed matches captained, same base as Win %).

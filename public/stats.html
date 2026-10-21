@@ -299,10 +299,10 @@ function renderCaptains(cfg, view) {
     if (potm[m.id + "|" + e.player_id]) t.potm++;
   });
   var latest = {}; Object.keys(tl.teams).forEach(function (tid) { var reg = tl.teams[tid]; if (reg.length) latest[tid] = reg[reg.length - 1].player_id; });
-  var sum = Object.keys(tot).map(function (k) { var t = tot[k]; t.pct = t.done ? Math.round(1000 * t.won / t.done) / 10 : 0; t.name = pname(t.player); t.teamName = tname(t.team); return t; });
+  var sum = Object.keys(tot).map(function (k) { var t = tot[k]; t.pct = t.done ? Math.round(1000 * t.won / t.done) / 10 : 0; t.dpct = t.done ? Math.round(1000 * t.drawn / t.done) / 10 : 0; t.lpct = t.done ? Math.round(1000 * t.lost / t.done) / 10 : 0; t.name = pname(t.player); t.teamName = tname(t.team); return t; });
   var CC = [["total", "Matches", "Matches captained"],
             ["won", "Won", "Won while captaining"], ["drawn", "Drawn", "Drawn while captaining"], ["lost", "Lost", "Lost while captaining"],
-            ["pct", "Win %", "Wins divided by completed matches captained"], ["gf", "Goals for", "Goals scored by the team while he captained"], ["potm", "POTM", "Player of the match awards won while captaining"]];
+            ["pct", "Win %", "Wins divided by completed matches captained"], ["dpct", "Draw %", "Draws divided by completed matches captained"], ["lpct", "Loss %", "Losses divided by completed matches captained"], ["gf", "Goals for", "Goals scored by the team while he captained"], ["potm", "POTM", "Player of the match awards won while captaining"]];
   var base = function (a, b) { return (b.total - a.total) || a.name.localeCompare(b.name); };
   var cs = CAPS.sort, cd = CAPS.dir;
   sum.sort(function (a, b) {
@@ -317,7 +317,7 @@ function renderCaptains(cfg, view) {
     CC.map(function (c) { return '<th class="sortable' + (cs === c[0] ? " sorted" : "") + '" data-csort="' + c[0] + '" title="' + c[2] + '">' + c[1] + arrow(c[0]) + "</th>"; }).join("") + "</tr></thead><tbody>" +
     sum.map(function (t) {
       return '<tr><td class="team-name">' + link(t.player) + (latest[t.team] === t.player ? ' <span class="muted" style="font-size:.75rem;">(current captain)</span>' : "") + '</td><td class="team-name">' + escapeHtml(t.teamName) + "</td><td><strong>" + t.total + "</strong></td><td>" +
-        t.won + "</td><td>" + t.drawn + "</td><td>" + t.lost + "</td><td>" + (t.done ? t.pct + "%" : "–") + "</td><td>" + t.gf + "</td><td>" + t.potm + "</td></tr>";
+        t.won + "</td><td>" + t.drawn + "</td><td>" + t.lost + "</td><td>" + (t.done ? t.pct + "%" : "–") + "</td><td>" + (t.done ? t.dpct + "%" : "–") + "</td><td>" + (t.done ? t.lpct + "%" : "–") + "</td><td>" + t.gf + "</td><td>" + t.potm + "</td></tr>";
     }).join("") + "</tbody></table></div>";
   // 3. match by match
   var byMatch = all.slice().sort(function (a, b) { return a.match.match_day - b.match.match_day || a.match.match_number - b.match.match_number || tname(a.team_id).localeCompare(tname(b.team_id)); });
