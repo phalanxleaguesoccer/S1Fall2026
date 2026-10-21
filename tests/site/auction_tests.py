@@ -146,5 +146,5 @@ with sync_playwright() as pw:
     s2=Site(pw,d)
     q=s2.page('player.html?id=p4');ok('player page: "sold for 60 pts"','sold for 60 pts' in q.inner_text('#player-team'))
     q=s2.page('team.html?id=t4');ok('team page: player in squad with price','Ayush' in q.inner_text('#roster-grid') and '60 pts' in q.inner_text('#roster-grid'))
-    q=s2.page('teams.html');ok('teams page: 2 players, 140 pts left','2 players' in q.inner_text('#teams-grid') and '140 pts left' in q.inner_text('#teams-grid'))
+    q=s2.page('teams.html');ok('teams page: shows 2 players but no auction points (those live on the Auction page)','2 players' in q.inner_text('#teams-grid') and 'pts left' not in q.inner_text('#teams-grid'))
 print(f"\n{sum(R)} passed, {len(R)-sum(R)} failed")
