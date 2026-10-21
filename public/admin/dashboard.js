@@ -439,7 +439,7 @@ async function loadLineup() {
     var capHtml = '<div class="list-row" style="gap:10px;"><span><strong>Captain</strong></span><span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
       '<select data-lu-captain="' + tid + '" style="max-width:180px;"><option value="">— not recorded —</option>' +
       squad.map(function (r) { return '<option value="' + r.player_id + '"' + (capRow && capRow.player_id === r.player_id ? " selected" : "") + ">" + escapeHtml(r.players.full_name) + "</option>"; }).join("") +
-      '</select><label style="display:flex;align-items:center;gap:6px;margin:0;"><input type="checkbox" data-lu-standin="' + tid + '" style="width:auto;"' + (capRow && existing[capRow.player_id].captain_stand_in ? " checked" : "") + '> stand-in (regular captain unavailable)</label></span></div>';
+      '</select></span></div>';
     return '<h3 style="margin:14px 0 6px;">' + escapeHtml(teamsById[tid] ? teamsById[tid].name : "?") + "</h3>" + capHtml +
       (squad.length ? squad.map(function (r) {
         var cur = existing[r.player_id] ? (existing[r.player_id].status || "played") : "played";
@@ -458,15 +458,14 @@ async function saveLineup() {
   document.querySelectorAll("#lu-body select[data-lu-player]").forEach(function (s) {
     var old = LINEUP.existing[s.dataset.luPlayer] || {};
     var capSel = document.querySelector('#lu-body select[data-lu-captain="' + s.dataset.luTeam + '"]');
-    var standBox = document.querySelector('#lu-body input[data-lu-standin="' + s.dataset.luTeam + '"]');
     var isCap = !!capSel && capSel.value === s.dataset.luPlayer;
     rows.push({ match_id: LINEUP.match.id, player_id: s.dataset.luPlayer, team_id: s.dataset.luTeam, status: s.value, started: s.value === "played",
-      position_played: old.position_played || null, minutes_played: old.minutes_played || null, is_captain: isCap, captain_stand_in: isCap && !!(standBox && standBox.checked),
+      position_played: old.position_played || null, minutes_played: old.minutes_played || null, is_captain: isCap,
       absent_reason: s.value !== "played" && !!document.querySelector('#lu-body input[data-lu-injury="' + s.dataset.luPlayer + '"]:checked') ? "injury" : null });
     c[s.value]++;
   });
   // clear this match's captain flags first so changing captain never trips the one-captain-per-team rule
-  var clr = await window.sb.from("match_appearances").update({ is_captain: false, captain_stand_in: false }).eq("match_id", LINEUP.match.id);
+  var clr = await window.sb.from("match_appearances").update({ is_captain: false }).eq("match_id", LINEUP.match.id);
   if (clr.error) { showError(msg, "Could not update captains (run sql/migration_captains.sql first): " + clr.error.message); return; }
   var res = await window.sb.from("match_appearances").upsert(rows, { onConflict: "match_id,player_id" });
   if (res.error) { showError(msg, res.error.message); return; }

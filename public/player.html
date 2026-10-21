@@ -364,17 +364,15 @@ async function loadCaptaincy() {
     return (rank[x.season_id] || 0) - (rank[y.season_id] || 0) || x.match_day - y.match_day || x.match_number - y.match_number;
   });
   if (!rows.length) return;
-  var stand = rows.filter(function (a) { return a.captain_stand_in; }).length, reg = rows.length - stand;
   document.getElementById("captain-card").style.display = "block";
   document.getElementById("captain-body").innerHTML =
     '<p style="margin:0 0 10px;">Captained <strong>' + rows.length + "</strong> " + (rows.length === 1 ? "match" : "matches") +
-    (stand ? ' <span class="muted">(' + reg + " as regular captain, " + stand + " as stand-in)</span>" : "") + ".</p>" +
-    '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Season</th><th class="team-name">Match</th><th class="team-name">Team</th><th class="team-name">Against</th><th></th></tr></thead><tbody>' +
+    ".</p>" +
+    '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Season</th><th class="team-name">Match</th><th class="team-name">Team</th><th class="team-name">Against</th></tr></thead><tbody>' +
     rows.map(function (a) {
       var m = M[a.match_id], opp = m.home_team_id === a.team_id ? m.away_team_id : m.home_team_id;
       return '<tr><td class="team-name">' + escapeHtml(S[m.season_id] || "") + '</td><td class="team-name"><a href="match.html?id=' + m.id + '">Day ' + m.match_day + " &middot; M" + m.match_number +
-        '</a></td><td class="team-name">' + escapeHtml(T[a.team_id] || "") + '</td><td class="team-name">' + escapeHtml(T[opp] || "") + "</td><td>" +
-        (a.captain_stand_in ? '<span class="muted">stand-in</span>' : "") + "</td></tr>";
+        '</a></td><td class="team-name">' + escapeHtml(T[a.team_id] || "") + '</td><td class="team-name">' + escapeHtml(T[opp] || "") + "</td></tr>";
     }).join("") + "</tbody></table></div>";
 }
 

@@ -306,7 +306,7 @@ async function loadMatch() {
   apps.forEach(function (a) { if (a.is_captain) capOf[a.team_id] = a; });
   var capTag = function (p, teamId) {
     var c = capOf[teamId];
-    return c && p && c.player_id === p.id ? '<span class="m-cap" title="' + (c.captain_stand_in ? "Stand-in captain" : "Captain") + '">C' + (c.captain_stand_in ? " (stand-in)" : "") + "</span>" : "";
+    return c && p && c.player_id === p.id ? '<span class="m-cap" title="Captain">C</span>' : "";
   };
   var squads = [home, away].map(function (team) {
     var mine = apps.filter(function (a) { return a.team_id === team.id; });
@@ -328,7 +328,7 @@ async function loadMatch() {
       var injured = {}; apps.forEach(function (a) { if (a.status !== "played" && a.absent_reason === "injury") injured[a.player_id] = true; });
       var names = function (l) { return l.length ? l.map(function (p) { return plink(p) + capTag(p, q.team.id) + (injured[p.id] ? ' <span class="muted">(injury)</span>' : ""); }).join(", ") : "—"; };
       return "<div><div class=\"m-tname\"><a href=\"team.html?id=" + q.team.id + '">' + escapeHtml(q.team.name) + "</a></div>" +
-        (capOf[q.team.id] && P[capOf[q.team.id].player_id] ? '<div class="m-sub" style="margin-bottom:4px;">Captain: ' + plink(P[capOf[q.team.id].player_id]) + (capOf[q.team.id].captain_stand_in ? " (stand-in)" : "") + "</div>" : "") +
+        (capOf[q.team.id] && P[capOf[q.team.id].player_id] ? '<div class="m-sub" style="margin-bottom:4px;">Captain: ' + plink(P[capOf[q.team.id].player_id]) + "</div>" : "") +
         '<div class="m-sm">PLAYED (' + q.played.length + ")</div>" +
         (q.played.length ? q.played.map(function (p) {
           return '<div class="m-prow"><div class="av">' + (p.photo_url ? '<img src="' + escapeHtml(p.photo_url) + '" alt="">' : "") + "</div>" + plink(p) + capTag(p, q.team.id) + '<span class="line">' + lineFor(p.id) + "</span></div>";

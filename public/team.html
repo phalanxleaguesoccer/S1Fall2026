@@ -329,26 +329,19 @@ async function renderCaptains() {
   var entries = tl.teams[teamId] || [];
   if (!entries.length) return;
   var link = function (id) { return '<a href="player.html?id=' + id + '">' + escapeHtml(N[id] || "?") + "</a>"; };
-  var regular = entries.filter(function (e) { return e.kind === "captain"; });
-  var current = regular.length ? regular[regular.length - 1].player_id : null;
-  // stints: consecutive matches under the same regular captain
+  var current = entries[entries.length - 1].player_id;
+  // timeline: consecutive matches under the same captain
   var stints = [];
-  regular.forEach(function (e) {
+  entries.forEach(function (e) {
     var last = stints[stints.length - 1];
     if (last && last.player === e.player_id) { last.n++; last.to = e.match; } else stints.push({ player: e.player_id, n: 1, from: e.match, to: e.match });
   });
   var span = function (st) { return st.from === st.to ? matchLabelShort(st.from) : matchLabelShort(st.from) + " to " + matchLabelShort(st.to); };
-  var html = (current ? '<p style="margin:0 0 10px;">Current captain: <strong>' + link(current) + "</strong></p>" : "") +
+  var html = '<p style="margin:0 0 10px;">Current captain: <strong>' + link(current) + "</strong></p>" +
     '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Captain</th><th class="team-name">Matches</th><th>Games</th></tr></thead><tbody>' +
     stints.slice().reverse().map(function (st) {
-      return '<tr><td class="team-name">' + link(st.player) + (st.player === current ? ' <span class="muted" style="font-size:.75rem;">(current)</span>' : "") + '</td><td class="team-name">' + span(st) + "</td><td>" + st.n + "</td></tr>";
+      return '<tr><td class="team-name">' + link(st.player) + (st === stints[stints.length - 1] ? ' <span class="muted" style="font-size:.75rem;">(current)</span>' : "") + '</td><td class="team-name">' + span(st) + "</td><td>" + st.n + "</td></tr>";
     }).join("") + "</tbody></table></div>";
-  if (tl.standIns.length) {
-    html += '<p class="muted" style="font-size:.82rem;margin:10px 0 0;">Stand-in captains: ' + tl.standIns.map(function (e) {
-      var st = e.standFor ? status[e.match.id + "|" + e.standFor] : null;
-      return link(e.player_id) + " (" + matchLabelShort(e.match) + (e.standFor ? ", for " + escapeHtml(N[e.standFor] || "?") + (st ? " " + st : "") : "") + ")";
-    }).join("; ") + ".</p>";
-  }
   if (tl.changes.length) {
     var c = tl.changes[tl.changes.length - 1];
     html += '<p class="muted" style="font-size:.82rem;margin:6px 0 0;">Captain change: ' + escapeHtml(N[c.changeFrom] || "?") + " to " + escapeHtml(N[c.player_id] || "?") + " from " + matchLabelShort(c.match) + ".</p>";

@@ -133,3 +133,9 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Injury tab: Player/Team/Missed/Rested/Absent; match list has a Status column. Availability grid shows `R✚` / `A✚`.
 - Admin lineup: the injury checkbox saves for Rested or Absent rows.
 - Re-run order after any results script: dayN_results -> captains.sql -> injuries.sql.
+
+## Captains: stand-in concept removed
+- Whoever captained a match is its captain. `captainTimeline()` (common.js) returns `teams/all/changes` only; every switch of a team's captain is a change (incl. switches back).
+- League order of changes: Match 5 Bhagyesh (Scouts) = 1st (flagged "first captain change"), Match 9 Vija (Desi) = 2nd, Match 10 Chirag (Renegades) = 3rd, then Pradnyal (M7) and Nasiq (M11) return.
+- Captains stats table: Player, Team, Matches, Won, Drawn, Lost, Win %, Goals for, POTM. Admin lineup has only the captain selector.
+- DB column `match_appearances.captain_stand_in` is left in place but unused (captains.sql resets it to false).

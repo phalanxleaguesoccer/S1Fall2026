@@ -172,9 +172,10 @@ function formatKickoffDate(iso) {
 // ---------- Captains ----------
 // capApps: match_appearances rows with is_captain = true (any teams / seasons).
 // matchOf(matchId) -> match row.  opts.seasonRank: { seasonId: n } (older seasons first).
-// Returns { teams: { teamId: [entry...] }, all: [entry...], changes: [entry...], standIns: [entry...] } in match order.
-// entry = { app, match, team_id, player_id, kind: "captain" | "standin", changeFrom (previous regular captain, when it changed),
-//           standFor (the regular captain being covered), leagueFirst (the first change in the whole league) }
+// Returns { teams: { teamId: [entry...] }, all: [entry...], changes: [entry...] } in match order.
+// entry = { app, match, team_id, player_id, changeFrom (previous captain of that team, when it changed),
+//           leagueFirst (set on changes[0]: the first change in the whole league) }
+// Every captain is a captain: there is no stand-in distinction, any switch of captain is a change.
 function captainTimeline(capApps, matchOf, opts) {
   var rank = (opts && opts.seasonRank) || {};
   var keyOf = function (a) { var m = matchOf(a.match_id) || {}; return [rank[m.season_id] || 0, m.match_day || 0, m.match_number || 0]; };
@@ -182,27 +183,20 @@ function captainTimeline(capApps, matchOf, opts) {
   var rows = capApps.filter(function (a) { return matchOf(a.match_id); }).slice().sort(cmp);
   var teams = {};
   rows.forEach(function (a) { (teams[a.team_id] = teams[a.team_id] || []).push(a); });
-  var out = { teams: {}, all: [], changes: [], standIns: [] };
+  var out = { teams: {}, all: [], changes: [] };
   Object.keys(teams).forEach(function (tid) {
-    var list = teams[tid], regular = null, entries = [];
-    list.forEach(function (a) {
-      var e = { app: a, match: matchOf(a.match_id), team_id: tid, player_id: a.player_id, kind: a.captain_stand_in ? "standin" : "captain" };
-      if (e.kind === "captain") {
-        if (regular && regular !== a.player_id) e.changeFrom = regular;
-        regular = a.player_id;
-      } else { e.standFor = regular; }
+    var prev = null, entries = [];
+    teams[tid].forEach(function (a) {
+      var e = { app: a, match: matchOf(a.match_id), team_id: tid, player_id: a.player_id };
+      if (prev && prev !== a.player_id) e.changeFrom = prev;
+      prev = a.player_id;
       entries.push(e);
     });
-    entries.forEach(function (e, i) {   // a stand-in before the first regular entry covers the next regular captain
-      if (e.kind === "standin" && !e.standFor) {
-        for (var j = i + 1; j < entries.length; j++) if (entries[j].kind === "captain") { e.standFor = entries[j].player_id; break; }
-      }
-    });
     out.teams[tid] = entries;
-    entries.forEach(function (e) { out.all.push(e); if (e.changeFrom) out.changes.push(e); if (e.kind === "standin") out.standIns.push(e); });
+    entries.forEach(function (e) { out.all.push(e); if (e.changeFrom) out.changes.push(e); });
   });
   var ecmp = function (a, b) { return cmp(a.app, b.app); };
-  out.all.sort(ecmp); out.changes.sort(ecmp); out.standIns.sort(ecmp);
+  out.all.sort(ecmp); out.changes.sort(ecmp);
   if (out.changes.length) out.changes[0].leagueFirst = true;
   return out;
 }
