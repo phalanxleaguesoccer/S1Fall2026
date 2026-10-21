@@ -227,7 +227,7 @@ async function loadMatch() {
         var benefit = e.team_id === home.id ? away : home;
         if (benefit.id === home.id) rh++; else ra++;
         var oas = pa.goalAssist[e.id];
-        sub = "Counts for " + escapeHtml(benefit.name) + (oas ? " · Assist: " + plink(oas.players) : "");
+        sub = "Counts for " + teamLink(benefit.id, benefit.name) + (oas ? " · Assist: " + plink(oas.players) : "");
         score = rh + " – " + ra;
       } else if (e.event_type === "assist") sub = "Assist";
       else if (e.event_type === "foul") sub = "Foul committed";
@@ -235,7 +235,7 @@ async function loadMatch() {
       else if (e.event_type === "red_card") sub = "Red card";
       else if (e.event_type === "save") sub = "Goal saved";
       else sub = "Substitution";
-      tl += '<div class="m-ev"><span class="m-chip ' + c[1] + '">' + c[0] + '</span><div><div class="main">' + plink(e.players) + " (" + escapeHtml(e.teams.name) + ')</div><div class="m-sub">' + sub +
+      tl += '<div class="m-ev"><span class="m-chip ' + c[1] + '">' + c[0] + '</span><div><div class="main">' + plink(e.players) + " (" + teamLink(e.teams.id, e.teams.name) + ')</div><div class="m-sub">' + sub +
         (e.minute != null ? " · " + clock(e) : "") + '</div></div><span class="score">' + score + "</span></div>";
     });
     if (h.key === 1) { htHome = rh; htAway = ra; }
@@ -247,7 +247,7 @@ async function loadMatch() {
 
   // ---- hero ----
   var tossTeam = m.toss_winner_team_id === home.id ? home : (m.toss_winner_team_id === away.id ? away : null);
-  var tossText = tossTeam ? "<span>Toss: " + escapeHtml(tossTeam.name) + (m.toss_choice === "kickoff" ? " · chose to kick off" : (m.toss_choice === "side" ? " · chose side" : "")) + "</span>" : "";
+  var tossText = tossTeam ? "<span>Toss: " + teamLink(tossTeam.id, tossTeam.name) + (m.toss_choice === "kickoff" ? " · chose to kick off" : (m.toss_choice === "side" ? " · chose side" : "")) + "</span>" : "";
   var scoreBig = done ? m.home_score + " <span>–</span> " + m.away_score : (m.status === "forfeited" ? '<span style="font-size:48px;">Forfeit</span>' : "<span>vs</span>");
   var pillText = done ? "FULL TIME" : m.status.toUpperCase();
   html += '<section class="m-card m-hero"><div class="m-hero-top"><span>Match Day ' + m.match_day + " · Match " + m.match_number + '</span><span class="m-ft' + (done ? "" : " other") + '">' + pillText + "</span>" +
@@ -263,7 +263,7 @@ async function loadMatch() {
     html += potm.map(function (e) {
       var p = e.players, s = S[p.id] || { g: 0, a: 0 };
       return '<section class="m-potm"><div class="ph">' + (p.photo_url ? '<img src="' + escapeHtml(p.photo_url) + '" alt="' + escapeHtml(p.full_name) + '">' : "Photo") + '</div>' +
-        '<div><div class="tag">PLAYER OF THE MATCH</div><div class="nm">' + plink(p) + '</div><div class="m-sub" style="font-size:14px;">' + escapeHtml(e.teams.name) + (p.preferred_position ? " · " + escapeHtml(p.preferred_position) : "") + "</div></div>" +
+        '<div><div class="tag">PLAYER OF THE MATCH</div><div class="nm">' + plink(p) + '</div><div class="m-sub" style="font-size:14px;">' + teamLink(e.teams.id, e.teams.name) + (p.preferred_position ? " · " + escapeHtml(p.preferred_position) : "") + "</div></div>" +
         '<div class="nums"><div><b>' + s.g + "</b><span>GOALS</span></div><div><b>" + s.a + "</b><span>ASSISTS</span></div><div><b>" + (s.g + s.a) + "</b><span>G + A</span></div></div></section>";
     }).join("");
   }
@@ -275,7 +275,7 @@ async function loadMatch() {
   var statsHtml = "";
   if (done) {
     statsHtml = '<section class="m-card"><div class="m-label">Match stats</div>' +
-      '<div class="m-stat-row" style="margin-top:14px; font-size:13px; font-weight:600; color:var(--chalk-dim);"><span>' + escapeHtml(home.name) + "</span><span>" + escapeHtml(away.name) + "</span></div>" +
+      '<div class="m-stat-row" style="margin-top:14px; font-size:13px; font-weight:600; color:var(--chalk-dim);"><span>' + teamLink(home.id, home.name) + "</span><span>" + teamLink(away.id, away.name) + "</span></div>" +
       statDefs.map(function (d) {
         var a = T[home.id][d[1]], b = T[away.id][d[1]], mx = Math.max(a, b, 1);
         if (d[1] === "goals") { a = m.home_score; b = m.away_score; mx = Math.max(a, b, 1); }
@@ -285,7 +285,7 @@ async function loadMatch() {
   var tlHtml = '<section class="m-card"><div class="m-label">How it happened</div>' +
     '<div class="m-sub" style="margin:4px 0 4px;">Grouped by half. A minute shows only if one was entered.</div>' +
     (tl || '<p class="muted" style="margin-top:12px;">No events logged for this match yet.</p>') +
-    (awards.length ? '<div style="padding-top:12px;">🏆 <strong>Player of the Tournament</strong> · ' + awards.map(function (e) { return plink(e.players) + " (" + escapeHtml(e.teams.name) + ")"; }).join(", ") + "</div>" : "") + "</section>";
+    (awards.length ? '<div style="padding-top:12px;">🏆 <strong>Player of the Tournament</strong> · ' + awards.map(function (e) { return plink(e.players) + " (" + teamLink(e.teams.id, e.teams.name) + ")"; }).join(", ") + "</div>" : "") + "</section>";
   html += statsHtml ? '<div class="m-two">' + statsHtml + tlHtml + "</div>" : tlHtml;
 
   // ---- who played / player stats ----
@@ -342,7 +342,7 @@ async function loadMatch() {
   if (done && squads.some(function (q) { return q.played.length; })) {
     html += '<section class="m-card"><div class="m-label">Player stats</div>' + squads.map(function (q) {
       if (!q.played.length) return "";
-      return '<div class="m-tname" style="font-size:18px; margin:14px 0 4px;">' + escapeHtml(q.team.name) + '</div><div class="m-scroll"><table class="m-ptable"><thead><tr><th>PLAYER</th><th>POS</th><th class="num">G</th><th class="num">A</th>' +
+      return '<div class="m-tname" style="font-size:18px; margin:14px 0 4px;">' + teamLink(q.team.id, q.team.name) + '</div><div class="m-scroll"><table class="m-ptable"><thead><tr><th>PLAYER</th><th>POS</th><th class="num">G</th><th class="num">A</th>' +
         (anyOG ? '<th class="num">OG</th>' : "") + (anySave ? '<th class="num">SV</th>' : "") + '<th class="num">FL</th><th class="num">YC</th><th class="num">RC</th></tr></thead><tbody>' +
         q.played.map(function (p) {
           var s = S[p.id] || { g: 0, a: 0, sv: 0, yc: 0, rc: 0, og: 0, fl: 0 };

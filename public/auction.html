@@ -356,7 +356,7 @@ function render() {
   document.getElementById("feed").innerHTML = events.length ? events.map(function (e) {
     if (e.kind === "sold") {
       return '<div class="feed-row"><span><span class="tag sold">SOLD</span><a href="player.html?id=' + e.r.player_id + '">' + escapeHtml(pname(e.r.player_id)) + '</a> → ' +
-        escapeHtml(teamName[e.r.team_id] || "?") + ' for <strong>' + (e.r.auction_price == null ? 0 : e.r.auction_price) + ' pts</strong></span>' +
+        teamLink(e.r.team_id, teamName[e.r.team_id]) + ' for <strong>' + (e.r.auction_price == null ? 0 : e.r.auction_price) + ' pts</strong></span>' +
         '<button class="btn secondary admin-only" data-undo-sale="' + e.r.id + '" style="padding:2px 10px;">Undo</button></div>';
     }
     return '<div class="feed-row"><span><span class="tag unsold">UNSOLD</span>' + escapeHtml(pname(e.u.player_id)) +

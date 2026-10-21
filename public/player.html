@@ -372,7 +372,7 @@ async function loadCaptaincy() {
     rows.map(function (a) {
       var m = M[a.match_id], opp = m.home_team_id === a.team_id ? m.away_team_id : m.home_team_id;
       return '<tr><td class="team-name">' + escapeHtml(S[m.season_id] || "") + '</td><td class="team-name"><a href="match.html?id=' + m.id + '">Day ' + m.match_day + " &middot; M" + m.match_number +
-        '</a></td><td class="team-name">' + escapeHtml(T[a.team_id] || "") + '</td><td class="team-name">' + escapeHtml(T[opp] || "") + "</td></tr>";
+        '</a></td><td class="team-name">' + teamLink(a.team_id, T[a.team_id]) + '</td><td class="team-name">' + teamLink(opp, T[opp]) + "</td></tr>";
     }).join("") + "</tbody></table></div>";
 }
 

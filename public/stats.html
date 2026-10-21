@@ -167,6 +167,8 @@ var TAB = "goals", SEASONS = [], TEAMS = {}, PLAYERS = {}, MATCHES = {}, EVENTS 
 function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 function isPlaceholder(t) { return /^Team [A-Z]$/.test(t.name); }
 function tname(id) { return TEAMS[id] ? TEAMS[id].name : "?"; }
+function tlink(id) { return teamLink(id, tname(id)); }
+function plink(id) { return playerLink(id, pname(id)); }
 function pname(id) { return PLAYERS[id] ? PLAYERS[id].full_name : "?"; }
 
 // Chronological order: match order first; inside a match by minute when EVERY
@@ -241,7 +243,7 @@ function renderAvailability(cfg, view) {
   var h = '<h3 style="margin:4px 0 2px;">Not rested yet <span class="muted" style="font-weight:400;font-size:.85rem;">&middot; ' + nNever + " of " + nAll + ' players</span></h3>' +
     '<p class="muted" style="margin:0 0 8px;font-size:.8rem;">Players who have not been rested in a completed match. Being absent is not the same as being rested, so someone who was only absent is still listed here.</p>' +
     '<div class="av-grid">' + teams.map(function (t) {
-      return '<div class="av-card"><div class="av-th"><span>' + escapeHtml(tname(t.tid)) + '</span><span class="muted">' + t.never.length + " of " + t.players.length + "</span></div>" +
+      return '<div class="av-card"><div class="av-th"><span>' + tlink(t.tid) + '</span><span class="muted">' + t.never.length + " of " + t.players.length + "</span></div>" +
         (t.never.length ? t.never.map(function (p) {
           return '<div class="av-pl"><span>' + link(p.id) + (p.owner ? ' <span class="muted">(owner)</span>' : "") + '</span><span class="muted">' + p.played + " played" + (p.absent ? " &middot; " + p.absent + " absent" + (p.injury ? " (injury)" : "") : "") + "</span></div>";
         }).join("") : '<div class="muted" style="padding:6px 0;font-size:.85rem;">Everyone has been rested.</div>') + "</div>";
@@ -249,7 +251,7 @@ function renderAvailability(cfg, view) {
     '<h3 style="margin:22px 0 4px;">Rested and absent <span class="muted" style="font-weight:400;font-size:.85rem;">&middot; ' + nSome + ' players</span></h3>' +
     '<div class="av-key"><span><span class="av-b r">R</span> Rested</span><span><span class="av-b a">A</span> Absent</span><span><span class="av-b r">R&#10010;</span> <span class="av-b a">A&#10010;</span> Rested / absent (injury)</span><span>&middot; Played</span><span>Columns are that team\'s matches (Day &middot; Match). Click a column to open the match.</span></div>';
   teams.forEach(function (t) {
-    h += '<div class="av-card" style="margin-bottom:12px;"><div class="av-th"><span>' + escapeHtml(tname(t.tid)) + '</span><span class="muted">' + t.some.length + " of " + t.players.length + "</span></div>";
+    h += '<div class="av-card" style="margin-bottom:12px;"><div class="av-th"><span>' + tlink(t.tid) + '</span><span class="muted">' + t.some.length + " of " + t.players.length + "</span></div>";
     if (!t.some.length) { h += '<div class="muted" style="padding:6px 0;font-size:.85rem;">Nobody has been rested or absent yet.</div></div>'; return; }
     h += '<div class="table-scroll"><table class="av-table"><thead><tr><th class="nm">Player</th>' +
       t.ms.map(function (m) { return '<th><a href="match.html?id=' + m.id + '" title="Open the match">D' + m.match_day + "&middot;M" + m.match_number + "</a></th>"; }).join("") +
@@ -281,7 +283,7 @@ function renderCaptains(cfg, view) {
     ev.map(function (e, i) {
       var what = "<strong>New captain:</strong> " + link(e.changeFrom) + " &rarr; " + link(e.player_id) +
         (e.leagueFirst ? ' <span class="m-cap" style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:4px;background:var(--amber);color:#082A20;font-size:.7rem;font-weight:800;">FIRST CAPTAIN CHANGE OF THE LEAGUE</span>' : "");
-      return '<tr><td class="team-name">' + matchLabelShort(e.match) + '</td><td class="team-name">' + escapeHtml(tname(e.team_id)) + '</td><td class="team-name">' + what + "</td></tr>";
+      return '<tr><td class="team-name">' + matchLink(e.match) + '</td><td class="team-name">' + tlink(e.team_id) + '</td><td class="team-name">' + what + "</td></tr>";
     }).join("") + "</tbody></table></div>" : '<p class="muted">The captain has not changed yet.</p>';
   // 2. matches captained per player: record while captaining (the team result counts even if the captain was rested)
   var potm = {}; EVENTS.forEach(function (x) { if (x.event_type === "player_of_match") potm[x.match_id + "|" + x.player_id] = true; });
@@ -316,7 +318,7 @@ function renderCaptains(cfg, view) {
     '<div class="table-scroll"><table class="data-table" id="cap-totals"><thead><tr><th class="team-name sortable' + (cs === "name" ? " sorted" : "") + '" data-csort="name">Player' + arrow("name") + '</th><th class="team-name sortable' + (cs === "teamName" ? " sorted" : "") + '" data-csort="teamName">Team' + arrow("teamName") + "</th>" +
     CC.map(function (c) { return '<th class="sortable' + (cs === c[0] ? " sorted" : "") + '" data-csort="' + c[0] + '" title="' + c[2] + '">' + c[1] + arrow(c[0]) + "</th>"; }).join("") + "</tr></thead><tbody>" +
     sum.map(function (t) {
-      return '<tr><td class="team-name">' + link(t.player) + (latest[t.team] === t.player ? ' <span class="muted" style="font-size:.75rem;">(current captain)</span>' : "") + '</td><td class="team-name">' + escapeHtml(t.teamName) + "</td><td><strong>" + t.total + "</strong></td><td>" +
+      return '<tr><td class="team-name">' + link(t.player) + (latest[t.team] === t.player ? ' <span class="muted" style="font-size:.75rem;">(current captain)</span>' : "") + '</td><td class="team-name">' + teamLink(t.team, t.teamName) + "</td><td><strong>" + t.total + "</strong></td><td>" +
         t.won + "</td><td>" + t.drawn + "</td><td>" + t.lost + "</td><td>" + (t.done ? t.pct + "%" : "–") + "</td><td>" + (t.done ? t.dpct + "%" : "–") + "</td><td>" + (t.done ? t.lpct + "%" : "–") + "</td><td>" + t.gf + "</td><td>" + t.potm + "</td></tr>";
     }).join("") + "</tbody></table></div>";
   // 3. match by match
@@ -324,7 +326,7 @@ function renderCaptains(cfg, view) {
   var log = '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Match</th><th class="team-name">Team</th><th class="team-name">Captain</th></tr></thead><tbody>' +
     byMatch.map(function (e) {
       var st = statusOf[e.match.id + "|" + e.player_id];
-      return '<tr><td class="team-name"><a href="match.html?id=' + e.match.id + '">' + matchLabelShort(e.match) + '</a></td><td class="team-name">' + escapeHtml(tname(e.team_id)) + '</td><td class="team-name">' + link(e.player_id) +
+      return '<tr><td class="team-name"><a href="match.html?id=' + e.match.id + '">' + matchLabelShort(e.match) + '</a></td><td class="team-name">' + tlink(e.team_id) + '</td><td class="team-name">' + link(e.player_id) +
         (st && st !== "played" ? ' <span class="muted">(' + st + ")</span>" : "") + "</td></tr>";
     }).join("") + "</tbody></table></div>";
   box.innerHTML = '<h3 style="margin:4px 0 6px;">Captain changes</h3>' + changes +
@@ -369,7 +371,7 @@ async function renderInjuries(cfg) {
   var link = function (id) { return '<a href="player.html?id=' + id + '">' + escapeHtml(pname(id)) + "</a>"; };
   box.innerHTML = head + '<h3 style="margin:4px 0 2px;">Matches missed through injury</h3><p class="muted" style="margin:0 0 6px;font-size:.8rem;">Missed = rested + absent, for matches marked as an injury.</p>' +
     '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Player</th><th class="team-name">Team</th><th>Missed</th><th>Rested</th><th>Absent</th></tr></thead><tbody>' +
-    sum.map(function (t) { return '<tr><td class="team-name">' + link(t.player) + '</td><td class="team-name">' + escapeHtml(tname(t.team)) + "</td><td><strong>" + (t.rested + t.absent) + "</strong></td><td>" + t.rested + "</td><td>" + t.absent + "</td></tr>"; }).join("") + "</tbody></table></div>" +
+    sum.map(function (t) { return '<tr><td class="team-name">' + link(t.player) + '</td><td class="team-name">' + tlink(t.team) + "</td><td><strong>" + (t.rested + t.absent) + "</strong></td><td>" + t.rested + "</td><td>" + t.absent + "</td></tr>"; }).join("") + "</tbody></table></div>" +
     '<h3 style="margin:18px 0 6px;">Every match missed</h3>' +
     '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Season</th><th class="team-name">Match</th><th class="team-name">Player</th><th class="team-name">Team</th><th class="team-name">Status</th><th class="team-name">Against</th><th class="team-name">Result</th></tr></thead><tbody>' +
     rows.map(function (r) {
@@ -377,7 +379,7 @@ async function renderInjuries(cfg) {
       var mine = m.home_team_id === a.team_id ? m.home_score : m.away_score, theirs = m.home_team_id === a.team_id ? m.away_score : m.home_score;
       var res = mine == null || theirs == null ? "–" : (mine > theirs ? "Won " : mine < theirs ? "Lost " : "Drew ") + mine + "–" + theirs;
       return '<tr><td class="team-name">' + escapeHtml(sname[m.season_id] || "") + '</td><td class="team-name"><a href="match.html?id=' + m.id + '">' + matchLabelShort(m) + '</a></td><td class="team-name">' + link(a.player_id) +
-        '</td><td class="team-name">' + escapeHtml(tname(a.team_id)) + '</td><td class="team-name">' + (a.status === "rested" ? "Rested" : "Absent") + '</td><td class="team-name">' + escapeHtml(tname(opp)) + '</td><td class="team-name">' + res + "</td></tr>";
+        '</td><td class="team-name">' + tlink(a.team_id) + '</td><td class="team-name">' + (a.status === "rested" ? "Rested" : "Absent") + '</td><td class="team-name">' + tlink(opp) + '</td><td class="team-name">' + (mine == null || theirs == null ? res : matchLink(m, res)) + "</td></tr>";
     }).join("") + "</tbody></table></div>";
   wireInj();
 }
@@ -403,27 +405,27 @@ function renderMilestones() {
     rows.map(function (e, i) {
       var n = i + 1, m = MATCHES[e.match_id];
       var opp = m.home_team_id === e.team_id ? m.away_team_id : m.home_team_id;
-      var score = m.status === "completed" || m.status === "forfeited" ? tname(m.home_team_id) + " " + (m.home_score == null ? "–" : m.home_score) + " – " + (m.away_score == null ? "–" : m.away_score) + " " + tname(m.away_team_id) : "Not completed";
+      var score = m.status === "completed" || m.status === "forfeited" ? tlink(m.home_team_id) + " " + (m.home_score == null ? "–" : m.home_score) + " – " + (m.away_score == null ? "–" : m.away_score) + " " + tlink(m.away_team_id) : "Not completed";
       var extra = "";
-      if (cfg.type === "goal") { var a = pairs.assistOfGoal[e.id]; extra = '<div><span>Assist by</span>' + (a ? escapeHtml(pname(a.player_id)) : "None recorded") + "</div>"; }
-      if (cfg.type === "own_goal") { var oa = pairs.assistOfGoal[e.id]; extra = "<div><span>Counts as a goal for</span>" + escapeHtml(tname(opp)) + "</div>" + (oa ? "<div><span>Assist by</span>" + escapeHtml(pname(oa.player_id)) + "</div>" : ""); }
+      if (cfg.type === "goal") { var a = pairs.assistOfGoal[e.id]; extra = '<div><span>Assist by</span>' + (a ? plink(a.player_id) : "None recorded") + "</div>"; }
+      if (cfg.type === "own_goal") { var oa = pairs.assistOfGoal[e.id]; extra = "<div><span>Counts as a goal for</span>" + tlink(opp) + "</div>" + (oa ? "<div><span>Assist by</span>" + plink(oa.player_id) + "</div>" : ""); }
       if (e.is_penalty) extra += "<div><span>Penalty</span>Yes</div>";
-      if (cfg.type === "assist") { var g = pairs.goalOfAssist[e.id]; extra = '<div><span>Goal scored by</span>' + (g ? escapeHtml(pname(g.player_id)) + (g.event_type === "own_goal" ? " (own goal)" : "") : "Not linked") + "</div>"; }
+      if (cfg.type === "assist") { var g = pairs.goalOfAssist[e.id]; extra = '<div><span>Goal scored by</span>' + (g ? plink(g.player_id) + (g.event_type === "own_goal" ? " (own goal)" : "") : "Not linked") + "</div>"; }
       var det =
         '<div class="det-grid">' +
         "<div><span>Season</span>" + escapeHtml(seasonName) + "</div>" +
-        "<div><span>Match</span>Day " + m.match_day + " &middot; Match " + m.match_number + (m.kickoff_at ? " (" + formatKickoffDate(m.kickoff_at) + ")" : "") + "</div>" +
-        "<div><span>Team represented</span>" + escapeHtml(tname(e.team_id)) + "</div>" +
-        "<div><span>Opponent</span>" + escapeHtml(tname(opp)) + "</div>" +
-        "<div><span>Final score</span>" + escapeHtml(score) + "</div>" +
+        "<div><span>Match</span>" + matchLink(m, "Day " + m.match_day + " &middot; Match " + m.match_number) + (m.kickoff_at ? " (" + formatKickoffDate(m.kickoff_at) + ")" : "") + "</div>" +
+        "<div><span>Team represented</span>" + tlink(e.team_id) + "</div>" +
+        "<div><span>Opponent</span>" + tlink(opp) + "</div>" +
+        "<div><span>Final score</span>" + score + "</div>" +
         "<div><span>Half</span>" + halfText(e) + "</div>" +
         (e.minute != null ? "<div><span>Time</span>" + (e.second != null ? e.minute + ":" + (e.second < 10 ? "0" : "") + e.second : e.minute + "'") + "</div>" : "") +
         extra +
         "<div><span>" + cfg.title + " number in tournament</span>" + ordinal(tourN[e.id]) + "</div>" +
-        "<div><span>" + cfg.title + " number for " + escapeHtml(tname(e.team_id)) + "</span>" + ordinal(teamN[e.id]) + "</div>" +
+        "<div><span>" + cfg.title + " number for " + tlink(e.team_id) + "</span>" + ordinal(teamN[e.id]) + "</div>" +
         "</div>";
       return '<tr><td class="ms-n">' + n + '</td><td class="team-name"><a href="player.html?id=' + e.player_id + '">' + escapeHtml(pname(e.player_id)) + "</a></td>" +
-        '<td class="team-name">' + escapeHtml(tname(e.team_id)) + '</td><td><button type="button" class="btn secondary small" data-det="' + e.id + '" aria-expanded="false">Details</button></td></tr>' +
+        '<td class="team-name">' + tlink(e.team_id) + '</td><td><button type="button" class="btn secondary small" data-det="' + e.id + '" aria-expanded="false">Details</button></td></tr>' +
         '<tr class="det" id="det-' + e.id + '" style="display:none;"><td colspan="4">' + det + "</td></tr>";
     }).join("") + "</tbody></table></div>";
   box.querySelectorAll("[data-det]").forEach(function (b) {
@@ -516,7 +518,7 @@ function renderBoard(B) {
   var span = B.cols.length + 3 + (B.details ? 1 : 0);
   var body = rows.map(function (r, i) {
     if (q && r.name.toLowerCase().indexOf(q) < 0) return "";
-    var tr = '<tr><td class="ms-n num">' + (B.details ? moveHtml(st.hist && st.hist.move[r.id]) : "") + ranks[i] + (tied[i] ? "=" : "") + '</td><td class="team-name"><a href="player.html?id=' + r.id + '">' + escapeHtml(r.name) + '</a>' + (B.details ? '<span class="rk-sub">' + escapeHtml(r.team) + '</span><button type="button" class="btn secondary small rk-detbtn" data-pdet="' + r.id + '" aria-expanded="false">Details</button>' : "") + "</td><td class=\"team-name\">" + escapeHtml(r.team) + "</td>" +
+    var tr = '<tr><td class="ms-n num">' + (B.details ? moveHtml(st.hist && st.hist.move[r.id]) : "") + ranks[i] + (tied[i] ? "=" : "") + '</td><td class="team-name"><a href="player.html?id=' + r.id + '">' + escapeHtml(r.name) + '</a>' + (B.details ? '<span class="rk-sub">' + (r.team_id ? teamLink(r.team_id, r.team) : escapeHtml(r.team)) + '</span><button type="button" class="btn secondary small rk-detbtn" data-pdet="' + r.id + '" aria-expanded="false">Details</button>' : "") + "</td><td class=\"team-name\">" + (r.team_id ? teamLink(r.team_id, r.team) : escapeHtml(r.team)) + "</td>" +
       B.cols.map(function (c) { return '<td class="num">' + (st.sort === c[0] || (st.sort === "default" && c[0] === B.hl) ? "<strong>" + r[c[0]] + "</strong>" : r[c[0]]) + "</td>"; }).join("");
     if (!B.details) return tr + "</tr>";
     var parts = POINT_RULES.map(function (p) { var n = r[p[1]] || 0; return "<div><span>" + p[0] + "</span>" + n + " &times; " + p[2] + " = <strong>" + (n * p[2]) + "</strong></div>"; }).join("");

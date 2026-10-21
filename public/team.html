@@ -225,13 +225,13 @@ async function renderStatsAndSchedule() {
         : "Scheduled";
       return '<tr class="row-link" data-href="match.html?id=' + m.id + '" style="cursor:pointer;">' +
         "<td>" + escapeHtml(dateStr) + "</td>" +
-        "<td>Day " + m.match_day + "</td>" +
-        '<td class="team-name">' + escapeHtml(m.home.name) + " vs " + escapeHtml(m.away.name) + "</td>" +
-        "<td>" + escapeHtml(resultStr) + "</td>" +
+        "<td>" + matchLink(m, "Day " + m.match_day + " &middot; M" + m.match_number) + "</td>" +
+        '<td class="team-name">' + teamLink(m.home.id, m.home.name) + " vs " + teamLink(m.away.id, m.away.name) + "</td>" +
+        "<td>" + (m.status === "completed" ? matchLink(m, escapeHtml(resultStr)) : escapeHtml(resultStr)) + "</td>" +
         "</tr>";
     }).join("");
     schedBody.querySelectorAll(".row-link").forEach(function (tr) {
-      tr.addEventListener("click", function () { window.location.href = tr.getAttribute("data-href"); });
+      tr.addEventListener("click", function (ev) { if (ev.target.closest("a")) return; window.location.href = tr.getAttribute("data-href"); });
     });
   }
 }
@@ -336,7 +336,7 @@ async function renderCaptains() {
     var last = stints[stints.length - 1];
     if (last && last.player === e.player_id) { last.n++; last.to = e.match; } else stints.push({ player: e.player_id, n: 1, from: e.match, to: e.match });
   });
-  var span = function (st) { return st.from === st.to ? matchLabelShort(st.from) : matchLabelShort(st.from) + " to " + matchLabelShort(st.to); };
+  var span = function (st) { return st.from === st.to ? matchLink(st.from) : matchLink(st.from) + " to " + matchLink(st.to); };
   var html = '<p style="margin:0 0 10px;">Current captain: <strong>' + link(current) + "</strong></p>" +
     '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Captain</th><th class="team-name">Matches</th><th>Games</th></tr></thead><tbody>' +
     stints.slice().reverse().map(function (st) {
@@ -344,7 +344,7 @@ async function renderCaptains() {
     }).join("") + "</tbody></table></div>";
   if (tl.changes.length) {
     var c = tl.changes[tl.changes.length - 1];
-    html += '<p class="muted" style="font-size:.82rem;margin:6px 0 0;">Captain change: ' + escapeHtml(N[c.changeFrom] || "?") + " to " + escapeHtml(N[c.player_id] || "?") + " from " + matchLabelShort(c.match) + ".</p>";
+    html += '<p class="muted" style="font-size:.82rem;margin:6px 0 0;">Captain change: ' + link(c.changeFrom) + " to " + link(c.player_id) + " from " + matchLink(c.match) + ".</p>";
   }
   document.getElementById("captain-card").style.display = "block";
   document.getElementById("captain-body").innerHTML = html;

@@ -141,3 +141,8 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - DB column `match_appearances.captain_stand_in` is left in place but unused (captains.sql resets it to false).
 - Correction: Match 12 (Day 3 M4) Renegades captain was Nuhu Okikiri, not Chirag (Chirag rested). Renegades timeline: Varun (M2-M3, M6, M8), Chirag (M10), Nuhu (M12). Changes now 6 league-wide; Nuhu's switch is the latest.
 - Captains table also has Draw % and Loss % (draws/losses divided by completed matches captained, same base as Win %).
+
+## Links everywhere
+- `common.js` helpers `teamLink(id,name)`, `matchLink(m,label)`, `playerLink(id,name)`; stats.html wraps them as `tlink(id)` / `plink(id)`.
+- Rule: wherever a team name, match label ("Day 3 · M4", "Day 3", a result) or player name is shown it is a link to team.html / match.html / player.html. Exceptions: whole-card links (teams.html, players.html cards), admin dashboard, dropdown options, headings of the page itself.
+- matches.html rows and team.html schedule rows are clickable via JS (not wrapping `<a>`) so team names inside can be real links; click handlers ignore clicks on anchors. Test: `tests/site/links_tests.py`.

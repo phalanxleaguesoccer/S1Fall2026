@@ -200,4 +200,8 @@ function captainTimeline(capApps, matchOf, opts) {
   if (out.changes.length) out.changes[0].leagueFirst = true;
   return out;
 }
+// Links used wherever a team / match / player name is shown, so every name opens its page.
+function teamLink(id, name) { return id ? '<a href="team.html?id=' + id + '">' + escapeHtml(name || "?") + "</a>" : escapeHtml(name || "TBD"); }
+function matchLink(m, label) { return '<a href="match.html?id=' + m.id + '">' + (label || matchLabelShort(m)) + "</a>"; }
+function playerLink(id, name) { return '<a href="player.html?id=' + id + '">' + escapeHtml(name || "?") + "</a>"; }
 function matchLabelShort(m) { return "Day " + m.match_day + " · M" + m.match_number; }

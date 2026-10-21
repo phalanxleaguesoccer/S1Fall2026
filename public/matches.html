@@ -55,7 +55,7 @@ async function loadMatches() {
     return [["rested", "Rested"], ["absent", "Absent"]].map(function (s) {
       var c = att[m.id + "|" + s[0]];
       if (!c) return "";
-      return s[1] + ": " + Object.keys(c).map(function (tid) { return escapeHtml(teams[tid] ? teams[tid].name : "?") + " " + c[tid]; }).join(", ");
+      return s[1] + ": " + Object.keys(c).map(function (tid) { return teamLink(tid, teams[tid] ? teams[tid].name : "?") + " " + c[tid]; }).join(", ");
     }).filter(Boolean).join(" &middot; ");
   }
 
@@ -67,21 +67,24 @@ async function loadMatches() {
 
   container.innerHTML = Object.keys(byDay).sort(function (a, b) { return a - b; }).map(function (day) {
     var rows = byDay[day].map(function (m) {
-      var home = teams[m.home_team_id] ? teams[m.home_team_id].name : "TBD";
-      var away = teams[m.away_team_id] ? teams[m.away_team_id].name : "TBD";
+      var home = teamLink(teams[m.home_team_id] && m.home_team_id, teams[m.home_team_id] ? teams[m.home_team_id].name : "TBD");
+      var away = teamLink(teams[m.away_team_id] && m.away_team_id, teams[m.away_team_id] ? teams[m.away_team_id].name : "TBD");
       var score = (m.status === "completed")
         ? '<strong>' + m.home_score + " – " + m.away_score + "</strong>"
         : (m.status === "forfeited" ? "Forfeit" : "vs");
       var when = m.kickoff_at ? formatKickoff(m.kickoff_at) : "";
-      return '<a href="match.html?id=' + m.id + '" style="text-decoration:none; color:inherit;">' +
+      return '<div class="match-row" data-href="match.html?id=' + m.id + '" style="cursor:pointer;">' +
         '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--card-edge); gap:10px; flex-wrap:wrap;">' +
-        '<div><span class="pill ' + m.status + '">' + m.status + "</span> " + escapeHtml(home) + " " + score + " " + escapeHtml(away) + "</div>" +
+        '<div><span class="pill ' + m.status + '">' + m.status + "</span> " + home + " " + matchLink(m, score) + " " + away + "</div>" +
         '<div class="muted" style="font-size:0.82rem;">' + when + "</div>" +
         (attText(m) ? '<div class="muted" style="font-size:0.78rem; width:100%;">' + attText(m) + "</div>" : "") +
-        "</div></a>";
+        "</div></div>";
     }).join("");
     return '<div class="card"><div class="card-title">Match Day ' + day + "</div>" + rows + "</div>";
   }).join("");
+  container.querySelectorAll(".match-row").forEach(function (row) {
+    row.addEventListener("click", function (ev) { if (ev.target.closest("a")) return; window.location.href = row.getAttribute("data-href"); });
+  });
 }
 loadMatches();
 trackPageView("matches").then(function (count) {
