@@ -154,3 +154,10 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 ## Stats page order
 - Sub-nav is now Ranking (default) | Milestones | Season Stats ("(In QA)" label and the "Don't take it seriously yet" pop-up removed). `stats.html` = Ranking, `#milestones`, `#season`.
 - Movement arrows count change in players strictly AHEAD, so with ties an arrow can differ from the change in the rank number (e.g. Dhruv 8 -> 4 shows ▲6). By design; see ranking notes above.
+
+## Records tab (Stats > Records)
+- New tab order: Ranking | Milestones | Records | Season Stats. Code in `public/js/records.js` (loaded by stats.html; `#records` hash). Test: `tests/site/records_tests.py`.
+- Hub of 9 Top-5 cards (goals, assists, G+A, POTM, saves, fair play, fouls, cards, captains) + left menu: Goals, Assists, Goal contributions, Player of the match, Saves, Cards & fouls, Availability, Results summary, Discipline (teams), Match records, Captains.
+- Filters: Season (or all seasons), Team, "Min. matches for per-match rates" (default 2 — number still to be agreed with the owner). Per-match rates show "–" for players below the minimum; totals include everyone.
+- Everything is computed in the browser from matches, rosters, match_appearances and match_events (no new SQL). Fastest/latest goals use only goals with a recorded minute. Clean sheet = team conceded 0. Per-goalkeeper clean sheets are NOT tracked (no GK flag).
+- Season Stats tab is unchanged and still to be redesigned.
