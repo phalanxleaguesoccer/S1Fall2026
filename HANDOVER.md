@@ -111,3 +111,8 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 ## Week 3 (Match Day 3 = Matches 9-12)
 - `sql/day3_results.sql` (same pattern as day2: scores, toss, lineups, events; re-runnable; validates every name). Needs `migration_day2_fields.sql` + `migration_fouls.sql` already run. No code changes needed; Stats, Ranking (In QA), standings and match pages read the data.
 - Results: M9 Muggles 1-0 Desi, M10 Renegades 1-0 Scouts, M11 Scouts 2-0 Desi (Pradnyal's goal a penalty), M12 Muggles 2-0 Renegades (sheet said "Desi Steelers 0-0 Renegades"; owner confirmed 2-0 Muggles).
+
+## Captains
+- Data lives on `match_appearances.is_captain` (existing column) + new `captain_stand_in` (run `sql/migration_captains.sql`; one captain per team per match via a partial unique index). `sql/captains.sql` records Day 1-3 (Varun to Chirag on Renegades from Day 3 = first captain change of the league; Bhagyesh stood in for Pradnyal in Match 5; Vija for Nasiq in Match 9; Chirag stayed Renegades captain in Match 12 although rested). Re-run `captains.sql` after re-running any `dayN_results.sql` (they rebuild lineups and clear the flags).
+- `captainTimeline()` in `common.js` derives changes/stand-ins/current captain; used by Stats > Milestones > Captains, team page "Captains" card, player page "Captaincy" card. Match page shows (C) badges + "Captain:" line. Admin > Records > Match Lineup has a Captain select per team and a stand-in tick box (saving needs the migration).
+- Tests: `tests/site/captain_tests.py`.

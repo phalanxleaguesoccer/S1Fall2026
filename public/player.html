@@ -34,6 +34,11 @@
     <div id="awards-body"></div>
   </div>
 
+  <div class="card" id="captain-card" style="display:none;">
+    <div class="card-title">Captaincy</div>
+    <div id="captain-body"></div>
+  </div>
+
   <div class="card" id="suspensions-card" style="display:none;">
     <div class="card-title">Suspensions</div>
     <div id="suspensions-body"></div>
@@ -343,8 +348,39 @@ async function loadAwardsAndSuspensions() {
   }
 }
 
+async function loadCaptaincy() {
+  if (!playerId) return;
+  var capRes = await window.sb.from("match_appearances").select("*").eq("player_id", playerId).eq("is_captain", true);
+  var cap = capRes.data || [];
+  if (!cap.length) return;
+  var mRes = await window.sb.from("matches").select("*").in("id", cap.map(function (a) { return a.match_id; }));
+  var M = {}; (mRes.data || []).forEach(function (m) { M[m.id] = m; });
+  var tRes = await window.sb.from("teams").select("id, name");
+  var T = {}; (tRes.data || []).forEach(function (t) { T[t.id] = t.name; });
+  var sRes = await window.sb.from("seasons").select("id, name, created_at").order("created_at", { ascending: true });
+  var S = {}, rank = {}; (sRes.data || []).forEach(function (s, i) { S[s.id] = s.name; rank[s.id] = i; });
+  var rows = cap.filter(function (a) { return M[a.match_id]; }).sort(function (a, b) {
+    var x = M[a.match_id], y = M[b.match_id];
+    return (rank[x.season_id] || 0) - (rank[y.season_id] || 0) || x.match_day - y.match_day || x.match_number - y.match_number;
+  });
+  if (!rows.length) return;
+  var stand = rows.filter(function (a) { return a.captain_stand_in; }).length, reg = rows.length - stand;
+  document.getElementById("captain-card").style.display = "block";
+  document.getElementById("captain-body").innerHTML =
+    '<p style="margin:0 0 10px;">Captained <strong>' + rows.length + "</strong> " + (rows.length === 1 ? "match" : "matches") +
+    (stand ? ' <span class="muted">(' + reg + " as regular captain, " + stand + " as stand-in)</span>" : "") + ".</p>" +
+    '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Season</th><th class="team-name">Match</th><th class="team-name">Team</th><th class="team-name">Against</th><th></th></tr></thead><tbody>' +
+    rows.map(function (a) {
+      var m = M[a.match_id], opp = m.home_team_id === a.team_id ? m.away_team_id : m.home_team_id;
+      return '<tr><td class="team-name">' + escapeHtml(S[m.season_id] || "") + '</td><td class="team-name"><a href="match.html?id=' + m.id + '">Day ' + m.match_day + " &middot; M" + m.match_number +
+        '</a></td><td class="team-name">' + escapeHtml(T[a.team_id] || "") + '</td><td class="team-name">' + escapeHtml(T[opp] || "") + "</td><td>" +
+        (a.captain_stand_in ? '<span class="muted">stand-in</span>' : "") + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+}
+
 loadPlayer();
 loadAwardsAndSuspensions();
+loadCaptaincy();
 if (playerId && !EMBED) {
   trackPageView("player:" + playerId).then(function (count) {
     document.getElementById("page-views").textContent = "Profile viewed " + formatViewCount(count);

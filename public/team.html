@@ -31,6 +31,11 @@
     </a>
   </div>
 
+  <div class="card" id="captain-card" style="display:none;">
+    <div class="card-title">Captains</div>
+    <div id="captain-body"></div>
+  </div>
+
   <div class="card">
     <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <span>Team Stats</span>
@@ -307,6 +312,50 @@ async function renderSquad() {
   }
 }
 
+async function renderCaptains() {
+  var capRes = await window.sb.from("match_appearances").select("*").eq("team_id", teamId).eq("is_captain", true);
+  var cap = capRes.data || [];
+  if (!cap.length) return;
+  var mIds = cap.map(function (a) { return a.match_id; });
+  var mRes = await window.sb.from("matches").select("*").in("id", mIds);
+  var M = {}; (mRes.data || []).forEach(function (m) { M[m.id] = m; });
+  var offRes = await window.sb.from("match_appearances").select("*").eq("team_id", teamId).neq("status", "played");
+  var status = {}; (offRes.data || []).forEach(function (a) { status[a.match_id + "|" + a.player_id] = a.status; });
+  var pIds = {}; cap.forEach(function (a) { pIds[a.player_id] = 1; });
+  var pRes = await window.sb.from("players").select("id, full_name").in("id", Object.keys(pIds));
+  var N = {}; (pRes.data || []).forEach(function (p) { N[p.id] = p.full_name; });
+  var rank = {}; allSeasons.forEach(function (s, i) { rank[s.id] = i; });
+  var tl = captainTimeline(cap, function (id) { return M[id]; }, { seasonRank: rank });
+  var entries = tl.teams[teamId] || [];
+  if (!entries.length) return;
+  var link = function (id) { return '<a href="player.html?id=' + id + '">' + escapeHtml(N[id] || "?") + "</a>"; };
+  var regular = entries.filter(function (e) { return e.kind === "captain"; });
+  var current = regular.length ? regular[regular.length - 1].player_id : null;
+  // stints: consecutive matches under the same regular captain
+  var stints = [];
+  regular.forEach(function (e) {
+    var last = stints[stints.length - 1];
+    if (last && last.player === e.player_id) { last.n++; last.to = e.match; } else stints.push({ player: e.player_id, n: 1, from: e.match, to: e.match });
+  });
+  var span = function (st) { return st.from === st.to ? matchLabelShort(st.from) : matchLabelShort(st.from) + " to " + matchLabelShort(st.to); };
+  var html = (current ? '<p style="margin:0 0 10px;">Current captain: <strong>' + link(current) + "</strong></p>" : "") +
+    '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Captain</th><th class="team-name">Matches</th><th>Games</th></tr></thead><tbody>' +
+    stints.slice().reverse().map(function (st) {
+      return '<tr><td class="team-name">' + link(st.player) + (st.player === current ? ' <span class="muted" style="font-size:.75rem;">(current)</span>' : "") + '</td><td class="team-name">' + span(st) + "</td><td>" + st.n + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+  if (tl.standIns.length) {
+    html += '<p class="muted" style="font-size:.82rem;margin:10px 0 0;">Stand-in captains: ' + tl.standIns.map(function (e) {
+      var st = e.standFor ? status[e.match.id + "|" + e.standFor] : null;
+      return link(e.player_id) + " (" + matchLabelShort(e.match) + (e.standFor ? ", for " + escapeHtml(N[e.standFor] || "?") + (st ? " " + st : "") : "") + ")";
+    }).join("; ") + ".</p>";
+  }
+  if (tl.changes.length) {
+    var c = tl.changes[tl.changes.length - 1];
+    html += '<p class="muted" style="font-size:.82rem;margin:6px 0 0;">Captain change: ' + escapeHtml(N[c.changeFrom] || "?") + " to " + escapeHtml(N[c.player_id] || "?") + " from " + matchLabelShort(c.match) + ".</p>";
+  }
+  document.getElementById("captain-card").style.display = "block";
+  document.getElementById("captain-body").innerHTML = html;
+}
 async function loadTeam() {
   if (!teamId) { document.getElementById("team-name").textContent = "Team not found"; return; }
   var teamRes = await window.sb.from("teams").select("*").eq("id", teamId).single();
@@ -337,6 +386,7 @@ async function loadTeam() {
 
   renderStatsAndSchedule();
   renderSquad();
+  renderCaptains();
 }
 loadTeam();
 if (teamId) {

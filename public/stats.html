@@ -109,6 +109,7 @@
       <button type="button" data-tab="fouls">Fouls</button>
       <button type="button" data-tab="rested">Rested</button>
       <button type="button" data-tab="absent">Absent</button>
+      <button type="button" data-tab="captains">Captains</button>
     </div>
     <div class="filters">
       <div><label class="muted" for="f-season">Season</label><select id="f-season"></select></div>
@@ -142,7 +143,8 @@ var TABS = {
   owngoals: { type: "own_goal",   title: "Own goal",    none: "No own goals recorded yet." },
   fouls:   { type: "foul",        title: "Foul",        none: "No fouls recorded yet." },
   rested:  { att: "rested",       title: "Rested",      none: "Nobody has been rested yet." },
-  absent:  { att: "absent",       title: "Absent",      none: "Nobody has been absent yet." }
+  absent:  { att: "absent",       title: "Absent",      none: "Nobody has been absent yet." },
+  captains: { cap: true,          title: "Captain",     none: "No captains recorded yet." }
 };
 var TAB = "goals", SEASONS = [], TEAMS = {}, PLAYERS = {}, MATCHES = {}, EVENTS = [], APPS = [], ROSTER = [], SEASON_ID = null;
 
@@ -232,8 +234,7 @@ function renderSquadView(cfg, teamId) {
   box.querySelectorAll("[data-det]").forEach(function (b) {
     b.addEventListener("click", function () {
       var r = document.getElementById("det-" + b.dataset.det), open = r.style.display === "none";
-      r.style.display = open ? "" : "none";
-      box.querySelectorAll('[data-pdet="' + b.dataset.pdet + '"]').forEach(function (x) { x.textContent = open ? "Hide" : "Details"; x.setAttribute("aria-expanded", open); });
+      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
     });
   });
 }
@@ -270,14 +271,64 @@ function renderAttendance(cfg, view) {
   box.querySelectorAll("[data-det]").forEach(function (b) {
     b.addEventListener("click", function () {
       var r = document.getElementById("det-" + b.dataset.det), open = r.style.display === "none";
-      r.style.display = open ? "" : "none";
-      box.querySelectorAll('[data-pdet="' + b.dataset.pdet + '"]').forEach(function (x) { x.textContent = open ? "Hide" : "Details"; x.setAttribute("aria-expanded", open); });
+      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
     });
   });
 }
 
+function renderCaptains(cfg, view) {
+  var box = document.getElementById("ms-body");
+  var order = {}; SEASONS.slice().reverse().forEach(function (x, i) { order[x.id] = i; });
+  var statusOf = {}; APPS.forEach(function (a) { statusOf[a.match_id + "|" + a.player_id] = a.status || "played"; });
+  var tl = captainTimeline(APPS.filter(function (a) { return a.is_captain; }), function (id) { return MATCHES[id]; }, { seasonRank: order });
+  var inView = function (e) { return view === "all" || e.team_id === view; };
+  var all = tl.all.filter(inView);
+  if (!all.length) { box.innerHTML = '<p class="muted">' + cfg.none + "</p>"; return; }
+  var link = function (id) { return '<a href="player.html?id=' + id + '">' + escapeHtml(pname(id)) + "</a>"; };
+  var why = function (e) {
+    var st = e.standFor ? statusOf[e.match.id + "|" + e.standFor] : null;
+    return e.standFor ? " for " + link(e.standFor) + (st && st !== "played" ? " (" + st + ")" : "") : "";
+  };
+  // 1. changes of captain + stand-ins, in order
+  var ev = tl.changes.concat(tl.standIns).filter(inView).sort(function (a, b) { return tl.all.indexOf(a) - tl.all.indexOf(b); });
+  var changes = ev.length ? '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">When</th><th class="team-name">Team</th><th class="team-name">What happened</th></tr></thead><tbody>' +
+    ev.map(function (e) {
+      var what = e.kind === "standin"
+        ? "<strong>Stand-in captain:</strong> " + link(e.player_id) + why(e)
+        : "<strong>New captain:</strong> " + link(e.changeFrom) + " &rarr; " + link(e.player_id) +
+          (e.leagueFirst ? ' <span class="m-cap" style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:4px;background:var(--amber);color:#082A20;font-size:.7rem;font-weight:800;">FIRST CAPTAIN CHANGE OF THE LEAGUE</span>' : "");
+      return '<tr><td class="team-name">' + matchLabelShort(e.match) + '</td><td class="team-name">' + escapeHtml(tname(e.team_id)) + '</td><td class="team-name">' + what + "</td></tr>";
+    }).join("") + "</tbody></table></div>" : '<p class="muted">The captain has not changed yet.</p>';
+  // 2. matches captained per player
+  var tot = {};
+  all.forEach(function (e) {
+    var k = e.player_id + "|" + e.team_id;
+    var t = tot[k] = tot[k] || { player: e.player_id, team: e.team_id, reg: 0, stand: 0 };
+    if (e.kind === "standin") t.stand++; else t.reg++;
+  });
+  var latest = {}; Object.keys(tl.teams).forEach(function (tid) { var reg = tl.teams[tid].filter(function (e) { return e.kind === "captain"; }); if (reg.length) latest[tid] = reg[reg.length - 1].player_id; });
+  var sum = Object.keys(tot).map(function (k) { return tot[k]; }).sort(function (a, b) { return (b.reg + b.stand) - (a.reg + a.stand) || pname(a.player).localeCompare(pname(b.player)); });
+  var totals = '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Player</th><th class="team-name">Team</th><th>As captain</th><th>As stand-in</th><th>Total</th></tr></thead><tbody>' +
+    sum.map(function (t) {
+      return '<tr><td class="team-name">' + link(t.player) + (latest[t.team] === t.player ? ' <span class="muted" style="font-size:.75rem;">(current captain)</span>' : "") + '</td><td class="team-name">' + escapeHtml(tname(t.team)) + "</td><td>" + t.reg + "</td><td>" + t.stand + "</td><td><strong>" + (t.reg + t.stand) + "</strong></td></tr>";
+    }).join("") + "</tbody></table></div>";
+  // 3. match by match
+  var byMatch = all.slice().sort(function (a, b) { return a.match.match_day - b.match.match_day || a.match.match_number - b.match.match_number || tname(a.team_id).localeCompare(tname(b.team_id)); });
+  var log = '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Match</th><th class="team-name">Team</th><th class="team-name">Captain</th></tr></thead><tbody>' +
+    byMatch.map(function (e) {
+      var st = statusOf[e.match.id + "|" + e.player_id];
+      return '<tr><td class="team-name">' + matchLabelShort(e.match) + '</td><td class="team-name">' + escapeHtml(tname(e.team_id)) + '</td><td class="team-name">' + link(e.player_id) +
+        (e.kind === "standin" ? ' <span class="muted">(stand-in' + (e.standFor ? " for " + escapeHtml(pname(e.standFor)) : "") + ")</span>" : "") +
+        (st && st !== "played" ? ' <span class="muted">(' + st + ")</span>" : "") + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+  box.innerHTML = '<h3 style="margin:4px 0 6px;">Captain changes</h3>' + changes +
+    '<h3 style="margin:18px 0 6px;">Matches captained</h3>' + totals +
+    '<h3 style="margin:18px 0 6px;">Captain in every match</h3>' + log;
+}
+
 function renderMilestones() {
   var cfg = TABS[TAB], view = document.getElementById("f-view").value;
+  if (cfg.cap) { renderCaptains(cfg, view); return; }
   if (cfg.att) { renderAttendance(cfg, view); return; }
   var all = sortChrono(EVENTS.filter(function (e) { return e.event_type === cfg.type; }));
   var tourN = {}, teamN = {}, perTeam = {};
@@ -317,8 +368,7 @@ function renderMilestones() {
   box.querySelectorAll("[data-det]").forEach(function (b) {
     b.addEventListener("click", function () {
       var r = document.getElementById("det-" + b.dataset.det), open = r.style.display === "none";
-      r.style.display = open ? "" : "none";
-      box.querySelectorAll('[data-pdet="' + b.dataset.pdet + '"]').forEach(function (x) { x.textContent = open ? "Hide" : "Details"; x.setAttribute("aria-expanded", open); });
+      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
     });
   });
 }

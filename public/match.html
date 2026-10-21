@@ -48,6 +48,7 @@
 .m-break { display:flex; align-items:center; gap:12px; padding:12px 0 6px; font-size:13px; font-weight:700; letter-spacing:.08em; color:var(--chalk-dim); }
 .m-break:before, .m-break:after { content:""; flex:1; height:1px; background:var(--card-edge); }
 .m-ev { display:grid; grid-template-columns:76px minmax(0,1fr) 60px; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #26262A; }
+.m-cap { display:inline-block; margin-left:6px; padding:0 6px; border-radius:4px; background:var(--amber); color:#082A20; font-size:11px; font-weight:800; letter-spacing:.04em; vertical-align:middle; }
 .m-chip { font-size:11px; font-weight:700; letter-spacing:.06em; text-align:center; padding:4px 0; border-radius:6px; }
 .m-chip.goal { background:var(--amber); color:#082A20; }
 .m-chip.yc { background:#E8C547; color:#1C1C1F; }
@@ -301,6 +302,12 @@ async function loadMatch() {
     return bits.join(" · ");
   }
   var hasLineup = apps.length > 0;
+  var capOf = {};   // team id -> appearance row of its captain in this match
+  apps.forEach(function (a) { if (a.is_captain) capOf[a.team_id] = a; });
+  var capTag = function (p, teamId) {
+    var c = capOf[teamId];
+    return c && p && c.player_id === p.id ? '<span class="m-cap" title="' + (c.captain_stand_in ? "Stand-in captain" : "Captain") + '">C' + (c.captain_stand_in ? " (stand-in)" : "") + "</span>" : "";
+  };
   var squads = [home, away].map(function (team) {
     var mine = apps.filter(function (a) { return a.team_id === team.id; });
     var pick = function (st) { return mine.filter(function (a) { return (a.status || "played") === st; }).map(function (a) { return P[a.player_id]; }).filter(Boolean); };
@@ -318,11 +325,12 @@ async function loadMatch() {
   });
   if (squads.some(function (q) { return q.played.length || q.rested.length || q.absent.length; })) {
     html += '<section class="m-card"><div class="m-label">Who played</div><div class="m-lineups">' + squads.map(function (q) {
-      var names = function (l) { return l.length ? l.map(function (p) { return plink(p); }).join(", ") : "—"; };
+      var names = function (l) { return l.length ? l.map(function (p) { return plink(p) + capTag(p, q.team.id); }).join(", ") : "—"; };
       return "<div><div class=\"m-tname\"><a href=\"team.html?id=" + q.team.id + '">' + escapeHtml(q.team.name) + "</a></div>" +
+        (capOf[q.team.id] && P[capOf[q.team.id].player_id] ? '<div class="m-sub" style="margin-bottom:4px;">Captain: ' + plink(P[capOf[q.team.id].player_id]) + (capOf[q.team.id].captain_stand_in ? " (stand-in)" : "") + "</div>" : "") +
         '<div class="m-sm">PLAYED (' + q.played.length + ")</div>" +
         (q.played.length ? q.played.map(function (p) {
-          return '<div class="m-prow"><div class="av">' + (p.photo_url ? '<img src="' + escapeHtml(p.photo_url) + '" alt="">' : "") + "</div>" + plink(p) + '<span class="line">' + lineFor(p.id) + "</span></div>";
+          return '<div class="m-prow"><div class="av">' + (p.photo_url ? '<img src="' + escapeHtml(p.photo_url) + '" alt="">' : "") + "</div>" + plink(p) + capTag(p, q.team.id) + '<span class="line">' + lineFor(p.id) + "</span></div>";
         }).join("") : '<div class="m-sub" style="padding:8px 0;">Lineup not recorded.</div>') +
         (q.fromEvents ? '<div class="m-sub" style="margin-top:6px;">Full lineup not recorded; showing players with events.</div>' : "") +
         (q.hasRows ? '<div class="m-sm">RESTED (' + q.rested.length + ')</div><div class="m-sub" style="padding:4px 0;">' + names(q.rested) + '</div><div class="m-sm">ABSENT (' + q.absent.length + ')</div><div class="m-sub" style="padding:4px 0;">' + names(q.absent) + "</div>" : "") +
