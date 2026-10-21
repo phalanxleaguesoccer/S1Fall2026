@@ -39,7 +39,7 @@ with sync_playwright() as pw:
     ok('All seasons: Ayush 1 + Ajinkya P 1, 2 matches listed',sorted((r[0],r[2].strip()) for r in t1())==[('Ajinkya P','1'),('Ayush','1')] and len(t2())==2,(t1(),t2()))
     ok('scheduled (not played yet) match not counted',all('Day 3' not in r for r in [' '.join(x) for x in t2()]))
     # other tabs still work after visiting Injury
-    p.click('#tabs button[data-tab=rested]');p.wait_for_timeout(300);ok('Rested tab still works',p.locator('#ms-body table').count()>=1 and 'Ayush' in p.inner_text('#ms-body'),p.inner_text('#ms-body')[:200])
+    p.click('#tabs button[data-tab=availability]');p.wait_for_timeout(300);ok('Availability tab works; injury absence shown as A✚',p.locator('.av-table').count()>=1 and 'Ayush' in p.inner_text('#ms-body') and p.locator('.av-b.a',has_text='✚').count()>=1,p.inner_text('#ms-body')[:300])
     # match page
     q=s.page('match.html?id=m2',1500);mt=q.inner_text('#match-root');ok('match page: absent injured player tagged (injury)','Ayush' in mt and '(injury)' in mt,mt)
     q=s.page('match.html?id=m0',1500);ok('match page: absent non-injury player not tagged','(injury)' not in q.inner_text('#match-root'))

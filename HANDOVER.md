@@ -123,3 +123,6 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Season Stats and Ranking (In QA): the "#" header is sortable: click = ranking order (best first), click again = worst first (rank numbers unchanged).
 - Tests: `injury_tests.py`, `rank_sort_tests.py`.
 - Captains tab "Matches captained" table: As captain / As stand-in / Total / Won / Drawn / Lost / Win % / Goals for / POTM. Record counts every match captained (stand-in included; a rested captain's team result still counts); POTM only in matches he captained; Win % = wins / completed matches. Sortable headers + "Reset sort" button (default: most matches, then name).
+
+## Availability tab (replaces the Rested and Absent tabs)
+- Stats > Milestones > Availability: "Not rested yet" first (a card per team, played counts; absent-only players still count as not rested), then "Rested and absent": a grid per team, columns = that team's completed matches (header links to the match), R = rested, A = absent, A+ = absent (injury). The old Rested/Absent tabs and their code were removed. Tests updated (`attendance_tests.py`, `injury_tests.py`, `season_stats_tests.py`).

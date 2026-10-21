@@ -87,7 +87,7 @@ with sync_playwright() as pw:
     # sub nav
     p.click('#sub-nav button[data-sec=milestones]');p.wait_for_timeout(200)
     ok('Milestones section shows with its tabs',p.is_visible('#sec-milestones') and not p.is_visible('#sec-season') and p.locator('[data-tab]').count()>=6)
-    p.click('[data-tab=rested]');ok('Milestones tabs still work',p.locator('#ms-body').inner_text().strip()!='')
+    p.click('[data-tab=availability]');ok('Milestones tabs still work',p.locator('#ms-body').inner_text().strip()!='')
     p.click('#sub-nav button[data-sec=season]');ok('back to Season Stats',p.is_visible('#sec-season'))
     pp=Site(pw,d).page('player.html?id='+P['Nasiq'],1200);pp.click('#history-toggle');pp.wait_for_timeout(600)
     ct=pp.locator('#career-totals-body td').all_inner_texts()

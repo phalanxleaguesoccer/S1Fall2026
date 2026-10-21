@@ -50,6 +50,22 @@
   table.wk-table th.num, table.wk-table td.num { text-align:right; white-space:nowrap; }
   table.wk-table th { font-size:.7rem; color:var(--chalk-dim); text-transform:uppercase; }
   @media (max-width: 360px) { #rk-body col.c-name { width:68px; } #rk-body table.data-table th.num { font-size:.5rem; } }
+  .av-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .av-card { background:#232326; border:1px solid var(--card-edge); border-radius:10px; padding:10px 12px; }
+  .av-th { display:flex; justify-content:space-between; gap:8px; font-weight:700; margin-bottom:6px; }
+  .av-pl { display:flex; justify-content:space-between; gap:8px; padding:4px 0; border-top:1px solid var(--card-edge); font-size:.9rem; }
+  .av-th + .av-pl { border-top:0; }
+  .av-key { display:flex; gap:14px; flex-wrap:wrap; align-items:center; font-size:.8rem; color:var(--chalk-dim); margin:4px 0 10px; }
+  table.av-table { border-collapse:collapse; width:100%; font-size:.85rem; }
+  table.av-table th, table.av-table td { padding:6px 5px; text-align:center; border-top:1px solid var(--card-edge); }
+  table.av-table th { color:var(--chalk-dim); font-size:.7rem; text-transform:uppercase; border-top:0; white-space:nowrap; }
+  table.av-table th a { color:inherit; text-decoration:none; } table.av-table th a:hover { color:var(--amber); }
+  table.av-table td.nm, table.av-table th.nm { text-align:left; white-space:nowrap; }
+  table.av-table td.av-n { font-weight:700; } table.av-table td.av-dot { color:#666; }
+  .av-b { display:inline-block; min-width:26px; padding:2px 6px; border-radius:6px; font-weight:800; font-size:.75rem; }
+  .av-b.r { background:var(--amber); color:var(--pitch-dark); } .av-b.a { background:var(--coral-2); color:#fff; }
+  @media (max-width: 900px) { .av-grid { grid-template-columns:1fr 1fr; } }
+  @media (max-width: 520px) { .av-grid { grid-template-columns:1fr; } table.av-table td.nm, table.av-table th.nm { white-space:normal; } }
   .det-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:6px 18px; }
   .det-grid div span { color:var(--chalk-dim); font-size:.78rem; display:block; }
   .btn.small { padding:3px 12px; font-size:.8rem; }
@@ -107,8 +123,7 @@
       <button type="button" data-tab="red">Red cards</button>
       <button type="button" data-tab="owngoals">Own goals</button>
       <button type="button" data-tab="fouls">Fouls</button>
-      <button type="button" data-tab="rested">Rested</button>
-      <button type="button" data-tab="absent">Absent</button>
+      <button type="button" data-tab="availability">Availability</button>
       <button type="button" data-tab="captains">Captains</button>
       <button type="button" data-tab="injury">Injury</button>
     </div>
@@ -143,8 +158,7 @@ var TABS = {
   red:     { type: "red_card",    title: "Red card",    none: "No red cards recorded yet." },
   owngoals: { type: "own_goal",   title: "Own goal",    none: "No own goals recorded yet." },
   fouls:   { type: "foul",        title: "Foul",        none: "No fouls recorded yet." },
-  rested:  { att: "rested",       title: "Rested",      none: "Nobody has been rested yet." },
-  absent:  { att: "absent",       title: "Absent",      none: "Nobody has been absent yet." },
+  availability: { avail: true,    title: "Availability", none: "No squads yet." },
   captains: { cap: true,          title: "Captain",     none: "No captains recorded yet." },
   injury:  { inj: true,           title: "Injury",      none: "No injuries recorded yet." }
 };
@@ -196,86 +210,59 @@ function halfText(e) {
   return h === 1 ? "First half" : (h === 2 ? "Second half" : "Not recorded");
 }
 
-function matchLink(mid) {
-  var m = MATCHES[mid];
-  var sc = (m.status === "completed" || m.status === "forfeited") && m.home_score != null ? " (" + m.home_score + "–" + m.away_score + ")" : "";
-  return '<li><a href="match.html?id=' + mid + '">Day ' + m.match_day + " &middot; Match " + m.match_number + ": " + escapeHtml(tname(m.home_team_id)) + " vs " + escapeHtml(tname(m.away_team_id)) + sc + "</a></li>";
-}
-function matchOrder(a, b) { var x = MATCHES[a.match_id], y = MATCHES[b.match_id]; return x.match_day - y.match_day || x.match_number - y.match_number; }
-
-// One team picked: whole squad (owner included) split into "never rested/absent" and "at least once".
-function renderSquadView(cfg, teamId) {
+// Availability: who has not been rested yet, then who was rested / absent, match by match.
+function renderAvailability(cfg, view) {
   var box = document.getElementById("ms-body");
-  var word = cfg.att === "rested" ? "rested" : "absent";
-  var squad = ROSTER.filter(function (r) { return r.team_id === teamId; }).map(function (r) {
-    var mine = APPS.filter(function (a) { return a.player_id === r.player_id && MATCHES[a.match_id] && MATCHES[a.match_id].status === "completed"; }).sort(matchOrder);
-    return { id: r.player_id, owner: !!r.is_owner,
-      hit: mine.filter(function (a) { return a.status === cfg.att; }),
-      played: mine.filter(function (a) { return a.status === "played"; }),
-      rested: mine.filter(function (a) { return a.status === "rested"; }).length,
-      absent: mine.filter(function (a) { return a.status === "absent"; }).length };
-  });
-  if (!squad.length) { box.innerHTML = '<p class="muted">No squad members for this team yet.</p>'; return; }
-  var never = squad.filter(function (p) { return !p.hit.length; }).sort(function (a, b) { return pname(a.id).localeCompare(pname(b.id)); });
-  var some = squad.filter(function (p) { return p.hit.length; }).sort(function (a, b) { return b.hit.length - a.hit.length || pname(a.id).localeCompare(pname(b.id)); });
-  function table(list, showCount) {
-    if (!list.length) return '<p class="muted">Nobody.</p>';
-    return '<div class="table-scroll"><table class="data-table"><thead><tr><th class="team-name">Player</th>' + (showCount ? "<th>Times " + word + "</th>" : "") + "<th></th></tr></thead><tbody>" +
-      list.map(function (p) {
-        var det = '<div class="det-grid"><div><span>Played</span>' + p.played.length + "</div><div><span>Rested</span>" + p.rested + "</div><div><span>Absent</span>" + p.absent + "</div></div>" +
-          (p.hit.length
-            ? '<p style="margin:10px 0 4px;" class="muted">Matches ' + word + ":</p><ul style=\"margin:0 0 0 18px;\">" + p.hit.map(function (a) { return matchLink(a.match_id); }).join("") + "</ul>"
-            : '<p style="margin:10px 0 4px;" class="muted">Matches played:</p>' + (p.played.length ? '<ul style="margin:0 0 0 18px;">' + p.played.map(function (a) { return matchLink(a.match_id); }).join("") + "</ul>" : "<p>None yet.</p>"));
-        return '<tr><td class="team-name"><a href="player.html?id=' + p.id + '">' + escapeHtml(pname(p.id)) + "</a>" + (p.owner ? ' <span class="muted">(owner)</span>' : "") + "</td>" +
-          (showCount ? "<td><strong>" + p.hit.length + "</strong></td>" : "") + '<td><button type="button" class="btn secondary small" data-det="sq-' + p.id + '" aria-expanded="false">Details</button></td></tr>' +
-          '<tr class="det" id="det-sq-' + p.id + '" style="display:none;"><td colspan="' + (showCount ? 3 : 2) + '">' + det + "</td></tr>";
-      }).join("") + "</tbody></table></div>";
-  }
-  box.innerHTML = '<h3 style="margin:4px 0 6px;">Never ' + word + " (" + never.length + ")</h3>" + table(never, false) +
-    '<h3 style="margin:18px 0 6px;">' + cfg.title + " at least once (" + some.length + ")</h3>" + table(some, true);
-  box.querySelectorAll("[data-det]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      var r = document.getElementById("det-" + b.dataset.det), open = r.style.display === "none";
-      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
+  var done = Object.keys(MATCHES).map(function (k) { return MATCHES[k]; }).filter(function (m) { return m.status === "completed"; })
+    .sort(function (a, b) { return a.match_day - b.match_day || a.match_number - b.match_number; });
+  var appBy = {}, teamHas = {};
+  APPS.forEach(function (a) { appBy[a.match_id + "|" + a.player_id] = a; teamHas[a.match_id + "|" + a.team_id] = true; });
+  var link = function (id) { return '<a href="player.html?id=' + id + '">' + escapeHtml(pname(id)) + "</a>"; };
+  var teamIds = {};
+  ROSTER.forEach(function (r) { if (TEAMS[r.team_id] && !isPlaceholder(TEAMS[r.team_id]) && (view === "all" || r.team_id === view)) teamIds[r.team_id] = true; });
+  var tids = Object.keys(teamIds).sort(function (a, b) { return tname(a).localeCompare(tname(b)); });
+  if (!tids.length) { box.innerHTML = '<p class="muted">' + cfg.none + "</p>"; return; }
+  var teams = tids.map(function (tid) {
+    var ms = done.filter(function (m) { return m.home_team_id === tid || m.away_team_id === tid; });
+    var players = ROSTER.filter(function (r) { return r.team_id === tid; }).map(function (r) {
+      var cells = ms.map(function (m) {
+        var a = appBy[m.id + "|" + r.player_id];
+        var st = a ? (a.status || "played") : (teamHas[m.id + "|" + tid] ? "none" : "played");   // no lineup row while the team has a lineup = did not play
+        return { m: m, st: st, inj: !!(a && a.absent_reason === "injury") };
+      });
+      var count = function (s) { return cells.filter(function (c) { return c.st === s; }).length; };
+      return { id: r.player_id, owner: !!r.is_owner, cells: cells, played: count("played"), rested: count("rested"), absent: count("absent"), injury: cells.filter(function (c) { return c.inj && c.st === "absent"; }).length };
     });
+    return { tid: tid, ms: ms, players: players,
+      never: players.filter(function (p) { return !p.rested; }).sort(function (a, b) { return pname(a.id).localeCompare(pname(b.id)); }),
+      some: players.filter(function (p) { return p.rested || p.absent; }).sort(function (a, b) { return (b.rested + b.absent) - (a.rested + a.absent) || pname(a.id).localeCompare(pname(b.id)); }) };
   });
-}
-
-function renderAttendance(cfg, view) {
-  if (view !== "all") { renderSquadView(cfg, view); return; }
-  var box = document.getElementById("ms-body");
-  var all = APPS.filter(function (a) { return a.status === cfg.att && MATCHES[a.match_id]; }).sort(function (a, b) {
-    var ma = MATCHES[a.match_id], mb = MATCHES[b.match_id];
-    if (ma.match_day !== mb.match_day) return ma.match_day - mb.match_day;
-    if (ma.match_number !== mb.match_number) return ma.match_number - mb.match_number;
-    return tname(a.team_id).localeCompare(tname(b.team_id)) || pname(a.player_id).localeCompare(pname(b.player_id));
+  var nAll = teams.reduce(function (n, t) { return n + t.players.length; }, 0), nNever = teams.reduce(function (n, t) { return n + t.never.length; }, 0), nSome = teams.reduce(function (n, t) { return n + t.some.length; }, 0);
+  var h = '<h3 style="margin:4px 0 2px;">Not rested yet <span class="muted" style="font-weight:400;font-size:.85rem;">&middot; ' + nNever + " of " + nAll + ' players</span></h3>' +
+    '<p class="muted" style="margin:0 0 8px;font-size:.8rem;">Players who have not been rested in a completed match. Being absent is not the same as being rested, so someone who was only absent is still listed here.</p>' +
+    '<div class="av-grid">' + teams.map(function (t) {
+      return '<div class="av-card"><div class="av-th"><span>' + escapeHtml(tname(t.tid)) + '</span><span class="muted">' + t.never.length + " of " + t.players.length + "</span></div>" +
+        (t.never.length ? t.never.map(function (p) {
+          return '<div class="av-pl"><span>' + link(p.id) + (p.owner ? ' <span class="muted">(owner)</span>' : "") + '</span><span class="muted">' + p.played + " played" + (p.absent ? " &middot; " + p.absent + " absent" + (p.injury ? " (injury)" : "") : "") + "</span></div>";
+        }).join("") : '<div class="muted" style="padding:6px 0;font-size:.85rem;">Everyone has been rested.</div>') + "</div>";
+    }).join("") + "</div>" +
+    '<h3 style="margin:22px 0 4px;">Rested and absent <span class="muted" style="font-weight:400;font-size:.85rem;">&middot; ' + nSome + ' players</span></h3>' +
+    '<div class="av-key"><span><span class="av-b r">R</span> Rested</span><span><span class="av-b a">A</span> Absent</span><span><span class="av-b a">A&#10010;</span> Absent (injury)</span><span>&middot; Played</span><span>Columns are that team\'s matches (Day &middot; Match). Click a column to open the match.</span></div>';
+  teams.forEach(function (t) {
+    h += '<div class="av-card" style="margin-bottom:12px;"><div class="av-th"><span>' + escapeHtml(tname(t.tid)) + '</span><span class="muted">' + t.some.length + " of " + t.players.length + "</span></div>";
+    if (!t.some.length) { h += '<div class="muted" style="padding:6px 0;font-size:.85rem;">Nobody has been rested or absent yet.</div></div>'; return; }
+    h += '<div class="table-scroll"><table class="av-table"><thead><tr><th class="nm">Player</th>' +
+      t.ms.map(function (m) { return '<th><a href="match.html?id=' + m.id + '" title="Open the match">D' + m.match_day + "&middot;M" + m.match_number + "</a></th>"; }).join("") +
+      '<th title="Times rested">R</th><th title="Times absent">A</th></tr></thead><tbody>' +
+      t.some.map(function (p) {
+        return '<tr><td class="nm">' + link(p.id) + (p.owner ? ' <span class="muted">(owner)</span>' : "") + "</td>" + p.cells.map(function (c) {
+          if (c.st === "rested") return '<td><span class="av-b r" title="Rested">R</span></td>';
+          if (c.st === "absent") return '<td><span class="av-b a" title="' + (c.inj ? "Absent (injury)" : "Absent") + '">' + (c.inj ? "A&#10010;" : "A") + "</span></td>";
+          return '<td class="av-dot">&middot;</td>';
+        }).join("") + '<td class="av-n">' + p.rested + '</td><td class="av-n">' + p.absent + "</td></tr>";
+      }).join("") + "</tbody></table></div></div>";
   });
-  var rows = view === "all" ? all : all.filter(function (a) { return a.team_id === view; });
-  if (!rows.length) { box.innerHTML = '<p class="muted">' + cfg.none + "</p>"; return; }
-  var seasonName = (SEASONS.find(function (s) { return s.id === SEASON_ID; }) || {}).name || "";
-  var totals = {};
-  rows.forEach(function (a) { var k = a.player_id + "|" + a.team_id; totals[k] = totals[k] || { player: a.player_id, team: a.team_id, n: 0 }; totals[k].n++; });
-  var sum = Object.keys(totals).map(function (k) { return totals[k]; }).sort(function (a, b) { return b.n - a.n || pname(a.player).localeCompare(pname(b.player)); });
-  box.innerHTML = '<div class="table-scroll"><table class="data-table"><thead><tr><th>#</th><th class="team-name">Player</th><th class="team-name">Team</th><th class="team-name">Match</th><th></th></tr></thead><tbody>' +
-    rows.map(function (a, i) {
-      var m = MATCHES[a.match_id], opp = m.home_team_id === a.team_id ? m.away_team_id : m.home_team_id;
-      var score = m.status === "completed" || m.status === "forfeited" ? tname(m.home_team_id) + " " + (m.home_score == null ? "–" : m.home_score) + " – " + (m.away_score == null ? "–" : m.away_score) + " " + tname(m.away_team_id) : "Not completed";
-      var det = '<div class="det-grid"><div><span>Season</span>' + escapeHtml(seasonName) + "</div>" +
-        "<div><span>Match</span>Day " + m.match_day + " &middot; Match " + m.match_number + (m.kickoff_at ? " (" + formatKickoffDate(m.kickoff_at) + ")" : "") + "</div>" +
-        "<div><span>Team</span>" + escapeHtml(tname(a.team_id)) + "</div><div><span>Opponent</span>" + escapeHtml(tname(opp)) + "</div>" +
-        "<div><span>Final score</span>" + escapeHtml(score) + "</div><div><span>Status</span>" + cfg.title + "</div></div>";
-      return '<tr><td class="ms-n">' + (i + 1) + '</td><td class="team-name"><a href="player.html?id=' + a.player_id + '">' + escapeHtml(pname(a.player_id)) + "</a></td>" +
-        '<td class="team-name">' + escapeHtml(tname(a.team_id)) + '</td><td class="team-name">Day ' + m.match_day + " &middot; M" + m.match_number + '</td><td><button type="button" class="btn secondary small" data-det="' + a.id + '" aria-expanded="false">Details</button></td></tr>' +
-        '<tr class="det" id="det-' + a.id + '" style="display:none;"><td colspan="5">' + det + "</td></tr>";
-    }).join("") + "</tbody></table></div>" +
-    '<h3 style="margin:18px 0 6px;">' + cfg.title + " &mdash; total per player</h3><div class=\"table-scroll\"><table class=\"data-table\"><thead><tr><th class=\"team-name\">Player</th><th class=\"team-name\">Team</th><th>Times</th></tr></thead><tbody>" +
-    sum.map(function (s) { return '<tr><td class="team-name"><a href="player.html?id=' + s.player + '">' + escapeHtml(pname(s.player)) + '</a></td><td class="team-name">' + escapeHtml(tname(s.team)) + "</td><td><strong>" + s.n + "</strong></td></tr>"; }).join("") + "</tbody></table></div>";
-  box.querySelectorAll("[data-det]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      var r = document.getElementById("det-" + b.dataset.det), open = r.style.display === "none";
-      r.style.display = open ? "" : "none"; b.textContent = open ? "Hide" : "Details"; b.setAttribute("aria-expanded", open);
-    });
-  });
+  box.innerHTML = h;
 }
 
 var CAPS = { sort: "default", dir: -1 };
@@ -411,7 +398,7 @@ function renderMilestones() {
   var cfg = TABS[TAB], view = document.getElementById("f-view").value;
   if (cfg.inj) { renderInjuries(cfg); return; }
   if (cfg.cap) { renderCaptains(cfg, view); return; }
-  if (cfg.att) { renderAttendance(cfg, view); return; }
+  if (cfg.avail) { renderAvailability(cfg, view); return; }
   var all = sortChrono(EVENTS.filter(function (e) { return e.event_type === cfg.type; }));
   var tourN = {}, teamN = {}, perTeam = {};
   all.forEach(function (e, i) { tourN[e.id] = i + 1; perTeam[e.team_id] = (perTeam[e.team_id] || 0) + 1; teamN[e.id] = perTeam[e.team_id]; });
