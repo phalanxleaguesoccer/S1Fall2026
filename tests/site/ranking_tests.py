@@ -23,7 +23,7 @@ d['match_events']=ev
 with sync_playwright() as pw:
     s=Site(pw,d);p=s.page('stats.html#ranking',1500)
     ok('no JS errors',not p.errs,p.errs)
-    ok('sub-nav order: Ranking (default, selected), Milestones, Records, Season Stats',p.locator('#sub-nav button').all_inner_texts()==['Ranking','Milestones','Records','Season Stats'] and p.locator('#sub-nav button.on').inner_text()=='Ranking' and p.is_visible('#sec-ranking') and not p.is_visible('#sec-season'))
+    ok('sub-nav order: Ranking (default, selected), Milestones, Records, Rivalry, Season Stats',p.locator('#sub-nav button').all_inner_texts()==['Ranking','Milestones','Records','Rivalry','Season Stats'] and p.locator('#sub-nav button.on').inner_text()=='Ranking' and p.is_visible('#sec-ranking') and not p.is_visible('#sec-season'))
     ok('no QA pop-up any more',p.locator('#qa-modal').count()==0 and 'in qa' not in p.inner_text('body').lower())
     hdr=[h.strip().lower() for h in p.locator('#rk-body thead th').all_inner_texts()]
     ok('Points column after Team, then season columns',hdr[:5]==['#','player','team','points','p'] and 'absent' in hdr,hdr)

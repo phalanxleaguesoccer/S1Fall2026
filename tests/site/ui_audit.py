@@ -49,4 +49,6 @@ with sync_playwright() as pw:
         for v in views:
             p.evaluate("recGo('%s')"%v);p.wait_for_timeout(200);chk(p,'records:'+v)
         p.close()
+        for a,b2 in [('Muggles FC','Scouts FC'),('Renegades','Desi Steelers FC')]:
+            p=s.page('stats.html#rivalry/%s/%s'%(T[a],T[b2]),1500);p.set_viewport_size({'width':w,'height':900});p.wait_for_timeout(200);chk(p,'rivalry:'+a+' v '+b2);p.close()
 print('issues:',bad)

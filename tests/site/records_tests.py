@@ -11,7 +11,7 @@ d['match_events']+= [ev(1,'m0','Muggles FC','Amritpal Singh','goal',3,20),ev(2,'
 with sync_playwright() as pw:
     s=Site(pw,d);p=s.page('stats.html#records',2000);p.wait_for_timeout(500)
     ok('no JS errors',not p.errs,p.errs)
-    ok('sub-nav: Ranking, Milestones, Records, Season Stats',p.locator('#sub-nav button').all_inner_texts()==['Ranking','Milestones','Records','Season Stats'] and p.is_visible('#sec-records'))
+    ok('sub-nav: Ranking, Milestones, Records, Rivalry, Season Stats',p.locator('#sub-nav button').all_inner_texts()==['Ranking','Milestones','Records','Rivalry','Season Stats'] and p.is_visible('#sec-records'))
     ok('hub shows 9 Top-5 cards',p.locator('#rec-body .rc').count()==9,p.locator('#rec-body .rc').count())
     g=p.locator('#rec-body .rc').nth(0).inner_text()
     ok('Most goals card: Bhagyesh Rane 2 first',g.splitlines()[2].startswith('Bhagyesh Rane') and '2' in g,g)

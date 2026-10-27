@@ -156,7 +156,7 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Movement arrows count change in players strictly AHEAD, so with ties an arrow can differ from the change in the rank number (e.g. Dhruv 8 -> 4 shows ▲6). By design; see ranking notes above.
 
 ## Records tab (Stats > Records)
-- New tab order: Ranking | Milestones | Records | Season Stats. Code in `public/js/records.js` (loaded by stats.html; `#records` hash). Test: `tests/site/records_tests.py`.
+- Tab order (since Rivalry was added): Ranking | Milestones | Records | Rivalry | Season Stats. Code in `public/js/records.js` (loaded by stats.html; `#records` hash). Test: `tests/site/records_tests.py`.
 - Hub of 9 Top-5 cards (goals, assists, G+A, POTM, saves, fair play, fouls, cards, captains) + left menu: Goals, Assists, Goal contributions, Player of the match, Saves, Cards & fouls, Availability, Results summary, Discipline (teams), Match records, Captains.
 - Filters: Season (or all seasons), Team, "Min. matches for per-match rates" (default 2 — number still to be agreed with the owner). Per-match rates show "–" for players below the minimum; totals include everyone.
 - Everything is computed in the browser from matches, rosters, match_appearances and match_events (no new SQL). Fastest/latest goals use only goals with a recorded minute. Clean sheet = team conceded 0. Per-goalkeeper clean sheets are NOT tracked (no GK flag).
@@ -167,3 +167,10 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - CSS variables in `css/app.css`: `--ev-goal` green #3ECF6E, `--ev-assist` purple #8E7CC3, `--ev-yellow`, `--ev-red`, `--ev-save` blue, `--ev-foul`. Goal is no longer amber (it looked like the yellow card). Change a colour there and every page follows.
 - Match page: timeline chips, Match stats bars coloured per stat (goals green, assists purple, yellow, red, saves blue, others amber), header records under each team (green dot per goal, purple diamond + "assist X", own goal ring (counted under the team it benefits), yellow/red tabs, blue saves; fouls not shown in header).
 - Player page Match-by-Match chips use the same colours (`.chip.ev-*`). Test: `tests/site/event_colors_tests.py`.
+
+## Rivalry tab (Stats > Rivalry)
+- Tab order: Ranking | Milestones | Records | Rivalry | Season Stats. Code in `public/js/rivalry.js` (loaded by stats.html). Test: `tests/site/rivalry_tests.py` (42 checks). No new SQL: everything is computed in the browser from matches + match_events.
+- Flow: pick Team A (amber) then Team B (blue) from the logo row (message asks for the second team); a third tap replaces Team B; tapping a selected team deselects it. Season filter (default current, or all seasons). Placeholder teams (Team A..D) never appear.
+- Deep link: `stats.html#rivalry/<teamAId>/<teamBId>` (kept in sync as you pick; Reset clears it).
+- Page: big number = WINS (e.g. 2 – 0) with draws and total goals underneath, win/draw/win bar and verdict; side-by-side rows (wins, draws, goals, goals/match, clean sheets, assists, POTM, yellow cards, fouls; Red cards row only if any); every meeting (links to the match page, scorers + assist, own goals credited to the beneficiary side, cards); heroes (top scorers and POTM from their meetings); form (last 5); still to come (kickoff times) + MATCH PREVIEW.
+- Match preview: Poisson goals model, attack/defence from ALL completed matches in the chosen season, shrunk toward the league average with 6 "prior" games. Shown for the next scheduled meeting only. It is deliberately labelled "coin flip, not a forecast" (12 matches is tiny). No skill ratings or auction data are used. Tuning knob: `K` in `rivModel`.
