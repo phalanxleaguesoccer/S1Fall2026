@@ -205,3 +205,91 @@ function teamLink(id, name) { return id ? '<a href="team.html?id=' + id + '">' +
 function matchLink(m, label) { return '<a href="match.html?id=' + m.id + '">' + (label || matchLabelShort(m)) + "</a>"; }
 function playerLink(id, name) { return '<a href="player.html?id=' + id + '">' + escapeHtml(name || "?") + "</a>"; }
 function matchLabelShort(m) { return "Day " + m.match_day + " · M" + m.match_number; }
+
+
+// ---------- Standings tie-breaks (shared by the Standings page and Stats > Records) ----------
+// Rows tied on pts, gd, gf and ga are ordered by head-to-head (points, then
+// goal difference, in the matches played between just those teams). If they
+// are STILL level, the admin-recorded penalty shoot-out order decides (only
+// available once the tournament is complete). Anything nothing can separate
+// is flagged r.unresolved so the page can ask for a shoot-out.
+// shootoutPos: { teamId: position } (1 = best), or null when not allowed yet.
+function resolveTies(rows, matches, shootoutPos) {
+  function key(r) { return [r.pts, r.gd, r.gf, r.ga].join("|"); }
+  var out = [];
+  var i = 0;
+  while (i < rows.length) {
+    var j = i + 1;
+    while (j < rows.length && key(rows[j]) === key(rows[i])) j++;
+    var group = rows.slice(i, j);
+    if (group.length > 1) {
+      var ids = group.map(function (r) { return r.team.id; });
+      var h = {};
+      ids.forEach(function (id) { h[id] = { pts: 0, gd: 0 }; });
+      matches.forEach(function (m) {
+        if (!h[m.home_team_id] || !h[m.away_team_id]) return;
+        if (m.status === "forfeited") {
+          // Forfeit: the other team gets the win (2 pts); no goals recorded.
+          if (m.forfeited_by_team_id === m.home_team_id) h[m.away_team_id].pts += 2;
+          else if (m.forfeited_by_team_id === m.away_team_id) h[m.home_team_id].pts += 2;
+          return;
+        }
+        if (m.home_score == null || m.away_score == null) return;
+        var hs = m.home_score, as = m.away_score;
+        h[m.home_team_id].gd += hs - as;
+        h[m.away_team_id].gd += as - hs;
+        if (hs > as) h[m.home_team_id].pts += 2;
+        else if (as > hs) h[m.away_team_id].pts += 2;
+        else { h[m.home_team_id].pts += 1; h[m.away_team_id].pts += 1; }
+      });
+      function pos(r) {
+        var v = shootoutPos && shootoutPos[r.team.id];
+        return v == null ? Infinity : v;
+      }
+      function cmp(a, b) {
+        var x = h[a.team.id], y = h[b.team.id];
+        if (y.pts !== x.pts) return y.pts - x.pts;
+        if (y.gd !== x.gd) return y.gd - x.gd;
+        var pa = pos(a), pb = pos(b);
+        if (pa === pb) return 0;
+        return pa < pb ? -1 : 1;
+      }
+      group.sort(cmp);
+      var runId = 0;
+      for (var k = 0; k < group.length; k++) {
+        if (k > 0 && cmp(group[k - 1], group[k]) !== 0) runId++;
+        group[k].tieKey = i + ":" + runId;
+        var same = (k > 0 && cmp(group[k - 1], group[k]) === 0) ||
+                   (k < group.length - 1 && cmp(group[k], group[k + 1]) === 0);
+        if (same) group[k].unresolved = true;
+      }
+    }
+    out = out.concat(group);
+    i = j;
+  }
+  return out;
+}
+
+// ---------- Win / draw / loss estimate for a match (Poisson goals model) ----------
+// matches: completed matches of one season (or all). Attack and defence come from the goals so far, shrunk toward the
+// league average with K "prior" games, so a few matches cannot swing it far. Returns {w, d, l, games} for team a vs team b, or null.
+function winModel(matches, a, b) {
+  var done = matches.filter(function (m) { return m.status === "completed" && m.home_score != null && m.away_score != null; });
+  if (!done.length) return null;
+  var gf = {}, ga = {}, n = {}, tot = 0, K = 6;
+  done.forEach(function (m) {
+    [[m.home_team_id, m.home_score, m.away_score], [m.away_team_id, m.away_score, m.home_score]].forEach(function (x) {
+      gf[x[0]] = (gf[x[0]] || 0) + x[1]; ga[x[0]] = (ga[x[0]] || 0) + x[2]; n[x[0]] = (n[x[0]] || 0) + 1; tot += x[1];
+    });
+  });
+  var avg = tot / (2 * done.length);
+  if (!(avg > 0)) return null;
+  var att = function (t) { return ((gf[t] || 0) + K * avg) / ((n[t] || 0) + K) / avg; };
+  var def = function (t) { return ((ga[t] || 0) + K * avg) / ((n[t] || 0) + K) / avg; };
+  var la = avg * att(a) * def(b), lb = avg * att(b) * def(a);
+  var pois = function (l, k) { var p = Math.exp(-l); for (var i = 1; i <= k; i++) p *= l / i; return p; };
+  var w = 0, d = 0, l = 0;
+  for (var i = 0; i < 14; i++) for (var j = 0; j < 14; j++) { var p = pois(la, i) * pois(lb, j); if (i > j) w += p; else if (i === j) d += p; else l += p; }
+  var s = w + d + l, pw = Math.round(w / s * 100), pl = Math.round(l / s * 100);
+  return { w: pw, d: 100 - pw - pl, l: pl, games: done.length };
+}

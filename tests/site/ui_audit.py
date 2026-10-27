@@ -21,7 +21,7 @@ JS='''()=>{
 }'''
 pages=[('index.html',None),('matches.html#upcoming',None),('matches.html#recent',None),('matches.html#previous',None),('matches.html#all',None),('match.html?id=m0',None),('team.html?id='+T['Renegades'],None),('teams.html',None),('player.html?id='+P['Amritpal Singh'],None),('players.html',None),('stats.html#ranking',None),('stats.html#season',None),('auction.html',None)]
 tabs=['goals','assists','yellow','red','owngoals','fouls','availability','captains','injury']
-views=['hub','goals','assists','contrib','potm','saves','discipline','avail','teams','teamdisc','matchrec','captains']
+views=['hub','goals','assists','contrib','potm','discipline','avail','teams','teamdisc','matchrec','captains']
 bad=0
 with sync_playwright() as pw:
     s=Site(pw,d)

@@ -4,7 +4,7 @@
 var REC = { loaded: false, data: null, view: "hub", team: "all", minM: 2, sort: null };
 
 var REC_MENU = [
-  ["Player records", [["goals", "Goals"], ["assists", "Assists"], ["contrib", "Goal contributions"], ["potm", "Player of the match"], ["saves", "Saves"], ["discipline", "Cards & fouls"], ["avail", "Availability"]]],
+  ["Player records", [["goals", "Goals"], ["assists", "Assists"], ["contrib", "Goal contributions"], ["potm", "Player of the match"], ["discipline", "Cards & fouls"], ["avail", "Availability"]]],
   ["Team records", [["teams", "Results summary"], ["teamdisc", "Discipline"]]],
   ["Match records", [["matchrec", "Match records"]]],
   ["Individual", [["captains", "Captains"]]]
@@ -33,6 +33,11 @@ async function loadRecords() {
   if (!all) { mq = mq.eq("season_id", sid); rq = rq.eq("season_id", sid); }
   var res = await Promise.all([mq, rq]);
   var matches = res[0].data || [], roster = res[1].data || [];
+  REC.shoot = null;
+  if (!all && matches.length && !matches.some(function (m) { return m.status === "scheduled" || m.status === "postponed"; })) {
+    var so = await window.sb.from("tiebreak_shootout_order").select("*").eq("season_id", sid);
+    if (!so.error) { REC.shoot = {}; (so.data || []).forEach(function (r) { REC.shoot[r.team_id] = r.position; }); }
+  }
   var ids = matches.map(function (m) { return m.id; });
   var apps = ids.length ? await recFetchAll("match_appearances", ids) : [];
   var events = ids.length ? await recFetchAll("match_events", ids) : [];
@@ -199,13 +204,9 @@ function recStats() {
     potm: { title: "Player of the match awards", key: "potm", min: 1, show: function (r) { return r.potm; }, val: function (r) { return r.potm; },
       cols: recPCols([{ k: "potm", t: "POTM", hl: 1, get: function (r) { return r.potm; }, val: function (r) { return r.potm; } },
         { k: "pm", t: "Per match", get: perShow("potm"), val: per("potm") }]) },
-    saves: { title: "Most saves", key: "saves", min: 1, show: function (r) { return r.saves; }, val: function (r) { return r.saves; },
-      cols: recPCols([{ k: "saves", t: "Saves", hl: 1, get: function (r) { return r.saves; }, val: function (r) { return r.saves; } },
-        { k: "pm", t: "Per match", get: perShow("saves"), val: per("saves") }]) },
     fouls: { title: "Most fouls", key: "fouls", min: 1, show: function (r) { return r.fouls; }, val: function (r) { return r.fouls; }, cols: null },
     cards: { title: "Yellow & red cards", key: "cards", min: 1, show: function (r) { return (r.yellow ? r.yellow + " Y" : "") + (r.yellow && r.red ? " " : "") + (r.red ? r.red + " R" : ""); }, val: function (r) { return r.red * 3 + r.yellow; }, cols: null },
-    fair: { title: "Fair play (fewest cards per match)", asc: true, minElig: true, show: function (r) { return recFmt(recRate(r.yellow + r.red, r.played), 2); }, val: function (r) { return recRate(r.yellow + r.red, r.played); }, cols: null },
-    captain: { title: "Most matches as captain", key: "cap", min: 1, show: function (r) { return r.cap; }, val: function (r) { return r.cap; }, cols: null }
+    captain: { title: "Most matches as captain", wide: true, key: "cap", min: 1, show: function (r) { return r.cap; }, val: function (r) { return r.cap; }, cols: null }
   };
 }
 
@@ -219,18 +220,19 @@ function recTop(def, n) {
 
 function recCard(def, view) {
   var top = recTop(def, 5);
-  var h = '<div class="rc"><h3>' + def.title + ' <a href="#" data-rview-go="' + view + '">View all ›</a></h3>';
+  var h = '<div class="rc' + (def.wide ? " wide" : "") + '"><h3>' + def.title + ' <a href="#" data-rview-go="' + view + '">View all ›</a></h3>';
   if (!top.length) return h + '<p class="muted" style="margin:6px 0 0;font-size:.85rem;">Nothing recorded yet.</p></div>';
+  if (def.wide) h += '<div class="rcols">';
   top.forEach(function (x, i) {
     h += '<div class="rr' + (i === 0 ? " first" : "") + '"><span>' + plink(x.r.id) + '<span class="rt">' + tlink(x.r.team_id) + "</span></span><b>" + def.show(x.r) + "</b></div>";
   });
-  return h + "</div>";
+  return h + (def.wide ? "</div>" : "") + "</div>";
 }
 
 // ---------- views ----------
 function recHub() {
   var S = recStats();
-  var order = [["goals", "goals"], ["assists", "assists"], ["contrib", "contrib"], ["potm", "potm"], ["saves", "saves"], ["fair", "discipline"], ["fouls", "discipline"], ["cards", "discipline"], ["captain", "captains"]];
+  var order = [["goals", "goals"], ["assists", "assists"], ["contrib", "contrib"], ["potm", "potm"], ["fouls", "discipline"], ["cards", "discipline"], ["captain", "captains"]];
   return '<p class="muted" style="margin:0 0 10px;">Every stat in one place: each card shows the top 5. Open a card for the full leaderboard. Per-match rates only rank players with at least ' + REC.minM + " match" + (REC.minM === 1 ? "" : "es") + ".</p>" +
     '<div class="rec-grid">' + order.map(function (o) { return recCard(S[o[0]], o[1]); }).join("") + "</div>";
 }
@@ -263,21 +265,70 @@ function recAvail() {
   return '<div class="card-title" style="margin-top:0;">Availability</div>' + recTable("avail", cols, rows, "missed", "Nobody has been rested or absent yet.");
 }
 
+// Team results summary = the Standings table (same points, order, tie-breaks and ranks), plus clean sheets, win % and form.
+function recStandRows() {
+  var D = REC.data, srank = {};
+  SEASONS.slice().reverse().forEach(function (x, i) { srank[x.id] = i; });
+  var played = Object.keys(D.M).map(function (k) { return D.M[k]; }).filter(function (m) { return m.status === "completed" || m.status === "forfeited"; })
+    .sort(function (a, b) { return ((srank[a.season_id] || 0) - (srank[b.season_id] || 0)) || (a.match_day - b.match_day) || (a.match_number - b.match_number); });
+  var S = {}, ok = function (id) { return TEAMS[id] && !isPlaceholder(TEAMS[id]); };
+  var slot = function (id) { return S[id] = S[id] || { team: TEAMS[id], id: id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, cs: 0, form: [] }; };
+  played.forEach(function (m) {
+    var se = SEASONS.filter(function (x) { return x.id === m.season_id; })[0] || {}, pw = se.points_win != null ? se.points_win : 2, pd = se.points_draw != null ? se.points_draw : 1, pl = se.points_loss != null ? se.points_loss : 0;
+    [[m.home_team_id, m.home_score, m.away_score], [m.away_team_id, m.away_score, m.home_score]].forEach(function (x) {
+      if (!ok(x[0])) return;
+      var t = slot(x[0]), r;
+      t.p++;
+      if (m.status === "forfeited") r = m.forfeited_by_team_id === x[0] ? "L" : "W";
+      else { t.gf += x[1]; t.ga += x[2]; if (x[2] === 0) t.cs++; r = x[1] > x[2] ? "W" : x[1] < x[2] ? "L" : "D"; }
+      if (r === "W") { t.w++; t.pts += pw; } else if (r === "D") { t.d++; t.pts += pd; } else { t.l++; t.pts += pl; }
+      t.form.push(r);
+    });
+  });
+  var rows = Object.keys(S).map(function (k) { S[k].gd = S[k].gf - S[k].ga; return S[k]; });
+  rows.sort(function (a, b) { return a.team.name.localeCompare(b.team.name); });   // same starting order as the Standings page, so fully level teams line up too
+  rows.sort(function (a, b) { return (b.pts - a.pts) || (b.gd - a.gd) || (b.gf - a.gf) || (a.ga - b.ga); });
+  rows = resolveTies(rows, played, REC.shoot || null);
+  var ranks = [];
+  rows.forEach(function (r, i) { ranks[i] = (i > 0 && r.unresolved && rows[i - 1].unresolved && r.tieKey === rows[i - 1].tieKey) ? ranks[i - 1] : i + 1; });
+  rows.forEach(function (r, i) { r.rank = ranks[i]; r.tiedRank = !!(r.unresolved); });
+  return rows;
+}
+
 function recTeams() {
-  var rows = REC.data.teams.slice();
+  var rows = recStandRows();
+  if (!rows.length) return '<div class="card-title" style="margin-top:0;">Team results summary</div><p class="muted">No completed matches yet.</p>';
+  var chip = function (f) { return '<span class="fchip ' + f + '">' + f + "</span>"; };
   var cols = [{ k: "name", t: "Team", l: 1, get: function (r) { return tlink(r.id); }, val: function (r) { return tname(r.id); } },
+    { k: "pts", t: "Pts", hl: 1, title: "Points", get: function (r) { return r.pts; }, val: function (r) { return r.pts; } },
     { k: "p", t: "P", title: "Played", get: function (r) { return r.p; }, val: function (r) { return r.p; } },
     { k: "w", t: "W", get: function (r) { return r.w; }, val: function (r) { return r.w; } },
     { k: "d", t: "D", get: function (r) { return r.d; }, val: function (r) { return r.d; } },
     { k: "l", t: "L", get: function (r) { return r.l; }, val: function (r) { return r.l; } },
+    { k: "gd", t: "GD", title: "Goal difference", get: function (r) { return (r.gd > 0 ? "+" : "") + r.gd; }, val: function (r) { return r.gd; } },
     { k: "gf", t: "GF", title: "Goals for", get: function (r) { return r.gf; }, val: function (r) { return r.gf; } },
     { k: "ga", t: "GA", title: "Goals against", get: function (r) { return r.ga; }, val: function (r) { return r.ga; } },
-    { k: "gd", t: "GD", title: "Goal difference", get: function (r) { return (r.gf - r.ga > 0 ? "+" : "") + (r.gf - r.ga); }, val: function (r) { return r.gf - r.ga; } },
-    { k: "cs", t: "Clean sheets", title: "Matches where the team conceded no goals", get: function (r) { return r.cs; }, val: function (r) { return r.cs; } },
-    { k: "winp", t: "Win %", get: function (r) { return r.p ? Math.round(1000 * r.w / r.p) / 10 + "%" : "–"; }, val: function (r) { return r.p ? r.w / r.p : null; } }];
-  rows.forEach(function (r) { r.pid_ = r.id; });
-  return '<div class="card-title" style="margin-top:0;">Team results summary</div>' + recTable("teams", cols, rows, "w", "No completed matches yet.") +
-    '<p class="note">Completed matches only. Sorted by wins; click a heading to re-sort. Team names open the team page.</p>';
+    { k: "cs", t: "Clean sheets", title: "Matches where the team conceded no goals", sep: 1, get: function (r) { return r.cs; }, val: function (r) { return r.cs; } },
+    { k: "winp", t: "Win %", get: function (r) { return r.p ? Math.round(1000 * r.w / r.p) / 10 + "%" : "–"; }, val: function (r) { return r.p ? r.w / r.p : null; } },
+    { k: "form", t: "Form", title: "Last 5 results, newest on the right", nosort: 1, get: function (r) { return '<span class="fchips">' + r.form.slice(-5).map(chip).join("") + "</span>"; }, val: function (r) { return 0; } }];
+  var st = REC.sort && REC.sort.view === "teams" ? REC.sort : null, show = rows.slice(), rank, tied;
+  if (st) {
+    var col = cols.filter(function (c) { return c.k === st.key; })[0] || cols[1];
+    show.sort(function (a, b) { var x = col.val(a), y = col.val(b); if (typeof x === "string" || typeof y === "string") return st.dir * String(x).localeCompare(String(y)); if (x == null) x = -Infinity; if (y == null) y = -Infinity; return st.dir * (x - y) || (b.pts - a.pts); });
+    var rk = recRanks(show, function (r) { return col.val(r); }); rank = rk.ranks; tied = rk.tied;
+  } else { rank = show.map(function (r) { return r.rank; }); tied = show.map(function (r) { return r.tiedRank; }); }
+  var arrow = function (c) { return st && c.k === st.key ? (st.dir > 0 ? " ▲" : " ▼") : ""; };
+  var h = '<div class="card-title" style="margin-top:0;">Team results summary</div>' +
+    (st ? '<p style="margin:0 0 8px;"><a href="#" data-rview-go="teams">&#8634; Back to standings order</a></p>' : "") +
+    '<div class="table-scroll"><table class="data-table rec-table"><thead><tr><th class="num">#</th>' +
+    cols.map(function (c) { return '<th class="' + (c.l ? "team-name " : "") + (c.nosort ? "" : "sortable") + (st && c.k === st.key ? " sorted" : "") + (c.sep ? " sep" : "") + '"' + (c.nosort ? "" : ' data-rsort="' + c.k + '" data-rview="teams"') + ' title="' + (c.title || "") + '">' + c.t + arrow(c) + "</th>"; }).join("") +
+    "</tr></thead><tbody>" +
+    show.map(function (r, i) {
+      return '<tr><td class="ms-n num">' + rank[i] + (tied[i] ? "=" : "") + "</td>" +
+        cols.map(function (c) { return '<td class="' + (c.l ? "team-name" : "num") + (c.sep ? " sep" : "") + '">' + (c.hl ? "<strong>" + c.get(r) + "</strong>" : c.get(r)) + "</td>"; }).join("") + "</tr>";
+    }).join("") + "</tbody></table></div>" +
+    '<p class="note">Completed matches only. Same table and order as the <a href="index.html">Standings page</a> (win = 2 pts, draw = 1, loss = 0; ties split by goal difference, goals scored, goals conceded, then head-to-head). Click a heading to re-sort. Team names open the team page.</p>';
+  return h;
 }
 
 function recTeamDisc() {
@@ -343,7 +394,7 @@ function renderRecords() {
   var box = document.getElementById("rec-body");
   if (!REC.loaded) return;
   var views = { hub: recHub, goals: function () { return recPlayerBoard("goals"); }, assists: function () { return recPlayerBoard("assists"); }, contrib: function () { return recPlayerBoard("contrib"); },
-    potm: function () { return recPlayerBoard("potm"); }, saves: function () { return recPlayerBoard("saves"); }, discipline: recDiscipline, avail: recAvail, teams: recTeams,
+    potm: function () { return recPlayerBoard("potm"); }, discipline: recDiscipline, avail: recAvail, teams: recTeams,
     teamdisc: recTeamDisc, matchrec: recMatchRecords, captains: recCaptains };
   box.innerHTML = (REC.view !== "hub" ? '<p style="margin:0 0 8px;"><a href="#" data-rview-go="hub">&lsaquo; All records</a></p>' : "") + views[REC.view]();
   document.querySelectorAll("#rec-menu a").forEach(function (a) { a.classList.toggle("on", a.dataset.rview === REC.view); });

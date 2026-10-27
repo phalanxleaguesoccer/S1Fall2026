@@ -74,6 +74,13 @@
   .rec-r small { display:block; color:var(--chalk-dim); font-size:.78rem; margin-top:2px; }
   .rec-r .rv { font-weight:800; color:var(--amber); white-space:nowrap; }
   .note { color:var(--chalk-dim); font-size:.78rem; margin:8px 0 0; }
+  .rc.wide { grid-column:1 / -1; }
+  .rc .rcols { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:0 28px; }
+  .rc .rcols .rr:nth-child(2) { border-top:0; }
+  @media (max-width: 700px) { .rc .rcols { grid-template-columns:1fr; } .rc .rcols .rr:nth-child(2) { border-top:1px solid var(--card-edge); } }
+  .fchips { display:inline-flex; gap:3px; } .fchip { width:17px; height:17px; border-radius:4px; font-size:.62rem; font-weight:800; display:inline-flex; align-items:center; justify-content:center; }
+  .fchip.W { background:#3ECF6E; color:#04210F; } .fchip.D { background:#6b6b70; color:#fff; } .fchip.L { background:#C0392B; color:#fff; }
+  table.rec-table th.sep, table.rec-table td.sep { border-left:1px solid var(--card-edge); }
   table.rec-table th.sortable { cursor:pointer; }
   @media (max-width: 900px) { .rec-grid { grid-template-columns:repeat(2,1fr); } }
   @media (max-width: 700px) {

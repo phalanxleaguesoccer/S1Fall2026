@@ -12,10 +12,12 @@ with sync_playwright() as pw:
     s=Site(pw,d);p=s.page('stats.html#records',2000);p.wait_for_timeout(500)
     ok('no JS errors',not p.errs,p.errs)
     ok('sub-nav: Ranking, Milestones, Records, Rivalry, Season Stats',p.locator('#sub-nav button').all_inner_texts()==['Ranking','Milestones','Records','Rivalry','Season Stats'] and p.is_visible('#sec-records'))
-    ok('hub shows 9 Top-5 cards',p.locator('#rec-body .rc').count()==9,p.locator('#rec-body .rc').count())
+    ok('hub shows 7 Top-5 cards (Most saves and Fair play removed)',p.locator('#rec-body .rc').count()==7 and 'Most saves' not in p.inner_text('#rec-body') and 'Fair play' not in p.inner_text('#rec-body'),p.locator('#rec-body .rc').count())
+    ok('Captains card spans the full row (wide)',p.locator('#rec-body .rc.wide').count()==1 and 'captain' in p.locator('#rec-body .rc.wide').inner_text().lower())
     g=p.locator('#rec-body .rc').nth(0).inner_text()
     ok('Most goals card: Bhagyesh Rane 2 first',g.splitlines()[2].startswith('Bhagyesh Rane') and '2' in g,g)
-    ok('menu has all groups',all(x in p.inner_text('#rec-menu') for x in ['Goals','Assists','Goal contributions','Player of the match','Saves','Cards & fouls','Availability','Results summary','Discipline','Match records','Captains']),p.inner_text('#rec-menu'))
+    ok('no Saves entry in the menu','Saves' not in p.inner_text('#rec-menu'))
+    ok('menu has all groups',all(x in p.inner_text('#rec-menu') for x in ['Goals','Assists','Goal contributions','Player of the match','Cards & fouls','Availability','Results summary','Discipline','Match records','Captains']),p.inner_text('#rec-menu'))
     ok('cards link players and teams',p.locator('#rec-body .rc a[href^="player.html"]').count()>=5 and p.locator('#rec-body .rc a[href^="team.html"]').count()>=5)
     # goals leaderboard
     p.click('#rec-menu a[data-rview=goals]');p.wait_for_timeout(300)
@@ -37,8 +39,7 @@ with sync_playwright() as pw:
     ok('team filter: only Renegades players',[r.split('\t')[1] for r in p.locator('#rec-body tbody tr').all_inner_texts()]==['Varun'],p.inner_text('#rec-body')[:200])
     p.select_option('#rec-team','all')
     # other boards
-    p.click('#rec-body a[data-rview-go=hub]');p.click('#rec-menu a[data-rview=saves]');p.wait_for_timeout(200)
-    ok('saves: Bilal 3',any(r.startswith('1\tBilal Yaser') or 'Bilal Yaser' in r and '3' in r for r in p.locator('#rec-body tbody tr').all_inner_texts()),p.inner_text('#rec-body'))
+    p.click('#rec-body a[data-rview-go=hub]')
     p.click('#rec-menu a[data-rview=assists]');ok('assists: Ajinkya P 1','Ajinkya P' in p.inner_text('#rec-body tbody'))
     p.click('#rec-menu a[data-rview=contrib]');ok('G+A: Bhagyesh 2 on top',p.locator('#rec-body tbody tr').first.inner_text().split('\t')[1].startswith('Bhagyesh'))
     p.click('#rec-menu a[data-rview=potm]');ok('POTM board lists Amritpal / Vignesh / Bhagyesh / Ajinkya',all(n in p.inner_text('#rec-body tbody') for n in ['Amritpal Singh','Vignesh','Bhagyesh Rane']),p.inner_text('#rec-body tbody'))
@@ -48,8 +49,13 @@ with sync_playwright() as pw:
     # teams
     p.click('#rec-menu a[data-rview=teams]');p.wait_for_timeout(200)
     tr={r.split('\t')[1]:r.split('\t') for r in p.locator('#rec-body tbody tr').all_inner_texts()}
-    ok('Muggles: P2 W1 D0 L1 GF1 GA2 GD-1 CS1',tr['Muggles FC'][2:10]==['2','1','0','1','1','2','-1','1'],tr.get('Muggles FC'))
-    ok('Scouts: P2 W1 L1 GF2 GA1 GD+1 CS1',tr['Scouts FC'][2:10]==['2','1','0','1','2','1','+1','1'],tr.get('Scouts FC'))
+    hdr=[h.strip().upper() for h in p.locator('#rec-body thead th').all_inner_texts()]
+    ok('summary columns mirror Standings: # Team Pts P W D L GD GF GA + Clean sheets, Win %, Form',hdr==['#','TEAM','PTS','P','W','D','L','GD','GF','GA','CLEAN SHEETS','WIN %','FORM'],hdr)
+    ok('Muggles: Pts2 P2 W1 D0 L1 GD-1 GF1 GA2 CS1',tr['Muggles FC'][2:12]==['2','2','1','0','1','-1','1','2','1','50%'],tr.get('Muggles FC'))
+    ok('Scouts: Pts2 P2 W1 L1 GD+1 GF2 GA1 CS1',tr['Scouts FC'][2:12]==['2','2','1','0','1','+1','2','1','1','50%'],tr.get('Scouts FC'))
+    order=[r.split('\t')[1] for r in p.locator('#rec-body tbody tr').all_inner_texts()]
+    ok('default order is the standings order (points, GD, GF, GA): Renegades, Scouts, Muggles, Desi',order==['Renegades','Scouts FC','Muggles FC','Desi Steelers FC'],order)
+    ok('form chips shown',p.locator('#rec-body .fchip').count()>=8)
     ok('team names are links',p.locator('#rec-body tbody a[href^="team.html"]').count()==4)
     p.click('#rec-menu a[data-rview=teamdisc]');ok('team discipline: Renegades 1 yellow, 2 fouls',any(r.split('\t')[1]=='Renegades' and r.split('\t')[3]=='1' and r.split('\t')[5]=='2' for r in p.locator('#rec-body tbody tr').all_inner_texts()),p.inner_text('#rec-body tbody'))
     # match records
@@ -63,7 +69,7 @@ with sync_playwright() as pw:
     ok('captains: Amritpal 2 matches, W1 L1',rows['Amritpal Singh'][3]=='2' and rows['Amritpal Singh'][4]=='1' and rows['Amritpal Singh'][6]=='1',rows.get('Amritpal Singh'))
     # season all + back to hub
     p.select_option('#rec-season','all');p.wait_for_timeout(800)
-    p.click('#rec-body a[data-rview-go=hub]');ok('All seasons works, back to hub',p.locator('#rec-body .rc').count()==9)
+    p.click('#rec-body a[data-rview-go=hub]');ok('All seasons works, back to hub',p.locator('#rec-body .rc').count()==7)
     ok('no JS errors (interaction)',not p.errs,p.errs)
     # phone
     p.set_viewport_size({'width':375,'height':800});p.wait_for_timeout(300)

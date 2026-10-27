@@ -104,13 +104,13 @@ with sync_playwright() as pw:
     ok('day1: ranks read 1, 2=, 2=, 4',[r[0] for r in rows]==['1','2=','2=','4'],rows)
     hdr=p.locator('table thead th').all_inner_texts()
     ok('standings headers: # Team Pts P W D L GD GF GA',[h.strip().upper() for h in hdr[:10]]==['#','TEAM','PTS','P','W','D','L','GD','GF','GA'],hdr)
-    exp={'Scouts FC':['3','2','1','1','0','1','2','1'],'Desi Steelers FC':['2','2','0','2','0','0','0','0'],'Renegades':['2','2','0','2','0','0','0','0'],'Muggles FC':['1','2','0','1','1','-1','1','2']}
-    got={r[1]:[c.strip() for c in r[2:]] for r in rows}
+    exp={'Scouts FC':['3','2','1','1','0','+1','2','1'],'Desi Steelers FC':['2','2','0','2','0','0','0','0'],'Renegades':['2','2','0','2','0','0','0','0'],'Muggles FC':['1','2','0','1','1','-1','1','2']}
+    got={r[1]:[c.strip() for c in r[2:10]] for r in rows}
     ok('day1: every standings value correct (Pts P W D L GD GF GA)',got==exp,got)
     tid=sd.page('team.html?id=%s'%finish(b)['_ids']['T']['Scouts FC'],1500)
     th=[h.strip().upper() for h in tid.locator('table thead').first.locator('th').all_inner_texts()]
     tv=[c.strip() for c in tid.locator('#team-totals-body td').all_inner_texts()]
-    ok('team page: same column order and Scouts values',th==['PTS','P','W','D','L','GD','GF','GA'] and tv==exp['Scouts FC'],(th,tv))
+    ok('team page: same column order and Scouts values',th==['PTS','P','W','D','L','GD','GF','GA'] and tv==[x.lstrip('+') for x in exp['Scouts FC']],(th,tv))
     sc=sd.page('team.html?id=%s'%finish(b)['_ids']['T']['Scouts FC'],1500)
     ok('team page: single top scorer/POTM unaffected when no events','—' in sc.inner_text('#top-scorer-season'),sc.inner_text('#top-scorer-season'))
     b2=base();m2=b2['m'];m2(1,1,'Muggles FC','Scouts FC','completed',1,2);d2=finish(b2);T2=d2['_ids']['T'];P2=d2['_ids']['P']

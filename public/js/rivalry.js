@@ -56,26 +56,10 @@ function rivHash() {
   try { history.replaceState(null, "", "#rivalry" + (RIV.a ? "/" + RIV.a + (RIV.b ? "/" + RIV.b : "") : "")); } catch (e) {}
 }
 
-// Poisson goals model for the preview: each team's attack and defence from the completed matches, shrunk toward the league average.
+// Preview estimate: shared model in common.js (winModel), fed with real-team completed matches only.
 function rivModel(a, b) {
-  var done = RIV.matches.filter(function (m) { return rivDone(m) && TEAMS[m.home_team_id] && TEAMS[m.away_team_id] && !isPlaceholder(TEAMS[m.home_team_id]) && !isPlaceholder(TEAMS[m.away_team_id]); });
-  if (!done.length) return null;
-  var gf = {}, ga = {}, n = {}, tot = 0, K = 6;
-  done.forEach(function (m) {
-    [[m.home_team_id, m.home_score, m.away_score], [m.away_team_id, m.away_score, m.home_score]].forEach(function (x) {
-      gf[x[0]] = (gf[x[0]] || 0) + x[1]; ga[x[0]] = (ga[x[0]] || 0) + x[2]; n[x[0]] = (n[x[0]] || 0) + 1; tot += x[1];
-    });
-  });
-  var avg = tot / (2 * done.length);
-  if (!(avg > 0)) return null;
-  var att = function (t) { return ((gf[t] || 0) + K * avg) / ((n[t] || 0) + K) / avg; };
-  var def = function (t) { return ((ga[t] || 0) + K * avg) / ((n[t] || 0) + K) / avg; };
-  var la = avg * att(a) * def(b), lb = avg * att(b) * def(a);
-  var pois = function (l, k) { var p = Math.exp(-l); for (var i = 1; i <= k; i++) p *= l / i; return p; };
-  var w = 0, d = 0, l = 0;
-  for (var i = 0; i < 14; i++) for (var j = 0; j < 14; j++) { var p = pois(la, i) * pois(lb, j); if (i > j) w += p; else if (i === j) d += p; else l += p; }
-  var s = w + d + l, pw = Math.round(w / s * 100), pl = Math.round(l / s * 100);
-  return { w: pw, d: 100 - pw - pl, l: pl, games: done.length };
+  var real = RIV.matches.filter(function (m) { return TEAMS[m.home_team_id] && TEAMS[m.away_team_id] && !isPlaceholder(TEAMS[m.home_team_id]) && !isPlaceholder(TEAMS[m.away_team_id]); });
+  return winModel(real, a, b);
 }
 
 function rivPairAssists(evs) {
