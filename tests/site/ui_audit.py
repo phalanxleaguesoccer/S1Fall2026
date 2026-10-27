@@ -51,4 +51,23 @@ with sync_playwright() as pw:
         p.close()
         for a,b2 in [('Muggles FC','Scouts FC'),('Renegades','Desi Steelers FC')]:
             p=s.page('stats.html#rivalry/%s/%s'%(T[a],T[b2]),1500);p.set_viewport_size({'width':w,'height':900});p.wait_for_timeout(200);chk(p,'rivalry:'+a+' v '+b2);p.close()
+# ---- live scoring screens: public live views + the admin Live desk (pre-match and live)
+import datetime
+_ls=open(HERE+'/live_public_tests.py').read()
+exec(_ls[_ls.index('UTC=datetime'):_ls.index('def page(')])
+with sync_playwright() as pw:
+    dl,Tl,Pl=scen();sl=Site(pw,dl)
+    dp,_,_=scen();dp['matches'][1].update({'live_phase':None,'clock_rem':None,'clock_running':False});sa=Site(pw,dp,True)
+    dv,_,_=scen();sv=Site(pw,dv,True)
+    for w in (375,768,1280):
+        def chk2(p,name):
+            global bad
+            r=p.evaluate(JS)
+            if r: bad+=1;print('--',w,name);[print('   ',x) for x in r]
+        for site,path in [(sl,'match.html?id=m1'),(sl,'matches.html'),(sl,'index.html'),(sa,'admin/live.html?match=m1'),(sv,'admin/live.html?match=m1')]:
+            p=site.page(path,1500);p.set_viewport_size({'width':w,'height':900});p.wait_for_timeout(300);chk2(p,'live:'+path+(' (pre)' if site is sa else ''))
+            if site is sv:
+                p.click('[data-add="goal|H"]');p.wait_for_timeout(300);chk2(p,'live:desk event sheet');p.click('#sheet [data-s-player] >> nth=0');p.wait_for_timeout(200);chk2(p,'live:desk event sheet (assist step)')
+                p.click('[data-s-cancel]');p.click('#t-audit');p.wait_for_timeout(500);chk2(p,'live:desk audit tab')
+            p.close()
 print('issues:',bad)

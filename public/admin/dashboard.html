@@ -31,6 +31,7 @@
     <button data-tab="matches">Matches &amp; Results</button>
     <button data-tab="events">Match Events</button>
     <button data-tab="records">Appearances, Notes &amp; Awards</button>
+    <button data-tab="live">Live scoring &amp; Co-admins</button>
   </div>
 
   <!-- TEAMS -->
@@ -191,6 +192,21 @@
   </div>
 
   <!-- RECORDS: appearances, historized notes/ratings, suspensions, awards -->
+  <!-- LIVE SCORING & CO-ADMINS -->
+  <div class="tab-panel" id="tab-live">
+    <div class="card">
+      <div class="card-title">Live desk</div>
+      <p class="muted">Run a match live: toss, rested/absent players, countdown clock, goals, assists, fouls and cards. Visitors see every update straight away, and the final result is confirmed in one tap. You and approved co-admins can use it.</p>
+      <a class="btn" href="live.html" style="display:inline-block;">Open the Live desk</a>
+    </div>
+    <div class="card">
+      <div class="card-title">Co-admins</div>
+      <p class="muted">Co-admins sign up on the Live desk page with an email and password. They can edit nothing until you approve them here, and then they can only run live matches (not teams, players, rosters, awards or finished matches). Revoke or remove them any time.</p>
+      <div id="coadmin-list"><p class="muted">Loading…</p></div>
+      <p id="coadmin-msg"></p>
+    </div>
+  </div>
+
   <div class="tab-panel" id="tab-records">
     <div class="card">
       <div class="card-title">Match Lineup &mdash; Played / Rested / Absent (whole squads at once)</div>

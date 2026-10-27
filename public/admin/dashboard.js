@@ -29,6 +29,38 @@ document.querySelectorAll(".tabs button").forEach(function (btn) {
   });
 });
 
+// ---------- Live scoring: co-admin approvals ----------
+async function loadCoadmins() {
+  var box = document.getElementById("coadmin-list");
+  var r = await window.sb.from("coadmins").select("*").order("requested_at", { ascending: false });
+  if (r.error) { box.innerHTML = '<p class="muted">Live scoring is not set up yet. Run <b>sql/migration_live_scoring.sql</b> in Supabase first.</p>'; return; }
+  var rows = r.data || [];
+  if (!rows.length) { box.innerHTML = '<p class="muted">No co-admin requests yet. Share the link to <b>admin/live.html</b> with the person; they choose "Request co-admin access".</p>'; return; }
+  var order = { pending: 0, approved: 1, revoked: 2 };
+  rows.sort(function (a, b) { return order[a.status] - order[b.status]; });
+  box.innerHTML = rows.map(function (c) {
+    var badge = c.status === "approved" ? '<span style="color:var(--ev-goal);font-weight:700;">Approved</span>' : c.status === "pending" ? '<span style="color:var(--amber);font-weight:700;">Waiting for approval</span>' : '<span style="color:var(--coral);font-weight:700;">Revoked</span>';
+    return '<div class="list-row"><span><strong>' + escapeHtml(c.display_name) + "</strong> &middot; " + escapeHtml(c.email || "") + " &middot; " + badge + '</span><span class="actions">' +
+      (c.status !== "approved" ? '<button class="btn" data-co="approved" data-id="' + c.user_id + '">Approve</button>' : "") +
+      (c.status === "approved" ? '<button class="btn secondary" data-co="revoked" data-id="' + c.user_id + '">Revoke</button>' : "") +
+      '<button class="btn secondary" data-co="remove" data-id="' + c.user_id + '">Remove</button></span></div>';
+  }).join("");
+}
+document.getElementById("coadmin-list").addEventListener("click", async function (ev) {
+  var b = ev.target.closest("button[data-co]"); if (!b) return;
+  var msg = document.getElementById("coadmin-msg"), id = b.dataset.id, act = b.dataset.co, res;
+  if (act === "remove") {
+    if (!confirm("Remove this co-admin request completely?")) return;
+    res = await window.sb.from("coadmins").delete().eq("user_id", id);
+  } else {
+    var me = await window.sb.auth.getSession();
+    res = await window.sb.from("coadmins").update({ status: act, decided_at: new Date().toISOString(), decided_by: me.data.session.user.id }).eq("user_id", id);
+  }
+  if (res.error) { showError(msg, res.error.message); return; }
+  showSuccess(msg, act === "approved" ? "Approved. They can run live matches now." : act === "revoked" ? "Access turned off." : "Removed.");
+  loadCoadmins();
+});
+
 async function init() {
   CURRENT_SEASON = await getCurrentSeason();
   if (!CURRENT_SEASON) {
@@ -47,6 +79,7 @@ async function init() {
   await refreshRosters();
   await refreshMatches();
   populateEventMatchDropdown();
+  loadCoadmins();
 
   document.getElementById("team-form").addEventListener("submit", onAddTeam);
   document.getElementById("player-form").addEventListener("submit", onAddPlayer);

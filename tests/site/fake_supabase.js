@@ -64,7 +64,7 @@
       LOG.push({t:name,mode:q.mode,f:q.filters.map(function(f){return f[0]+':'+f[1]+':'+JSON.stringify(f[2]);})});
       function match(r){return q.filters.every(function(f){var v=r[f[1]];
         if(f[0]==='or')return f[2].split(',').some(function(c){var p=c.split('.');return r[p[0]]===p[2];}); if(f[0]==='eq')return v===f[2]; if(f[0]==='in')return f[2].indexOf(v)>=0; if(f[0]==='neq')return v!==f[2];
-        if(f[0]==='or')return f[2].split(',').some(function(c){var p=c.split('.');return p[1]==='eq'&&r[p[0]]===p[2];}); if(f[0]==='is')return v===f[2]||(f[2]===null&&v==null); return true;});}
+        if(f[0]==='or')return f[2].split(',').some(function(c){var p=c.split('.');return p[1]==='eq'&&r[p[0]]===p[2];}); if(f[0]==='is')return v===f[2]||(f[2]===null&&v==null); if(f[0]==='gte')return v!=null&&String(v)>=String(f[2]); if(f[0]==='lte')return v!=null&&String(v)<=String(f[2]); return true;});}
       if(q.mode==='select'){
         if((name==='league_standings'||name==='player_season_stats'||name==='team_head_to_head') && /\w+\(/.test(q.sel||'')) return {data:null,error:{message:'Could not find a relationship between views and embedded table'}};
         rows=t.filter(match);
@@ -83,13 +83,16 @@
       if(DB.__readonly_views && (name==='league_standings'||name==='player_season_stats')) return {data:null,error:{message:'view not writable'}};
       if(DB.__missing && DB.__missing.indexOf(name)>=0) return {data:null,error:{message:'relation "'+name+'" does not exist'}};
       var tt=DB[name]||(DB[name]=[]);
+      var AUD=(DB.__audit&&{match_events:1,matches:1,match_appearances:1}[name])?DB.audit_log||(DB.audit_log=[]):null;
+      function aud(act,o,n){ if(!AUD)return; AUD.push({id:uid(),table_name:name,record_id:(n||o).id,action:act,changed_by:'u-test',changed_by_label:DB.__who||'Tester',changed_at:new Date().toISOString(),old_data:o?Object.assign({},o):null,new_data:n?Object.assign({},n):null}); }
+      if(q.mode==='insert'&&name==='audit_log'){ [].concat(q.payload).forEach(function(x){ if(x.table_name==='live_note'){ x.changed_by_label=DB.__who||'Tester'; x.changed_at=new Date().toISOString(); x.action='NOTE'; x.changed_by='u-test'; } }); }
       if(q.mode==='insert'){ if(name==='team_season_rosters'&&[].concat(q.payload).some(function(x){return tt.some(function(r){return r.season_id===x.season_id&&r.player_id===x.player_id;});}))return {data:null,error:{message:'duplicate key value violates unique constraint'}}; var arr=[].concat(q.payload).map(function(x){return Object.assign({id:uid()},x);});
         // unique checks
         if(name==='tiebreak_shootout_order'){for(var i=0;i<arr.length;i++){if(tt.concat(arr.slice(0,i)).some(function(r){return r.season_id===arr[i].season_id&&r.position===arr[i].position;}))return {data:null,error:{message:'duplicate key value violates unique constraint'}};}}
-        arr.forEach(function(x){tt.push(x);});return {data:arr,error:null};}
-      if(q.mode==='update'){tt.filter(match).forEach(function(r){Object.assign(r,q.payload);});return {data:null,error:null};}
-      if(q.mode==='delete'){var keep=tt.filter(function(r){return !match(r);});tt.length=0;keep.forEach(function(r){tt.push(r);});return {data:null,error:null};}
-      if(q.mode==='upsert'){[].concat(q.payload).forEach(function(x){var keys=q.onConflict?q.onConflict.split(','):null;var ex=keys&&tt.find(function(r){return keys.every(function(k){return r[k]===x[k];});});if(ex)Object.assign(ex,x);else tt.push(Object.assign({id:uid()},x));});return {data:null,error:null};}
+        arr.forEach(function(x){if(!x.created_at)x.created_at=new Date().toISOString();tt.push(x);aud('INSERT',null,x);});return {data:arr,error:null};}
+      if(q.mode==='update'){var hit=tt.filter(match);hit.forEach(function(r){var o=Object.assign({},r);Object.assign(r,q.payload);if(name==='matches'&&('live_phase' in q.payload||'clock_rem' in q.payload||'clock_running' in q.payload))r.clock_at=new Date().toISOString();aud('UPDATE',o,r);});return {data:hit,error:null};}
+      if(q.mode==='delete'){tt.filter(match).forEach(function(r){aud('DELETE',r,null);});var keep=tt.filter(function(r){return !match(r);});tt.length=0;keep.forEach(function(r){tt.push(r);});return {data:null,error:null};}
+      if(q.mode==='upsert'){[].concat(q.payload).forEach(function(x){var keys=q.onConflict?q.onConflict.split(','):null;var ex=keys&&tt.find(function(r){return keys.every(function(k){return r[k]===x[k];});});if(ex){var o=Object.assign({},ex);Object.assign(ex,x);aud('UPDATE',o,ex);}else{var nr=Object.assign({id:uid(),created_at:new Date().toISOString()},x);tt.push(nr);aud('INSERT',null,nr);}});return {data:null,error:null};}
     }
     var api={
       select:function(s,o){ if(q.mode==='select'){q.sel=s||'*';q.opts=o||{};} return api;},
@@ -102,6 +105,8 @@
       or:function(x){q.filters.push(['or',null,x]);return api;},
       in:function(c,v){q.filters.push(['in',c,v]);return api;},
       is:function(c,v){q.filters.push(['is',c,v]);return api;},
+      gte:function(c,v){q.filters.push(['gte',c,v]);return api;},
+      lte:function(c,v){q.filters.push(['lte',c,v]);return api;},
       order:function(c,o){q.orders.push([c,!(o&&o.ascending===false)]);return api;},
       limit:function(n){q.lim=n;return api;},
       range:function(a,b){q.rng=[a,b];return api;},
@@ -116,12 +121,14 @@
       from:Q,
       rpc:function(fn,args){
         if(fn==='increment_page_view'){var pv=DB.page_views||(DB.page_views=[]);var r=pv.find(function(x){return x.page_key===args.p_key;});if(!r){r={page_key:args.p_key,view_count:0};pv.push(r);}r.view_count++;return Promise.resolve({data:r.view_count,error:null});}
+        if(fn==='server_now'&&!DB.__nolive)return Promise.resolve({data:new Date().toISOString(),error:null});
         return Promise.resolve({data:null,error:{message:'no rpc '+fn}});
       },
       auth:{
-        getSession:function(){return Promise.resolve({data:{session:DB.__admin?{user:{id:'admin-1'}}:null}});},
+        getSession:function(){return Promise.resolve({data:{session:DB.__user?{user:DB.__user}:(DB.__admin?{user:{id:'admin-1'}}:null)}});},
         signOut:function(){return Promise.resolve({});},
-        signInWithPassword:function(){return Promise.resolve({data:{user:{id:'admin-1'}},error:null});}
+        signInWithPassword:function(c){if(DB.__badlogin)return Promise.resolve({data:null,error:{message:'Invalid login credentials'}});DB.__user=DB.__user||{id:'admin-1',email:c&&c.email};return Promise.resolve({data:{user:DB.__user},error:null});},
+        signUp:function(c){var u={id:'new-user',email:c.email,user_metadata:(c.options&&c.options.data)||{}};if(DB.__confirm_email)return Promise.resolve({data:{user:u,session:null},error:null});DB.__user=u;return Promise.resolve({data:{user:u,session:{user:u}},error:null});}
       }
     };
   }};

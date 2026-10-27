@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Desk — Phalanx League Soccer</title>
+<link rel="stylesheet" href="../css/app.css">
+<link rel="icon" type="image/png" href="../assets/brand/favicon.png">
+<style>
+.ld { max-width: 620px; margin: 0 auto; padding-bottom: 140px; }
+.ld .muted { color: var(--chalk-dim); font-size: 13px; }
+.ld .ok { color: var(--ev-goal); } .ld .warn { color: var(--amber); } .ld .bad { color: var(--coral); }
+.ld .hide { display: none !important; }
+.ld-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.ld-tabs button { flex: 1; padding: 10px 8px; border-radius: 10px; border: 1px solid var(--card-edge); background: var(--card-charcoal); color: var(--chalk-dim); font-weight: 700; cursor: pointer; }
+.ld-tabs button.on { background: var(--amber); color: #1C1C1F; border-color: var(--amber); }
+.ld .card { margin-bottom: 12px; }
+.ld .t { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--chalk-dim); margin-bottom: 8px; font-weight: 700; }
+.steps { display: flex; gap: 5px; margin-bottom: 10px; }
+.steps span { flex: 1; text-align: center; font-size: 11px; padding: 6px 2px; border-radius: 8px; background: rgba(0,0,0,.4); color: var(--chalk-dim); }
+.steps span.on { background: var(--amber); color: #1C1C1F; font-weight: 800; } .steps span.done { color: var(--ev-goal); }
+.sb { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; text-align: center; gap: 8px; }
+.sb b { font-size: 54px; line-height: 1; } .sb small { display: block; color: var(--chalk-dim); font-size: 13px; }
+.clock { font-size: 40px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; line-height: 1; }
+.clock small { display: block; font-size: 11px; color: var(--chalk-dim); font-weight: 600; letter-spacing: .08em; margin-top: 4px; }
+.livepill { display: inline-block; background: var(--coral); color: #fff; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; animation: lp 1.4s infinite; }
+@keyframes lp { 50% { opacity: .5; } }
+.lrow { display: flex; gap: 8px; flex-wrap: wrap; } .lrow > * { flex: 1; min-width: 0; }
+.lb { padding: 13px 8px; border-radius: 12px; border: 1px solid var(--card-edge); background: #2a2a2e; color: var(--chalk-white); font-weight: 700; font-size: 15px; cursor: pointer; min-height: 48px; font-family: inherit; }
+.lb.goal { background: var(--ev-goal); color: var(--ev-goal-ink); border: 0; } .lb.y { background: var(--ev-yellow); color: var(--ev-yellow-ink); border: 0; }
+.lb.r { background: var(--ev-red); color: #fff; border: 0; } .lb.pri { background: var(--amber); color: #1C1C1F; border: 0; } .lb.ghost { background: transparent; } .lb.sel { outline: 3px solid var(--amber); }
+.lb:disabled { opacity: .35; cursor: not-allowed; }
+.ld select, .ld input[type=text], .ld input[type=email], .ld input[type=password] { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--card-edge); background: #111; color: var(--chalk-white); font-size: 15px; }
+.ld label { font-size: 12px; color: var(--chalk-dim); display: block; margin: 8px 0 4px; }
+.ev { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--card-edge); } .ev:first-child { border-top: 0; }
+.ev .m { width: 62px; color: var(--chalk-dim); font-variant-numeric: tabular-nums; flex: none; } .ev .body { flex: 1; min-width: 0; }
+.ev .x { background: none; border: 0; color: var(--chalk-dim); cursor: pointer; font-size: 16px; padding: 4px 6px; }
+.dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.pill { display: inline-block; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 6px; margin-top: 3px; } .pill.h1 { background: rgba(231,169,61,.2); color: var(--amber); } .pill.h2 { background: rgba(95,214,223,.2); color: #5fd6df; }
+.hb { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 10px; margin: 12px 0 4px; font-size: 12px; font-weight: 800; letter-spacing: .08em; }
+.hb.h1 { background: rgba(231,169,61,.13); color: var(--amber); border-left: 4px solid var(--amber); } .hb.h2 { background: rgba(95,214,223,.13); color: #5fd6df; border-left: 4px solid #5fd6df; } .hb span { color: var(--chalk-white); font-weight: 600; letter-spacing: 0; }
+.htdiv { display: flex; align-items: center; gap: 8px; color: var(--chalk-dim); font-size: 12px; margin: 10px 0; } .htdiv:before, .htdiv:after { content: ""; flex: 1; border-top: 1px dashed var(--card-edge); }
+.sc { margin-left: 6px; font-weight: 800; color: var(--ev-goal); }
+.pr { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--card-edge); }
+.pr .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; } .pr.rested .n { color: var(--amber); } .pr.absent .n { color: var(--coral); text-decoration: line-through; }
+.seg { display: flex; gap: 4px; flex: none; } .seg button { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--card-edge); background: #111; color: var(--chalk-dim); font-weight: 700; font-size: 12px; cursor: pointer; }
+.seg button.on.played { background: #1f6b45; color: #fff; border-color: #2d6b4a; } .seg button.on.rested { background: var(--amber); color: #1C1C1F; border-color: var(--amber); } .seg button.on.absent { background: var(--coral); color: #fff; border-color: var(--coral); }
+.sheet { position: fixed; inset: auto 0 0 0; background: #141416; border-top: 2px solid var(--amber); border-radius: 18px 18px 0 0; padding: 16px; max-width: 620px; margin: 0 auto; box-shadow: 0 -10px 40px rgba(0,0,0,.7); max-height: 88vh; overflow: auto; z-index: 50; }
+.pl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lock { background: rgba(226,88,61,.15); border: 1px solid var(--coral); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+.chk { padding-left: 18px; margin: 6px 0; } .chk li { margin: 4px 0; }
+table.at { width: 100%; border-collapse: collapse; font-size: 13px; } .at td, .at th { padding: 6px 4px; border-top: 1px solid var(--card-edge); text-align: left; vertical-align: top; } .at th { color: var(--chalk-dim); font-size: 11px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="container ld">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+    <h1 style="margin-bottom:0;">Live Desk</h1>
+    <button class="btn secondary hide" id="logout-btn">Log out</button>
+  </div>
+  <p class="muted" id="whoami"></p>
+
+  <!-- sign in / request access -->
+  <div id="gate" class="hide">
+    <div class="ld-tabs"><button id="g-in" class="on">Sign in</button><button id="g-up">Request co-admin access</button></div>
+    <div class="card" id="g-signin">
+      <form id="signin-form">
+        <label for="si-email">Email</label><input type="email" id="si-email" required autocomplete="username">
+        <label for="si-pass">Password</label><input type="password" id="si-pass" required autocomplete="current-password">
+        <button class="lb pri" type="submit" style="width:100%; margin-top:12px;">Sign in</button>
+      </form>
+      <p id="si-msg" class="muted"></p>
+    </div>
+    <div class="card hide" id="g-signup">
+      <form id="signup-form">
+        <label for="su-name">Your name (shown in the audit trail)</label><input type="text" id="su-name" required autocomplete="name">
+        <label for="su-email">Email</label><input type="email" id="su-email" required autocomplete="email">
+        <label for="su-pass">Password (at least 10 characters)</label><input type="password" id="su-pass" required minlength="10" autocomplete="new-password">
+        <button class="lb pri" type="submit" style="width:100%; margin-top:12px;">Request access</button>
+      </form>
+      <p id="su-msg" class="muted"></p>
+      <p class="muted">After you sign up, a league admin has to approve you before you can edit anything. You can only run live matches; nothing else on the site.</p>
+    </div>
+  </div>
+
+  <!-- waiting for approval / blocked -->
+  <div id="pending" class="hide card">
+    <div class="t">Waiting for approval</div>
+    <p id="pending-text">Your request is with the league admins. You will be able to run live matches as soon as one approves you.</p>
+    <div class="lrow"><button class="lb" id="pending-refresh">Check again</button><button class="lb ghost" id="pending-out">Sign out</button></div>
+  </div>
+
+  <!-- database not ready -->
+  <div id="nodb" class="hide card"><div class="t">Almost there</div><p>The live scoring database changes have not been applied yet. A league admin needs to run <b>sql/migration_live_scoring.sql</b> in Supabase (SQL editor), then reload this page.</p></div>
+
+  <!-- the desk -->
+  <div id="desk" class="hide">
+    <div class="card"><div class="t">Match</div><select id="match-pick"></select><div class="muted" id="match-meta" style="margin-top:6px;"></div></div>
+    <div id="lockbar"></div>
+    <div class="ld-tabs"><button id="t-desk" class="on">Desk</button><button id="t-audit">Audit trail</button></div>
+
+    <div id="pane-desk">
+      <div class="steps"><span id="s1">1 Pre-match</span><span id="s2">2 First half</span><span id="s3">3 Half-time</span><span id="s4">4 Second half</span><span id="s5">5 Full time</span></div>
+
+      <div id="p-pre" class="hide">
+        <div class="card"><div class="t">1 · Toss</div>
+          <div class="lrow" id="toss-teams"></div>
+          <label>Winner chose</label><div class="lrow" id="toss-choice"></div></div>
+        <div class="card"><div class="t">2 · Rested / Absent <span class="muted" style="text-transform:none;">(choose one for every player; the default is Playing)</span></div>
+          <div id="ros-H"></div><div id="ros-A" style="margin-top:14px;"></div></div>
+        <div class="card"><div class="t">3 · Check before kick-off</div><ul class="chk" id="pre-chk"></ul>
+          <button class="lb pri" id="btn-start" style="width:100%;">▶ Start first half</button><div id="pre-msg" class="bad" style="margin-top:6px;"></div></div>
+      </div>
+
+      <div id="p-live" class="hide">
+        <div class="card"><div style="text-align:center; margin-bottom:8px;"><span class="livepill" id="lv">LIVE</span> <span id="half-txt" class="muted"></span></div>
+          <div class="sb"><div><b id="hs">0</b><small id="hn"></small></div><div class="clock"><span id="clk">10:00</span><small>REMAINING</small></div><div><b id="as">0</b><small id="an"></small></div></div>
+          <div class="lrow" style="margin-top:12px;"><button class="lb" id="btn-pause">⏸ Pause</button><button class="lb" id="btn-endhalf">End half</button></div>
+          <div class="muted" id="sync" style="margin-top:8px; text-align:center;"></div></div>
+        <div class="card"><div class="t">Add event (time is filled in from the clock)</div>
+          <div class="lrow"><button class="lb goal" data-add="goal|H" id="add-gH"></button><button class="lb goal" data-add="goal|A" id="add-gA"></button></div>
+          <div class="lrow" style="margin-top:8px;"><button class="lb" data-add="foul|?">Foul</button><button class="lb y" data-add="yellow_card|?">Yellow</button><button class="lb r" data-add="red_card|?">Red</button><button class="lb" data-add="save|?">Save</button></div></div>
+        <div class="card"><div class="t">Timeline</div><div id="tl-live"></div></div>
+      </div>
+
+      <div id="p-ht" class="hide"><div class="card"><div class="t">Half-time</div>
+        <div class="sb"><div><b id="hth">0</b><small class="hn"></small></div><div class="muted">HT</div><div><b id="hta">0</b><small class="an"></small></div></div>
+        <div id="tl-ht" style="margin:10px 0;"></div>
+        <div class="lrow" style="margin-bottom:8px;"><button class="lb" data-add="goal|H" id="ht-gH"></button><button class="lb" data-add="goal|A" id="ht-gA"></button></div>
+        <div class="muted" style="margin-bottom:8px;">Missed something in the first half? Add it above, or fix it with ✎ (all changes are logged).</div>
+        <button class="lb pri" style="width:100%;" id="btn-start2">▶ Start second half</button></div></div>
+
+      <div id="p-ft" class="hide"><div class="card"><div class="t">Full time</div>
+        <div class="sb"><div><b id="fh">0</b><small class="hn"></small></div><div class="muted">FT</div><div><b id="fa">0</b><small class="an"></small></div></div>
+        <div id="tl-ft" style="margin:10px 0;"></div>
+        <label>Player of the match (optional)</label><select id="potm"></select>
+        <ul class="chk" id="ft-chk"></ul>
+        <button class="lb pri" style="width:100%; margin-top:10px;" id="btn-confirm">Confirm &amp; publish final result ✔</button><div id="ft-msg" class="bad" style="margin-top:8px;"></div></div></div>
+
+      <div id="p-final" class="hide"><div class="card"><div class="t">Result confirmed</div>
+        <div class="sb"><div><b id="xh">0</b><small class="hn"></small></div><div class="muted">FT</div><div><b id="xa">0</b><small class="an"></small></div></div>
+        <p class="ok" style="margin-top:10px;">✔ This match is final. Standings, Records, Form and Rivalry are updated. Corrections now need an admin (use the Matches &amp; Events tabs on the admin dashboard); every change is logged.</p>
+        <div id="tl-final"></div></div></div>
+    </div>
+
+    <div id="pane-audit" class="hide"><div class="card"><div class="t">Audit trail · this match (Eastern Time)</div>
+      <div style="overflow:auto;"><table class="at"><thead><tr><th>When (ET)</th><th>Who</th><th>What</th></tr></thead><tbody id="audit-body"></tbody></table></div>
+      <div class="muted" style="margin-top:8px;">Recorded by the database itself. Nobody can edit or delete these rows, not even an admin.</div></div></div>
+  </div>
+</div>
+<div class="sheet hide" id="sheet"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/supabase-client.js"></script>
+<script src="../js/common.js"></script>
+<script src="../js/live_common.js"></script>
+<script src="live.js"></script>
+</body>
+</html>

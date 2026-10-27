@@ -16,6 +16,7 @@
 .m-hero-top { display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap; font-size:14px; color:var(--chalk-dim); }
 .m-ft { font-size:12px; font-weight:700; letter-spacing:.06em; color:#0E3B2E; background:#7FD1A8; padding:3px 10px; border-radius:999px; }
 .m-ft.other { background:rgba(183,176,160,.25); color:var(--chalk-dim); }
+.m-ft.live { background:var(--coral); color:#fff; animation:mlive 1.4s infinite; } @keyframes mlive { 50% { opacity:.55; } }
 .m-board { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:24px; }
 .m-side { display:flex; align-items:center; gap:20px; min-width:0; }
 .m-side.home { justify-content:flex-end; text-align:right; }
@@ -107,6 +108,7 @@
 <script src="js/config.js"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/common.js"></script>
+<script src="js/live_common.js"></script>
 <script>
 renderHeader("matches.html");
 renderFooter();
@@ -158,6 +160,8 @@ async function loadMatch() {
   if (!mRes.data) { document.getElementById("match-title").textContent = "Match not found"; return; }
   var m = mRes.data, home = m.home, away = m.away;
   var done = m.status === "completed";
+  if (!window.__clockSynced) { window.__clockSynced = true; await LIVE.syncClock(window.sb); }
+  var live = LIVE.isLive(m) && !done;   // match is being scored live right now
   document.getElementById("page-top").innerHTML = "";
   document.getElementById("crumb-current").textContent = "Day " + m.match_day + " Match " + m.match_number;
   document.title = home.name + " vs " + away.name + " — Phalanx League Soccer";
@@ -272,14 +276,14 @@ async function loadMatch() {
   // ---- hero ----
   var tossTeam = m.toss_winner_team_id === home.id ? home : (m.toss_winner_team_id === away.id ? away : null);
   var tossText = tossTeam ? "<span>Toss: " + teamLink(tossTeam.id, tossTeam.name) + (m.toss_choice === "kickoff" ? " · chose to kick off" : (m.toss_choice === "side" ? " · chose side" : "")) + "</span>" : "";
-  var scoreBig = done ? m.home_score + " <span>–</span> " + m.away_score : (m.status === "forfeited" ? '<span style="font-size:48px;">Forfeit</span>' : "<span>vs</span>");
-  var pillText = done ? "FULL TIME" : m.status.toUpperCase();
-  html += '<section class="m-card m-hero"><div class="m-hero-top"><span>Match Day ' + m.match_day + " · Match " + m.match_number + '</span><span class="m-ft' + (done ? "" : " other") + '">' + pillText + "</span>" +
+  var scoreBig = done ? m.home_score + " <span>–</span> " + m.away_score : (live ? rh + " <span>–</span> " + ra : (m.status === "forfeited" ? '<span style="font-size:48px;">Forfeit</span>' : "<span>vs</span>"));
+  var pillText = done ? "FULL TIME" : (live ? "LIVE" : m.status.toUpperCase());
+  html += '<section class="m-card m-hero"><div class="m-hero-top"><span>Match Day ' + m.match_day + " · Match " + m.match_number + '</span><span class="m-ft' + (done ? "" : (live ? " live" : " other")) + '">' + pillText + "</span>" +
     (m.kickoff_at ? "<span>" + formatKickoff(m.kickoff_at) + "</span>" : "") + "</div>" +
     '<div class="m-board">' +
-      '<div class="m-side home"><div><div class="m-team"><a href="team.html?id=' + home.id + '">' + escapeHtml(home.name) + '</a></div><div class="m-scorers">' + (done ? teamRecords(home.id) : "") + '</div></div><div class="m-crest">' + crest(home) + "</div></div>" +
-      '<div class="m-score"><div class="big">' + scoreBig + "</div>" + (hasHalfTime ? '<div class="m-sub" style="margin-top:8px;">Half-time ' + htHome + " – " + htAway + "</div>" : "") + "</div>" +
-      '<div class="m-side away"><div class="m-crest">' + crest(away) + '</div><div><div class="m-team"><a href="team.html?id=' + away.id + '">' + escapeHtml(away.name) + '</a></div><div class="m-scorers">' + (done ? teamRecords(away.id) : "") + "</div></div></div>" +
+      '<div class="m-side home"><div><div class="m-team"><a href="team.html?id=' + home.id + '">' + escapeHtml(home.name) + '</a></div><div class="m-scorers">' + ((done || live) ? teamRecords(home.id) : "") + '</div></div><div class="m-crest">' + crest(home) + "</div></div>" +
+      '<div class="m-score"><div class="big">' + scoreBig + "</div>" + (live ? '<div class="m-sub" id="live-clock" style="margin-top:8px;font-weight:700;color:var(--coral);"></div>' : "") + (hasHalfTime ? '<div class="m-sub" style="margin-top:8px;">Half-time ' + htHome + " – " + htAway + "</div>" : "") + "</div>" +
+      '<div class="m-side away"><div class="m-crest">' + crest(away) + '</div><div><div class="m-team"><a href="team.html?id=' + away.id + '">' + escapeHtml(away.name) + '</a></div><div class="m-scorers">' + ((done || live) ? teamRecords(away.id) : "") + "</div></div></div>" +
     '</div><div class="m-meta">' + tossText + '<span id="page-views"></span></div></section>';
 
   // ---- player of the match ----
@@ -298,17 +302,17 @@ async function loadMatch() {
   if (anyOG) statDefs.push(["Own goals", "og"]);
   if (anySave) statDefs.push(["Goals saved", "sv"]);
   var statsHtml = "";
-  if (done) {
+  if (done || live) {
     statsHtml = '<section class="m-card"><div class="m-label">Match stats</div>' +
       '<div class="m-stat-row" style="margin-top:14px; font-size:13px; font-weight:600; color:var(--chalk-dim);"><span>' + teamLink(home.id, home.name) + "</span><span>" + teamLink(away.id, away.name) + "</span></div>" +
       statDefs.map(function (d) {
         var a = T[home.id][d[1]], b = T[away.id][d[1]], mx = Math.max(a, b, 1);
-        if (d[1] === "goals") { a = m.home_score; b = m.away_score; mx = Math.max(a, b, 1); }
+        if (d[1] === "goals") { a = done ? m.home_score : rh; b = done ? m.away_score : ra; mx = Math.max(a, b, 1); }
         return '<div class="m-stat"><div class="m-stat-row"><b>' + a + "</b><span>" + d[0] + "</span><b>" + b + '</b></div><div class="m-bars"><div><i style="width:' + Math.round(a / mx * 100) + '%; background:' + (barColor[d[1]] || "var(--amber)") + ';"></i></div><div><i style="width:' + Math.round(b / mx * 100) + '%; background:' + (barColor[d[1]] || "var(--amber)") + ';"></i></div></div></div>';
       }).join("") + "</section>";
   }
   var tlHtml = '<section class="m-card"><div class="m-label">How it happened</div>' +
-    '<div class="m-sub" style="margin:4px 0 4px;">Grouped by half. A minute shows only if one was entered.</div>' +
+    '<div class="m-sub" style="margin:4px 0 4px;">' + (live ? "Updating live. " : "") + 'Grouped by half. A minute shows only if one was entered.</div>' +
     (tl || '<p class="muted" style="margin-top:12px;">No events logged for this match yet.</p>') +
     (awards.length ? '<div style="padding-top:12px;">🏆 <strong>Player of the Tournament</strong> · ' + awards.map(function (e) { return plink(e.players) + " (" + teamLink(e.teams.id, e.teams.name) + ")"; }).join(", ") + "</div>" : "") + "</section>";
   html += statsHtml ? '<div class="m-two">' + statsHtml + tlHtml + "</div>" : tlHtml;
@@ -364,7 +368,7 @@ async function loadMatch() {
     }).join("") + "</div></section>";
   }
 
-  if (done && squads.some(function (q) { return q.played.length; })) {
+  if ((done || live) && squads.some(function (q) { return q.played.length; })) {
     html += '<section class="m-card"><div class="m-label">Player stats</div>' + squads.map(function (q) {
       if (!q.played.length) return "";
       return '<div class="m-tname" style="font-size:18px; margin:14px 0 4px;">' + teamLink(q.team.id, q.team.name) + '</div><div class="m-scroll"><table class="m-ptable"><thead><tr><th>PLAYER</th><th>POS</th><th class="num">G</th><th class="num">A</th>' +
@@ -377,11 +381,37 @@ async function loadMatch() {
     }).join("") + '<div class="m-sub" style="margin-top:8px;">POS = preferred position · G = goals · A = assists · ' + (anyOG ? "OG = own goals · " : "") + (anySave ? "SV = goals saved · " : "") + "FL = fouls · YC / RC = yellow / red cards</div></section>";
   }
 
-  root.innerHTML = html;
-  trackPageView("match:" + matchId).then(function (count) {
-    var el = document.getElementById("page-views");
-    if (el) el.textContent = "Page viewed " + formatViewCount(count);
-  });
+  if (root.__html !== html) { root.innerHTML = html; root.__html = html; }   // live refreshes only redraw when something changed
+  var pv = document.getElementById("page-views"); if (pv && window.__pvText) pv.textContent = window.__pvText;
+  if (!window.__pvDone) {
+    window.__pvDone = true;
+    trackPageView("match:" + matchId).then(function (count) {
+      window.__pvText = "Page viewed " + formatViewCount(count);
+      var el = document.getElementById("page-views");
+      if (el) el.textContent = window.__pvText;
+    });
+  }
+  liveSetup(m, live);
+}
+
+// ---- live updates: poll every 5 s while a match is live (and every 20 s around kick-off), plus realtime when available
+var LIVE_TIMER = null, LIVE_TICK = null, LIVE_SUB = false;
+function liveSetup(m, live) {
+  window.__liveM = live ? m : null;
+  clearTimeout(LIVE_TIMER);
+  var soon = m.status === "scheduled" && m.kickoff_at && Math.abs(Date.now() - Date.parse(m.kickoff_at)) < 3 * 3600 * 1000;
+  if (LIVE.enabled && (live || soon)) LIVE_TIMER = setTimeout(loadMatch, live ? 5000 : 20000);
+  if (!LIVE_SUB && LIVE.enabled) { LIVE_SUB = true; LIVE.subscribe(window.sb, matchId, function () { clearTimeout(LIVE_TIMER); loadMatch(); }); }
+  if (!LIVE_TICK) LIVE_TICK = setInterval(liveTick, 500);
+  liveTick();
+}
+function liveTick() {
+  var m = window.__liveM, el = document.getElementById("live-clock");
+  if (!m || !el) return;
+  var t = LIVE.phaseText(m);
+  if (m.live_phase === "h1" || m.live_phase === "h2") t += " · " + LIVE.played(LIVE.playedNow(m)) + (m.clock_running ? "" : " (paused)");
+  else if (m.live_phase === "ft") t = "Full time · result being confirmed";
+  el.textContent = t;
 }
 loadMatch();
 </script>

@@ -6,5 +6,7 @@
 
 window.PHALANX_CONFIG = {
   SUPABASE_URL: "https://nephslqnzknkcjjqcgcw.supabase.co",
-  SUPABASE_ANON_KEY: "sb_publishable_kzP_YAh4om97vffFZoFsDQ_w-NMH5GQ"
+  SUPABASE_ANON_KEY: "sb_publishable_kzP_YAh4om97vffFZoFsDQ_w-NMH5GQ",
+  // Live scoring (live match desk + LIVE badges). Set to false to hide it everywhere ("Rollback Live scoring", quick option).
+  LIVE_DESK_ENABLED: true
 };

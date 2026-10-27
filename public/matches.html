@@ -28,6 +28,7 @@
   .mt-links { display:flex; gap:12px; font-weight:600; }
   .mt-ev { display:flex; flex-wrap:wrap; gap:3px 12px; font-size:.75rem; color:var(--chalk-dim); margin-top:6px; } .mt-ev a { color:var(--chalk-dim); } .mt-ev a:hover { color:var(--chalk-white); }
   .mt-att { font-size:.75rem; color:var(--chalk-dim); margin-top:6px; }
+  .pill.live { background:var(--coral); color:#fff; animation:mlive 1.4s infinite; } @keyframes mlive { 50% { opacity:.6; } }
   .pill.wait { background:rgba(232,197,71,.15); color:var(--ev-yellow); }
   .pill.W { background:#3ECF6E; color:#04210F; } .pill.D { background:#6b6b70; color:#fff; } .pill.L { background:#C0392B; color:#fff; }
   .mt-filters { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
@@ -52,6 +53,7 @@
 <script src="js/config.js"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/common.js"></script>
+<script src="js/live_common.js"></script>
 <script>
 renderHeader("matches.html");
 renderFooter();
@@ -60,7 +62,10 @@ renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Matches" }])
 var MT = { season: null, teams: {}, players: {}, matches: [], events: [], att: {}, team: "all", day: "all", status: "all", order: "desc", tab: null, now: function () { return new Date(); } };
 
 function mtDone(m) { return (m.status === "completed" && m.home_score != null && m.away_score != null) || m.status === "forfeited"; }
-function mtState(m) { return mtDone(m) ? "done" : (m.kickoff_at && new Date(m.kickoff_at) < MT.now() && m.status !== "postponed" ? "wait" : "up"); }
+function mtLive(m) { return LIVE.isLive(m) && m.status === "scheduled"; }
+function mtLiveScore(m) { return LIVE.score(m, MT.events.filter(function (e) { return e.match_id === m.id; })); }
+function mtLiveText(m) { var t = LIVE.phaseText(m); if (m.live_phase === "h1" || m.live_phase === "h2") t += " · " + LIVE.played(LIVE.playedNow(m)); return t; }
+function mtState(m) { if (mtLive(m)) return "live"; return mtDone(m) ? "done" : (m.kickoff_at && new Date(m.kickoff_at) < MT.now() && m.status !== "postponed" ? "wait" : "up"); }
 function mtMine(m) { return MT.team === "all" || m.home_team_id === MT.team || m.away_team_id === MT.team; }
 function mtDays() {
   var o = {};
@@ -84,6 +89,7 @@ function mtEt(d) {
 }
 function mtInUpcomingWindow(d) { var e = mtEt(d); return e.dow === 5 || e.dow === 6 || e.dow === 0 || e.dow === 1 || (e.dow === 2 && e.min <= 20 * 60 + 30); }
 function mtDefaultTab() {
+  if (MT.matches.some(mtLive)) return "upcoming";   // a match is live right now: show it first
   if (!mtHasUpcoming()) return "recent";
   if (mtLatestDone() === null) return "upcoming";
   return mtInUpcomingWindow(MT.now()) ? "upcoming" : "recent";
@@ -121,7 +127,11 @@ function mtAttText(m) {
 
 function mtRow(m, first) {
   var st = mtState(m), done = st === "done", forf = m.status === "forfeited", hs = m.home_score, as = m.away_score, sc, pill, tl = "";
-  if (done && !forf) {
+  if (st === "live") {
+    var ls = mtLiveScore(m);
+    sc = '<div class="mt-sc">' + matchLink(m, ls.h + " – " + ls.a) + "</div>";
+    pill = '<span class="pill live mt-live-clock" data-mid="' + m.id + '">LIVE · ' + mtLiveText(m) + "</span>";
+  } else if (done && !forf) {
     sc = '<div class="mt-sc">' + matchLink(m, '<span class="' + (as > hs ? "lose" : "") + '">' + hs + '</span> – <span class="' + (hs > as ? "lose" : "") + '">' + as + "</span>") + "</div>";
     pill = '<span class="pill completed">Full time</span>';
   } else if (forf) {
@@ -134,13 +144,13 @@ function mtRow(m, first) {
     var f = m.home_team_id === MT.team ? hs : as, o = m.home_team_id === MT.team ? as : hs, x = f > o ? "W" : f < o ? "L" : "D";
     pill = '<span class="pill ' + x + '">' + (x === "W" ? "Win" : x === "L" ? "Loss" : "Draw") + "</span>";
   }
-  if (done && !forf) {
+  if ((done || st === "live") && !forf) {
     var evs = MT.events.filter(function (e) { return e.match_id === m.id; }), pa = mtPair(evs), bits = [];
     evs.forEach(function (e) {
       if (e.event_type === "goal") { var a = pa[e.id]; bits.push('<span><i class="evm goal"></i>' + mtPlink(e.player_id) + (a ? ' <i class="evm assist" style="margin-left:6px"></i>' + mtPlink(a.player_id) : "") + "</span>"); }
       else if (e.event_type === "own_goal") bits.push('<span><i class="evm og"></i>' + mtPlink(e.player_id) + " (og)</span>");
     });
-    tl = '<div class="mt-ev">' + (bits.length ? bits.join("") : (hs === 0 && as === 0 ? "<span>Goalless draw</span>" : "")) + "</div>";
+    tl = '<div class="mt-ev">' + (bits.length ? bits.join("") : (st !== "live" && hs === 0 && as === 0 ? "<span>Goalless draw</span>" : "")) + "</div>";
   }
   var when = m.kickoff_at ? formatKickoff(m.kickoff_at) : "Kickoff time to be confirmed";
   var h2h = m.home_team_id && m.away_team_id ? '<a href="stats.html#rivalry/' + m.home_team_id + "/" + m.away_team_id + '">Head to head &rsaquo;</a>' : "";
@@ -194,10 +204,10 @@ function renderMatches() {
     var ds = mtUpcomingDays().filter(function (d) { return dd[d].some(function (m) { return !mtDone(m) && mtMine(m); }); });
     if (!ds.length) h = mtTeamBar() + mtNone(MT.team === "all" ? "No more matches to play. See Recent or All." : escapeHtml(mtTname(MT.team)) + " has no more matches to play.");
     else {
-      var first = dd[ds[0]].filter(function (m) { return !mtDone(m) && mtMine(m); })[0], wait = mtState(first) === "wait";
-      h = mtTeamBar() + '<div class="mt-next"><div><div class="k">' + (wait ? "Awaiting results" : "Next kickoff") + '</div><div class="t">' + teamLink(first.home_team_id, mtTname(first.home_team_id)) + " v " + teamLink(first.away_team_id, mtTname(first.away_team_id)) +
+      var first = dd[ds[0]].filter(function (m) { return !mtDone(m) && mtMine(m); })[0], wait = mtState(first) === "wait", islive = mtState(first) === "live";
+      h = mtTeamBar() + '<div class="mt-next"><div><div class="k">' + (islive ? "Live now" : wait ? "Awaiting results" : "Next kickoff") + '</div><div class="t">' + teamLink(first.home_team_id, mtTname(first.home_team_id)) + " v " + teamLink(first.away_team_id, mtTname(first.away_team_id)) +
         '</div><div class="muted" style="font-size:.82rem;margin-top:2px;">Match Day ' + ds[0] + " &middot; M" + first.match_number + (first.kickoff_at ? " &middot; " + formatKickoff(first.kickoff_at) : "") + '</div></div><div class="cd" id="mt-cd">' +
-        (wait || !first.kickoff_at ? "—" : mtCd(new Date(first.kickoff_at) - MT.now())) + "<small>" + (wait ? "played, result pending" : "until kickoff") + "</small></div></div>" +
+        (islive ? "LIVE" : wait || !first.kickoff_at ? "—" : mtCd(new Date(first.kickoff_at) - MT.now())) + "<small>" + (islive ? mtLiveText(first) : wait ? "played, result pending" : "until kickoff") + "</small></div></div>" +
         ds.map(function (d, i) { return mtDayCard(d, dd[d].filter(mtMine), i === 0 ? '<span class="mt-badge next">NEXT</span>' : ""); }).join("");
     }
   } else {
@@ -256,7 +266,8 @@ async function loadMatches() {
     var k = a.match_id + "|" + a.status;
     MT.att[k] = MT.att[k] || {}; MT.att[k][a.team_id] = (MT.att[k][a.team_id] || 0) + 1;
   });
-  var done = MT.matches.filter(function (m) { return m.status === "completed"; }).map(function (m) { return m.id; });
+  await LIVE.syncClock(window.sb);
+  var done = MT.matches.filter(function (m) { return m.status === "completed" || mtLive(m); }).map(function (m) { return m.id; });
   MT.events = done.length ? await mtFetchEvents(done) : [];
   var pr = await window.sb.from("players").select("id, full_name");
   (pr.data || []).forEach(function (p) { MT.players[p.id] = p; });
@@ -269,6 +280,21 @@ async function loadMatches() {
     try { history.replaceState(null, "", "#" + MT.tab); } catch (e) {}
     renderMatches();
   });
+  // live matches: refresh scores every 6 s and tick the match clock every second
+  setInterval(async function () {
+    if (!LIVE.enabled || document.hidden) return;
+    var soon = MT.matches.some(function (m) { return mtLive(m) || (m.status === "scheduled" && m.kickoff_at && Date.now() - Date.parse(m.kickoff_at) > -30 * 60000 && Date.now() - Date.parse(m.kickoff_at) < 3 * 3600 * 1000); });
+    if (!soon) return;
+    var r = await window.sb.from("matches").select("*").eq("season_id", MT.season.id).order("match_day", { ascending: true }).order("match_number", { ascending: true });
+    if (!r.data || !r.data.length) return;
+    var liveIds = r.data.filter(mtLive).map(function (m) { return m.id; }), doneIds = r.data.filter(function (m) { return m.status === "completed"; }).map(function (m) { return m.id; });
+    var evs = liveIds.length ? await mtFetchEvents(liveIds) : [];
+    var prevDone = MT.matches.filter(function (m) { return m.status === "completed"; }).length, nowDone = doneIds.length, newEv = nowDone > prevDone ? await mtFetchEvents(doneIds) : MT.events.filter(function (e) { return doneIds.indexOf(e.match_id) >= 0; });
+    var sig = JSON.stringify([r.data.map(function (m) { return [m.id, m.status, m.live_phase, m.clock_running, m.clock_rem, m.home_score, m.away_score]; }), evs.length, evs.map(function (e) { return e.id; })]);
+    if (sig === MT.sig) return;
+    MT.sig = sig; MT.matches = r.data; MT.events = newEv.concat(evs); renderMatches();
+  }, 6000);
+  setInterval(function () { document.querySelectorAll(".mt-live-clock").forEach(function (el) { var m = MT.matches.filter(function (x) { return x.id === el.dataset.mid; })[0]; if (m && mtLive(m)) el.textContent = "LIVE · " + mtLiveText(m); }); }, 1000);
   setInterval(function () {   // keep the countdown fresh and let the weekly switch happen without a reload
     if (MT.tab === "upcoming" && document.getElementById("mt-cd")) renderMatches();
   }, 60000);

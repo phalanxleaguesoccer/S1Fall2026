@@ -25,6 +25,8 @@
   .hr-all { font-size:.75rem; font-weight:600; text-transform:none; letter-spacing:0; font-family:'Work Sans',sans-serif; }
   .fm5 { display:inline-flex; gap:3px; } .fm5 span { width:17px; height:17px; border-radius:4px; font-size:.62rem; font-weight:800; display:inline-flex; align-items:center; justify-content:center; }
   .fm5 .W { background:#3ECF6E; color:#04210F; } .fm5 .D { background:#6b6b70; color:#fff; } .fm5 .L { background:#C0392B; color:#fff; }
+  .up-livetag { background:var(--coral); color:#fff; font-size:.68rem; font-weight:800; padding:2px 8px; border-radius:99px; animation:uplv 1.4s infinite; white-space:nowrap; } @keyframes uplv { 50% { opacity:.55; } }
+  .up-live { display:flex; align-items:center; gap:10px; font-size:1.2rem; font-weight:800; }
   .up-row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:8px 0; border-bottom:1px solid var(--card-edge); }
   .up-bar { display:flex; height:22px; border-radius:7px; overflow:hidden; font-size:.68rem; font-weight:800; min-width:150px; flex:1; max-width:260px; } .up-bar div { display:flex; align-items:center; justify-content:center; color:#111; min-width:24px; }
   @media (max-width:760px) { .hr-grid { grid-template-columns:1fr; } .hr-tiles { grid-template-columns:repeat(2,1fr); } .up-bar { max-width:none; } }
@@ -87,6 +89,7 @@
 <script src="js/config.js"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/common.js"></script>
+<script src="js/live_common.js"></script>
 <script src="js/records.js"></script>
 <script src="js/home_records.js"></script>
 <script>
@@ -253,7 +256,13 @@ async function loadUpcoming() {
   }
   var allRes = await window.sb.from("matches").select("*").eq("season_id", season.id);
   var seasonMatches = (allRes.data || []).filter(function (m) { return teams[m.home_team_id] && teams[m.away_team_id] && !/^Team [A-Z]$/.test(teams[m.home_team_id].name) && !/^Team [A-Z]$/.test(teams[m.away_team_id].name); });
-  var anyBar = false;
+  var anyBar = false, liveIds = res.data.filter(function (m) { return LIVE.isLive(m); }).map(function (m) { return m.id; });
+  await LIVE.syncClock(window.sb);
+  var liveEv = [];
+  if (liveIds.length) { var le = await window.sb.from("match_events").select("*").in("match_id", liveIds).in("event_type", ["goal", "own_goal"]); liveEv = le.data || []; }
+  if (window.__hadLive && !liveIds.length) { loadStandings(); loadHomeRecords(document.getElementById("standings-season-filter").value); }   // a live match just finished: refresh the table and records
+  window.__hadLive = liveIds.length > 0;
+  window.__upLive = liveIds.length > 0 || res.data.some(function (m) { var dt = m.kickoff_at ? Date.now() - Date.parse(m.kickoff_at) : null; return dt !== null && dt > -30 * 60000 && dt < 3 * 3600 * 1000; });   // live, or within 30 min before / 3 h after kick-off
   list.innerHTML = res.data.map(function (m) {
     var home = teamLink(teams[m.home_team_id] && m.home_team_id, teams[m.home_team_id] ? teams[m.home_team_id].name : "TBD");
     var away = teamLink(teams[m.away_team_id] && m.away_team_id, teams[m.away_team_id] ? teams[m.away_team_id].name : "TBD");
@@ -261,6 +270,11 @@ async function loadUpcoming() {
     var pr = (teams[m.home_team_id] && teams[m.away_team_id] && !/^Team [A-Z]$/.test(teams[m.home_team_id].name) && !/^Team [A-Z]$/.test(teams[m.away_team_id].name)) ? winModel(seasonMatches, m.home_team_id, m.away_team_id) : null;
     if (pr) anyBar = true;
     var bar = pr ? '<div class="up-bar" title="Win % estimate: home win, draw, away win"><div style="background:var(--amber);flex:' + pr.w + '">' + pr.w + '%</div><div style="background:#8a8a90;flex:' + pr.d + '">' + pr.d + '%</div><div style="background:#5FB4E8;flex:' + pr.l + '">' + pr.l + "%</div></div>" : "";
+    if (LIVE.isLive(m)) {
+      var ls = LIVE.score(m, liveEv), lt = LIVE.phaseText(m) + (m.live_phase === "h1" || m.live_phase === "h2" ? " · " + LIVE.played(LIVE.playedNow(m)) : "");
+      bar = '<div class="up-live"><span class="up-livetag">LIVE</span><a href="match.html?id=' + m.id + '">' + ls.h + " – " + ls.a + '</a><span class="muted" style="font-size:.78rem;font-weight:600;">' + lt + "</span></div>";
+      when = "Live now · standings update when the result is confirmed";
+    }
     return '<div class="up-row"><div><strong>' + matchLink(m, "Day " + m.match_day) + "</strong> &middot; " + home + " vs " + away +
       '<div class="muted" style="font-size:0.82rem;">' + when + "</div></div>" + bar + "</div>";
   }).join("");
@@ -270,6 +284,7 @@ async function loadUpcoming() {
 
 populateStandingsSeasonFilter().then(function () { loadStandings(); loadHomeRecords(document.getElementById("standings-season-filter").value); });
 loadUpcoming();
+setInterval(function () { if (LIVE.enabled && !document.hidden && window.__upLive) loadUpcoming(); }, 8000);   // live scores on the landing page
 trackPageView("standings").then(function (count) {
   document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
 });
