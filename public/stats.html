@@ -347,7 +347,7 @@ function renderAvailability(cfg, view) {
     var players = ROSTER.filter(function (r) { return r.team_id === tid; }).map(function (r) {
       var cells = ms.map(function (m) {
         var a = appBy[m.id + "|" + r.player_id];
-        var st = a ? (a.status || "played") : (teamHas[m.id + "|" + tid] ? "none" : "played");   // no lineup row while the team has a lineup = did not play
+        var st = a ? (a.status || "played") : (teamHas[m.id + "|" + tid] ? "none" : "pending");   // no lineup row while the team has a lineup = did not play
         return { m: m, st: st, inj: !!(a && a.absent_reason === "injury") };
       });
       var count = function (s) { return cells.filter(function (c) { return c.st === s; }).length; };
@@ -695,7 +695,7 @@ function buildHistory(matches, recs, appBy, teamHas, events) {
   recs.forEach(function (r) {
     done.forEach(function (m) {
       if (m.home_team_id !== r.team_id && m.away_team_id !== r.team_id) return;
-      var a = appBy[m.id + "|" + r.id], st = a ? (a.status || "played") : (teamHas[m.id + "|" + r.team_id] ? "absent?" : "played");
+      var a = appBy[m.id + "|" + r.id], st = a ? (a.status || "played") : (teamHas[m.id + "|" + r.team_id] ? "absent?" : "pending");
       var o = slot(r.id, m.match_day);
       if (st === "rested") { o.rested++; return; }
       if (st === "absent") { o.absent++; return; }
@@ -764,7 +764,7 @@ async function loadBoard(B) {
       if (m.season_id !== r.season_id || m.status !== "completed" || m.home_score == null || m.away_score == null) return;
       if (m.home_team_id !== r.team_id && m.away_team_id !== r.team_id) return;
       var a = appBy[m.id + "|" + r.player_id];
-      var played = a ? (a.status || "played") === "played" : !teamHas[m.id + "|" + r.team_id];
+      var played = a ? (a.status || "played") === "played" : false;   // no lineup yet = details pending, not counted
       if (!played) return;
       p++;
       var mine = m.home_team_id === r.team_id ? m.home_score : m.away_score, theirs = m.home_team_id === r.team_id ? m.away_score : m.home_score;
@@ -905,6 +905,13 @@ async function loadSeason() {
   });
   await loadSeason();
   await loadSeasonStats();
+  // results changed (a match ended, or details were added later): refresh whatever is open
+  watchResults(async function () {
+    await loadSeason(); await loadSeasonStats();
+    if (rkLoaded) await loadRanking();
+    if (REC.loaded) { REC.loaded = false; await loadRecords(); }
+    if (RIV.loaded) await loadRivalry();
+  });
 })();
 trackPageView("stats").then(function (count) {
   document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);

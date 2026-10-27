@@ -382,6 +382,7 @@ async function loadTeam() {
   renderCaptains();
 }
 loadTeam();
+watchResults(function () { return loadTeam(); });
 if (teamId) {
   trackPageView("team:" + teamId).then(function (count) {
     document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);

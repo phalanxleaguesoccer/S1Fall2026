@@ -283,6 +283,7 @@ async function loadUpcoming() {
 }
 
 populateStandingsSeasonFilter().then(function () { loadStandings(); loadHomeRecords(document.getElementById("standings-season-filter").value); });
+watchResults(function () { loadStandings(); loadHomeRecords(document.getElementById("standings-season-filter").value); });
 loadUpcoming();
 setInterval(function () { if (LIVE.enabled && !document.hidden && window.__upLive) loadUpcoming(); }, 8000);   // live scores on the landing page
 trackPageView("standings").then(function (count) {

@@ -293,3 +293,29 @@ function winModel(matches, a, b) {
   var s = w + d + l, pw = Math.round(w / s * 100), pl = Math.round(l / s * 100);
   return { w: pw, d: 100 - pw - pl, l: pl, games: done.length };
 }
+
+// Keeps an open page current: every 12 s (only while the tab is visible) it looks at a cheap fingerprint of the results
+// (match status / scores / live phase plus how many events and lineup rows exist). When it changes, onChange() is called,
+// so tables, records and stats refresh by themselves when a match ends or details are added later.
+function watchResults(onChange, everyMs) {
+  var last = null, busy = false;
+  async function fingerprint() {
+    var r = await Promise.all([
+      window.sb.from("matches").select("id, status, home_score, away_score, live_phase"),
+      window.sb.from("match_events").select("id", { count: "exact", head: true }),
+      window.sb.from("match_appearances").select("id", { count: "exact", head: true })
+    ]);
+    if (r[0].error) return null;
+    return JSON.stringify([(r[0].data || []).map(function (m) { return [m.id, m.status, m.home_score, m.away_score, m.live_phase]; }).sort(), r[1].count, r[2].count]);
+  }
+  async function tick() {
+    if (busy || document.hidden) return;
+    busy = true;
+    try {
+      var f = await fingerprint();
+      if (f !== null) { if (last !== null && f !== last) await onChange(); last = f; }
+    } catch (e) {} finally { busy = false; }
+  }
+  tick();
+  return setInterval(tick, everyMs || 12000);
+}

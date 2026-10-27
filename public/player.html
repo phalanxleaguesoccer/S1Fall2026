@@ -347,9 +347,9 @@ async function loadMatchByMatch() {
     var done = m.status === "completed" || m.status === "forfeited";
     var mine = m.home_team_id === tid ? m.home_score : m.away_score, theirs = m.home_team_id === tid ? m.away_score : m.home_score;
     var result = m.status === "forfeited" ? "Forfeit" : (!done || mine == null || theirs == null) ? "Not played yet" : (mine > theirs ? "Won " : mine < theirs ? "Lost " : "Drew ") + mine + "–" + theirs;
-    var status = a ? (a.status || "played") : (done ? (lineupHas[id + "|" + tid] ? "notlisted" : "played") : "scheduled");
+    var status = a ? (a.status || "played") : (done ? (lineupHas[id + "|" + tid] ? "notlisted" : "pending") : "scheduled");
     if (tally[status] != null && done) tally[status]++;
-    var label = { played: "Played", rested: "Rested", absent: "Absent", notlisted: "Not in lineup", scheduled: "Upcoming" }[status];
+    var label = { played: "Played", rested: "Rested", absent: "Absent", notlisted: "Not in lineup", pending: "Details pending", scheduled: "Upcoming" }[status];
     var inj = a && a.status !== "played" && a.absent_reason === "injury" ? " (injury)" : "";
     var evs = (evBy[id] || []).slice().sort(function (x, y) { return (x.minute || 0) - (y.minute || 0); });
     var evHtml = evs.length ? evs.map(function (e) { return '<span class="chip ' + ({ goal: "ev-goal", assist: "ev-assist", yellow_card: "ev-yellow", red_card: "ev-red", save: "ev-save", foul: "ev-foul" }[e.event_type] || "") + '" style="margin:2px 6px 0 0;">' + (typeLabel[e.event_type] || e.event_type) + (e.minute ? " &middot; " + e.minute + "'" : "") + "</span>"; }).join("")
@@ -421,6 +421,7 @@ async function loadCaptaincy() {
 }
 
 loadPlayer();
+watchResults(function () { location.reload(); });
 loadAwardsAndSuspensions();
 loadCaptaincy();
 if (playerId && !EMBED) {

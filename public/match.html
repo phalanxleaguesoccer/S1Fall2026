@@ -288,6 +288,8 @@ async function loadMatch() {
       '<div class="m-side away"><div class="m-crest">' + crest(away) + '</div><div><div class="m-team"><a href="team.html?id=' + away.id + '">' + escapeHtml(away.name) + '</a></div><div class="m-scorers">' + ((done || live) ? teamRecords(away.id) : "") + "</div></div></div>" +
     '</div><div class="m-meta">' + tossText + '<span id="page-views"></span></div></section>';
 
+  if (done && !apps.length && !evs.length) html += '<section class="m-card" id="details-pending"><div class="m-label">Details pending</div><p class="muted" style="margin:0;">The final score is in and counted in the standings. Lineups, goals and other details will be added soon; player stats update as they are.</p></section>';
+
   // ---- player of the match ----
   if (potm.length) {
     html += potm.map(function (e) {
@@ -416,6 +418,7 @@ function liveTick() {
   el.textContent = t;
 }
 loadMatch();
+watchResults(function () { return loadMatch(); });
 </script>
 </body>
 </html>

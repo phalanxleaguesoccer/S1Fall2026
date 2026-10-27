@@ -319,6 +319,7 @@ async function refreshMatches() {
       '<div><label>' + escapeHtml(home) + ' score</label><input type="number" name="home_score" value="' + (m.home_score ?? "") + '" min="0"></div>' +
       '<div><label>' + escapeHtml(away) + ' score</label><input type="number" name="away_score" value="' + (m.away_score ?? "") + '" min="0"></div>' +
       "</div>" +
+      '<p class="muted" style="font-size:.78rem;margin:8px 0 0;">Match not scored live? Save just the final score now: standings update straight away and visitors see "Details pending". Add the lineup and goals later and player stats update as you save them.</p>' +
       '<button class="btn secondary mt-16" type="submit">Save Result</button>' +
       "</form></div>";
   }).join("");

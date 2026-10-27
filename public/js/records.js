@@ -70,7 +70,8 @@ function recBuild(matches, roster, apps, events) {
     if (rk >= o.tr) { o.tr = rk; o.team_id = r.team_id; }
     done.forEach(function (m) {
       if (m.season_id !== r.season_id || (m.home_team_id !== r.team_id && m.away_team_id !== r.team_id)) return;
-      var a = appBy[m.id + "|" + r.player_id], st = a ? (a.status || "played") : (teamHas[m.id + "|" + r.team_id] ? "absent" : "played");
+      var a = appBy[m.id + "|" + r.player_id], st = a ? (a.status || "played") : (teamHas[m.id + "|" + r.team_id] ? "absent" : "pending");   // no lineup entered yet = details pending: not counted as played
+      if (st === "pending") return;
       if (st === "rested") { o.rested++; if (a && a.absent_reason === "injury") o.injury++; return; }
       if (st === "absent") { o.absent++; if (a && a.absent_reason === "injury") o.injury++; return; }
       o.played++;

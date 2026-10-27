@@ -52,3 +52,17 @@ def scenario_auction():
     for r in owners: r['auction_price']=None; r['sold_at']='2026-10-01T00:00:00Z'
     d['team_season_rosters']=owners
     return d
+
+def fill_lineups(d, rows=None):
+    """Old behaviour for tests that predate "details pending": every roster player of a completed match whose team has no
+    lineup row at all is added as 'played'. Returns the appearance list."""
+    rows = d['match_appearances'] if rows is None else rows
+    have = {(a['match_id'], a['team_id']) for a in rows}
+    for m in d['matches']:
+        if m['status'] != 'completed': continue
+        for t in (m['home_team_id'], m['away_team_id']):
+            if (m['id'], t) in have: continue
+            for r in d['team_season_rosters']:
+                if r['team_id'] == t and r['season_id'] == m['season_id']:
+                    rows.append({'id': 'fl%d' % len(rows), 'match_id': m['id'], 'team_id': t, 'player_id': r['player_id'], 'status': 'played', 'started': True})
+    return rows

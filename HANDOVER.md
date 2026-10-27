@@ -219,3 +219,9 @@ Status: prototype only, NOT built or deployed yet. Commit IDs to be recorded her
 **"Rollback Live scoring"** (owner only, typed in chat, any capitalisation): revert only the live-scoring commit(s) listed below, run the suite, push, and hand over `sql/rollback_live_scoring.sql`. Quick option: set `LIVE_DESK_ENABLED: false`.
 
 Live-scoring commit(s): `73d0c40`, `409b5b6` (decision tweaks: min 4 players, auto red, absent = sat out, results note, 2nd half on top; revert 409b5b6 first, then 73d0c40).
+
+## Score-only matches ("details pending") and auto-refresh - 27 Oct 2026
+- Owner decision: a match not scored live is closed with just the final score (admin dashboard > Save Result, status completed). Standings use the score at once; the match page shows a "Details pending" card; players get Played/W/D/L only when that team's lineup exists (a completed match with NO lineup rows for a team no longer counts everybody as played). Goals/cards etc. count as soon as events are added. Tables are recalculated from data on every load, so adding the lineup/events later just works.
+- Code: `records.js`, `stats.html` (3 places), `player.html` ("Details pending" status), SQL view `player_season_stats` (`sql/migration_details_pending.sql`, also section 8 of `migration_live_scoring.sql`). Run the SQL on PREPROD, then live. `rollback_live_scoring.sql` restores the OLD view (everybody played) - revert the JS too if rolling back.
+- Auto-refresh: `watchResults(cb)` in `common.js` polls a fingerprint (matches status/score/phase + counts of events and lineup rows) every 12 s while the tab is visible; used by landing, stats (all tabs), match, team, player pages.
+- Tests: `pending_tests.py` (8 checks); `fixtures.fill_lineups()` keeps older tests (ranking, season_stats, ranking_weeks) on the old "no lineup = played" fixtures.

@@ -257,6 +257,7 @@ begin
 end $$;
 
 -- ---------- 8. player stats ignore events of a match until its result is confirmed ----------
+-- (also: a completed match with NO lineup yet counts as 'details pending' = nobody has a game played until the lineup is entered)
 -- (a live match keeps status 'scheduled', so goals/cards typed live do not move Ranking / Season Stats
 --  until the match is confirmed, exactly like the Standings)
 create or replace view player_season_stats as
@@ -264,9 +265,7 @@ SELECT p.id AS player_id,
     p.full_name,
     tsr.season_id,
     tsr.team_id,
-    count(DISTINCT m.id) FILTER (WHERE m.status = 'completed'::text AND (m.home_team_id = tsr.team_id OR m.away_team_id = tsr.team_id) AND (ma.status = 'played'::text OR ma.id IS NULL AND NOT (EXISTS ( SELECT 1
-           FROM match_appearances x
-          WHERE x.match_id = m.id AND x.team_id = tsr.team_id)))) AS games_played,
+    count(DISTINCT m.id) FILTER (WHERE m.status = 'completed'::text AND (m.home_team_id = tsr.team_id OR m.away_team_id = tsr.team_id) AND ma.status = 'played'::text) AS games_played,
     count(DISTINCT me.id) FILTER (WHERE me.event_type = 'goal'::text) AS goals,
     count(DISTINCT me.id) FILTER (WHERE me.event_type = 'assist'::text) AS assists,
     count(DISTINCT me.id) FILTER (WHERE me.event_type = 'yellow_card'::text) AS yellow_cards,

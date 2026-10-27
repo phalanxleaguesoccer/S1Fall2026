@@ -10,7 +10,7 @@ def e(match,team,pl,typ):
     ev.append({'id':'e%02d'%len(ev),'match_id':match,'team_id':T[team],'player_id':P[pl],'event_type':typ,'half':1,'minute':None,'related_player_id':None,'created_at':'2026-10-07T01:00:%02d+00:00'%len(ev)})
 e('m0','Desi Steelers FC','Nasiq','goal');e('m2','Muggles FC','Amritpal Singh','goal');e('m2','Muggles FC','Amritpal Singh','goal')
 e('m3','Desi Steelers FC','Nasiq','goal');e('m3','Renegades','Varun','yellow_card');e('m1','Scouts FC','Bhagyesh Rane','foul')
-d['match_events']=ev;d['match_appearances']=[]
+d['match_events']=ev;d['match_appearances']=[];fill_lineups(d)
 with sync_playwright() as pw:
     s=Site(pw,d);p=s.page('stats.html#ranking',1500)
     ok('no JS errors',not p.errs,p.errs)
