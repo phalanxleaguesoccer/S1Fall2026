@@ -185,3 +185,13 @@ Playwright + Chromium with a fake in-memory Supabase client (`fake_supabase.js`)
 - Standings page (`index.html`): new Form column (last 5, newest right), GD shows a + sign, Upcoming rows carry a Win % bar (home win / draw / away win, labelled a coin flip) and a new "Tournament records" section (`js/home_records.js`, reuses the Records engine `js/records.js`): glance tiles + progress, Golden Boot, Top playmakers, Player of the match, Goal contributions, Team records, Match records. It follows the Season filter. Fair play and Saves are deliberately NOT shown. Test: `tests/site/home_tests.py` (31 checks).
 - Shared code: `resolveTies` (standings tie-breaks) and `winModel` (Poisson win-% estimate, K=6 prior games) now live in `js/common.js`; the Rivalry preview uses the same `winModel`.
 - Stats > Records: hub cards "Most saves" and "Fair play" and the Saves menu entry were removed (hub = 7 cards, Captains spans the full last row). "Team results summary" is now the Standings table (same points from the season's points settings, same order/ranks via `recStandRows` + `resolveTies`, forfeits counted, shoot-out order used once a season is complete) with Clean sheets, Win % and Form added; clicking a heading re-sorts, "Back to standings order" resets. Parity is tested for normal, tie-break and forfeit seasons.
+
+## Rollback trigger: "Rollback Live scoring"
+The owner's phrase **"Rollback Live scoring"** means: undo ONLY the live scoring feature (live match desk, LIVE badges/live standings, co-admin live editing) and nothing else.
+When the owner says it, the assistant must:
+1. Find the live scoring commit(s) listed below, confirm them to the owner, and `git revert` only those (never reset, never touch other work).
+2. Run the full test suite sequentially, then push to `main`.
+3. Remind the owner to run `sql/rollback_live_scoring.sql` in Supabase if they want the DB objects removed (the code revert alone does not undo SQL; saved match data stays unless that script is run).
+Live scoring is planned behind one switch (`LIVE_DESK_ENABLED` in `public/js/config.js`) for an instant off-switch before a full revert.
+Status: prototype only, NOT built or deployed yet. Commit IDs to be recorded here when it ships:
+- (none yet)
