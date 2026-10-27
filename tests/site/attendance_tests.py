@@ -42,7 +42,7 @@ with sync_playwright() as pw:
     ok('match page lineups: played/rested/absent per team','RESTED (1)' in lt and 'Bilal Yaser' in lt and 'ABSENT (1)' in lt and 'Ayush' in lt and 'PLAYED (2)' in lt and 'Amritpal Singh' in lt,lt)
     q=s.page('match.html?id=m3',1200);ok('match page without lineup: no lineup card, no errors','WHO PLAYED' not in q.inner_text('#match-root').upper() and not q.errs,q.errs)
     # schedule
-    q=s.page('matches.html',1500);bt=q.inner_text('#days-list')
+    q=s.page('matches.html#all',1500);bt=q.inner_text('#days-list')
     ok('schedule shows rested/absent counts',('Rested: Muggles FC 1' in bt) and ('Absent: Desi Steelers FC 1' in bt) and ('Rested: Scouts FC 1' in bt),bt)
     # profile
     q=s.page('player.html?id='+P['Ayush'],1500);hd=q.locator('table thead').first.locator('th').all_inner_texts();vals=q.locator('#stats-body td').all_inner_texts()
