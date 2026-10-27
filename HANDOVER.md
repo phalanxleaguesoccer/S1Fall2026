@@ -204,7 +204,7 @@ Status: prototype only, NOT built or deployed yet. Commit IDs to be recorded her
   2. Run the full test suite from `tests/site/` (one file at a time); the site must be back to its pre-live-scoring behaviour.
   3. Push to `main` and report. Give the owner the matching rollback SQL (`sql/rollback_live_scoring.sql`) to paste into Supabase, since code reverts do not change the database. Saved match data and audit-trail rows are kept.
   4. If a faster undo is wanted, `LIVE_DESK_ENABLED = false` in `public/js/config.js` hides the feature without removing code.
-- Live-scoring commit(s): `73d0c40` (pushed to main; this docs line was added in a follow-up commit).
+- Live-scoring commit(s): `73d0c40`, then `409b5b6` (revert in that reverse order). HANDOVER commit `f292ad1` is docs only.
 
 ## Live scoring (live match desk, co-admins, live visitor view)
 **What it is.** `admin/live.html` is a phone-first desk for an admin or an approved co-admin to run a match live: toss + choice, Playing / Rested / Absent for every squad member (+ captain, injury flag), a 10:00 countdown per half, goals (scorer + assist, own goal, penalty), fouls, yellow/red cards, saves, half-time, full time, player of the match, one-tap confirm. Visitors see it live on `match.html` (LIVE pill, score, "1st half · 3:12" clock, timeline grouped into FIRST HALF / SECOND HALF with a half-time divider and running score), on `matches.html` (LIVE badge + score; a live match forces the Upcoming tab first, "Live now" banner) and on the landing page (LIVE tag + score in Upcoming). Standings/Records/Form/Rivalry deliberately do NOT change until the result is confirmed (a live match keeps `status = 'scheduled'`; only `live_phase` is set).
@@ -218,4 +218,4 @@ Status: prototype only, NOT built or deployed yet. Commit IDs to be recorded her
 **Known limits.** Match clock is derived from a server timestamp, so phones can sleep or reload without losing time; there is no stoppage-time mode (the half ends at 00:00 or when the admin taps End half). Penalty shoot-outs are not part of the live desk (existing shoot-out form still handles tie-breaks). A second yellow does not automatically become a red.
 **"Rollback Live scoring"** (owner only, typed in chat, any capitalisation): revert only the live-scoring commit(s) listed below, run the suite, push, and hand over `sql/rollback_live_scoring.sql`. Quick option: set `LIVE_DESK_ENABLED: false`.
 
-Live-scoring commit(s): `73d0c40`.
+Live-scoring commit(s): `73d0c40`, `409b5b6` (decision tweaks: min 4 players, auto red, absent = sat out, results note, 2nd half on top; revert 409b5b6 first, then 73d0c40).
