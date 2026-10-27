@@ -288,7 +288,7 @@ async function renderSquad() {
   var totalSquad = squadRows.length;
   if (restMode !== "all") {
     squadRows = squadRows.filter(function (r) {
-      var n = (att[r.players.id] && att[r.players.id].rested) || 0;   // absent is not rested
+      var n = (att[r.players.id] && ((att[r.players.id].rested || 0) + (att[r.players.id].absent || 0))) || 0;   // absent counts as sitting out
       return restMode === "never" ? n === 0 : n > 0;
     });
   }

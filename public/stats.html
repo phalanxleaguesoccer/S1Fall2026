@@ -354,12 +354,12 @@ function renderAvailability(cfg, view) {
       return { id: r.player_id, owner: !!r.is_owner, cells: cells, played: count("played"), rested: count("rested"), absent: count("absent"), injury: cells.filter(function (c) { return c.inj && (c.st === "absent" || c.st === "rested"); }).length };
     });
     return { tid: tid, ms: ms, players: players,
-      never: players.filter(function (p) { return !p.rested; }).sort(function (a, b) { return pname(a.id).localeCompare(pname(b.id)); }),
+      never: players.filter(function (p) { return !p.rested && !p.absent; }).sort(function (a, b) { return pname(a.id).localeCompare(pname(b.id)); }),
       some: players.filter(function (p) { return p.rested || p.absent; }).sort(function (a, b) { return (b.rested + b.absent) - (a.rested + a.absent) || pname(a.id).localeCompare(pname(b.id)); }) };
   });
   var nAll = teams.reduce(function (n, t) { return n + t.players.length; }, 0), nNever = teams.reduce(function (n, t) { return n + t.never.length; }, 0), nSome = teams.reduce(function (n, t) { return n + t.some.length; }, 0);
   var h = '<h3 style="margin:4px 0 2px;">Not rested yet <span class="muted" style="font-weight:400;font-size:.85rem;">&middot; ' + nNever + " of " + nAll + ' players</span></h3>' +
-    '<p class="muted" style="margin:0 0 8px;font-size:.8rem;">Players who have not been rested in a completed match. Being absent is not the same as being rested, so someone who was only absent is still listed here.</p>' +
+    '<p class="muted" style="margin:0 0 8px;font-size:.8rem;">Players who have not been rested or absent in a completed match. Being absent counts as sitting out, so someone who was only absent is not listed here.</p>' +
     '<div class="av-grid">' + teams.map(function (t) {
       return '<div class="av-card"><div class="av-th"><span>' + tlink(t.tid) + '</span><span class="muted">' + t.never.length + " of " + t.players.length + "</span></div>" +
         (t.never.length ? t.never.map(function (p) {
@@ -816,9 +816,9 @@ function buildBoardRows(B) {
   } else {
     st.rows = aggregate(true);
   }
-  var rest = document.getElementById(B.ids.rest).value;   // absent is not rested
-  if (rest === "never") st.rows = st.rows.filter(function (o) { return o.rested === 0; });
-  else if (rest === "rested") st.rows = st.rows.filter(function (o) { return o.rested > 0; });
+  var rest = document.getElementById(B.ids.rest).value;   // absent counts as sitting out
+  if (rest === "never") st.rows = st.rows.filter(function (o) { return o.rested + o.absent === 0; });
+  else if (rest === "rested") st.rows = st.rows.filter(function (o) { return o.rested + o.absent > 0; });
   renderBoard(B);
 }
 function loadSeasonStats() { return loadBoard(BOARDS.ss); }

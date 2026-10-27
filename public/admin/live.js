@@ -432,7 +432,12 @@ async function saveDraft() {
     if (!d.id) {
       var rows = [Object.assign({}, base, { event_type: type, team_id: teamId, player_id: d.player, related_player_id: assistId, is_penalty: type === "goal" && !!d.pen })];
       if (assistId) rows.push(Object.assign({}, base, { event_type: "assist", team_id: teamId, player_id: assistId, related_player_id: d.player }));
+      // a second yellow card to the same player in this match also gives him a red card automatically
+      var autoRed = type === "yellow_card" && items().some(function (it) { return it.e.event_type === "yellow_card" && it.e.player_id === d.player; }) &&
+        !items().some(function (it) { return it.e.event_type === "red_card" && it.e.player_id === d.player; });
+      if (autoRed) rows.push(Object.assign({}, base, { event_type: "red_card", team_id: teamId, player_id: d.player, related_player_id: null }));
       var ins = await window.sb.from("match_events").insert(rows); if (ins.error) return ins;
+      if (autoRed) { var nr = await note("Automatic red card: second yellow card for " + pname(d.player)); if (nr.error) return nr; }
       if (late) { var n = await note("Late entry: " + TYPE[type] + " · " + pname(d.player) + " added to the " + (d.half === 1 ? "first" : "second") + " half after it ended"); if (n.error) return n; }
       return null;
     }

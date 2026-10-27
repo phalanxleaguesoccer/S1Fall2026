@@ -237,11 +237,10 @@ async function loadMatch() {
     if ((e.event_type === "goal" || e.event_type === "own_goal") && e.half !== 1 && e.half !== 2) allGoalsHaveHalf = false;
   });
   var chipFor = { goal: ["GOAL", "goal"], own_goal: ["OWN GOAL", "og"], foul: ["FOUL", "fl"], assist: ["ASSIST", "as"], yellow_card: ["YELLOW", "yc"], red_card: ["RED", "rc"], save: ["SAVE", "sv"], substitution_in: ["SUB ON", "sub"], substitution_out: ["SUB OFF", "sub"] };
-  var rh = 0, ra = 0, htHome = 0, htAway = 0, tl = "";
+  var rh = 0, ra = 0, htHome = 0, htAway = 0, tl = "", blocks = {};
   halves.forEach(function (h) {
     if (!h.rows.length) return;
-    var rows = ordered(h.rows), pa = pairAssists(rows);
-    tl += '<div class="m-break">' + h.title + "</div>";
+    var rows = ordered(h.rows), pa = pairAssists(rows), evHtml = [];
     rows.forEach(function (e) {
       if (e.event_type === "assist" && pa.used[e.id]) return;
       var c = chipFor[e.event_type] || [e.event_type.replace(/_/g, " ").toUpperCase(), "sub"];
@@ -263,12 +262,15 @@ async function loadMatch() {
       else if (e.event_type === "red_card") sub = "Red card";
       else if (e.event_type === "save") sub = "Goal saved";
       else sub = "Substitution";
-      tl += '<div class="m-ev"><span class="m-chip ' + c[1] + '">' + c[0] + '</span><div><div class="main">' + plink(e.players) + " (" + teamLink(e.teams.id, e.teams.name) + ')</div><div class="m-sub">' + sub +
-        (e.minute != null ? " · " + clock(e) : "") + '</div></div><span class="score">' + score + "</span></div>";
+      evHtml.push('<div class="m-ev"><span class="m-chip ' + c[1] + '">' + c[0] + '</span><div><div class="main">' + plink(e.players) + " (" + teamLink(e.teams.id, e.teams.name) + ')</div><div class="m-sub">' + sub +
+        (e.minute != null ? " · " + clock(e) : "") + '</div></div><span class="score">' + score + "</span></div>");
     });
     if (h.key === 1) { htHome = rh; htAway = ra; }
+    // newest first, like a live feed: the second half is shown above the first and each half runs latest to earliest
+    blocks[h.key] = '<div class="m-break">' + h.title + "</div>" + (h.key === 0 ? evHtml : evHtml.reverse()).join("");
   });
   if (done) tl += '<div class="m-break">FULL TIME &nbsp;' + m.home_score + " – " + m.away_score + "</div>";
+  tl += (blocks[2] || "") + (blocks[1] || "") + (blocks[0] || "");
   var hasHalfTime = done && allGoalsHaveHalf && halves[0].rows.length + halves[1].rows.length > 0;
 
   var html = "";

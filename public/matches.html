@@ -196,7 +196,8 @@ function renderMatches() {
   var h = "";
   if (MT.tab === "recent") {
     var l = ld ? dd[ld].filter(mtMine) : [];
-    h = mtTeamBar() + (l.length ? mtDayCard(ld, l, '<span class="mt-badge latest">LATEST</span>') : ld ? mtNone(escapeHtml(mtTname(MT.team)) + " did not play on the latest match day.") : mtNone("No results yet."));
+    var nw = MT.matches.filter(function (m) { return mtState(m) === "wait" && mtMine(m); }).length;
+    h = mtTeamBar() + (nw ? '<div class="card mt-empty" id="mt-entering" style="text-align:left;">Results are still being entered for ' + nw + (nw === 1 ? " match" : " matches") + " that " + (nw === 1 ? "has" : "have") + " been played. They will appear here once confirmed.</div>" : "") + (l.length ? mtDayCard(ld, l, '<span class="mt-badge latest">LATEST</span>') : ld ? mtNone(escapeHtml(mtTname(MT.team)) + " did not play on the latest match day.") : mtNone("No results yet."));
   } else if (MT.tab === "previous") {
     var ps = mtDayNums().filter(function (d) { return ld !== null && d < ld && dd[d].some(mtMine); }).sort(function (a, b) { return b - a; });
     h = mtTeamBar() + (ps.length ? ps.map(function (d) { return mtDayCard(d, dd[d].filter(mtMine)); }).join("") : mtNone(MT.team === "all" ? "Nothing before the latest match day yet." : escapeHtml(mtTname(MT.team)) + " has no earlier matches yet."));

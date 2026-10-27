@@ -18,12 +18,12 @@ with sync_playwright() as pw:
     ok('no JS errors',not p.errs,p.errs)
     ok('Availability tab exists; separate Rested/Absent tabs are gone',p.locator('[data-tab=availability]').count()==1 and p.locator('[data-tab=rested]').count()==0 and p.locator('[data-tab=absent]').count()==0)
     p.click('[data-tab=availability]');p.wait_for_timeout(300);txt=p.inner_text('#ms-body')
-    ok('Not rested yet: 7 of 9 players, shown before the rested/absent section','not rested yet' in txt.lower() and '7 of 9' in txt.lower() and txt.lower().index('not rested yet')<txt.lower().index('rested and absent'),txt[:300])
+    ok('Not rested yet: 6 of 9 players, shown before the rested/absent section','not rested yet' in txt.lower() and '6 of 9' in txt.lower() and txt.lower().index('not rested yet')<txt.lower().index('rested and absent'),txt[:300])
     cards=p.locator('.av-grid .av-card').all_inner_texts()
     ok('one not-rested card per team',len(cards)==4,cards)
     des=[c for c in cards if c.startswith('Desi')][0];mug=[c for c in cards if c.startswith('Muggles')][0];sco=[c for c in cards if c.startswith('Scouts')][0]
     ok('rested players (Bilal, Ajinkya P) are NOT in the not-rested list','Bilal' not in mug and 'Ajinkya' not in sco and 'Amritpal Singh' in mug and '(owner)' in mug.lower() or 'Amritpal Singh' in mug,(mug,sco))
-    ok('absent-only player (Ayush) is still "not rested" and shows 1 absent','Ayush' in des and '1 absent' in des,des)
+    ok('absent-only player (Ayush) counts as sat out, so is NOT in the not-rested list','Ayush' not in des,des)
     ok('played counts shown',any('1 played' in c or '2 played' in c for c in cards),cards)
     tabs=p.locator('.av-table');hd=[t.locator('thead th').all_inner_texts() for t in [tabs.nth(i) for i in range(tabs.count())]]
     ok('matrix: one grid per team with anything to show (Muggles, Desi, Scouts; Renegades has nobody)',tabs.count()==3 and 'Nobody has been rested or absent yet' in p.inner_text('#ms-body'),(tabs.count(),hd))

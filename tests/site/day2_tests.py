@@ -28,7 +28,7 @@ with sync_playwright() as pw:
     q=s.page('match.html?id=m1',1500);u=q.inner_text('#match-root')
     ok('toss: Muggles FC · chose to kick off','Toss: Muggles FC · chose to kick off' in u,u)
     ok('penalty goal: "Penalty" in the row and "(pen)" under the scoreboard','Penalty' in u and 'Amritpal Singh (pen)' in q.inner_text('.m-board'),q.inner_text('.m-board'))
-    ok('second-half goals ordered by time 16:32 then 18 min',u.find('16:32')>0 and u.find('16:32')<u.find("18'"),u)
+    ok('second-half goals shown newest first: 18 min above 16:32',u.find('16:32')>0 and u.find("18'")>0 and u.find("18'")<u.find('16:32'),u)
     st=s.page('stats.html#milestones',1500);st.click('[data-tab=owngoals]');st.wait_for_timeout(300)
     st.locator('[data-det]').first.click();dd=st.inner_text('tr.det:visible')
     ok('Own goals tab details: assist by Rishabh Devgon, time 8:20',('Assist by' in dd and 'Rishabh Devgon' in dd and '8:20' in dd),dd)

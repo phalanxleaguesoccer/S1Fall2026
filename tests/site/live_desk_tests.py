@@ -69,9 +69,9 @@ with sync_playwright() as pw:
     p.select_option('#ros-H select[data-act=cap]',index=2);p.wait_for_timeout(300)
     caps=[a for a in db(p,"window.__DB.match_appearances") if a.get('is_captain')]
     ok('captain saved (one)',len(caps)==1,caps)
-    for k in (3,4,5,6): p.click('#ros-A [data-act=st][data-s=absent] >> nth=%d'%k);p.wait_for_timeout(200)
-    ok('too few players blocks kick-off',p.is_disabled('#btn-start') and 'at least 6' in p.inner_text('#pre-chk'),p.inner_text('#pre-chk'))
-    for k in (3,4,5,6): p.click('#ros-A [data-act=st][data-s=played] >> nth=%d'%k);p.wait_for_timeout(150)
+    for k in (2,3,4,5,6,7): p.click('#ros-A [data-act=st][data-s=absent] >> nth=%d'%k);p.wait_for_timeout(200)
+    ok('too few players blocks kick-off',p.is_disabled('#btn-start') and 'at least 4' in p.inner_text('#pre-chk'),p.inner_text('#pre-chk'))
+    for k in (2,3,4,5,6,7): p.click('#ros-A [data-act=st][data-s=played] >> nth=%d'%k);p.wait_for_timeout(150)
     ok('enough players: start enabled',not p.is_disabled('#btn-start'),p.inner_text('#pre-chk'))
     p.click('#btn-start');p.wait_for_timeout(700)
     mm=M(p);ok('kick-off: match is live h1, clock running from 10:00',mm.get('live_phase')=='h1' and mm.get('clock_running') is True and mm.get('clock_rem')==600,mm)
@@ -108,6 +108,14 @@ with sync_playwright() as pw:
     p.click('#sheet [data-s-player] >> nth=0');p.click('#s-save');p.wait_for_timeout(600)
     p.click('[data-add="foul|?"]');p.click('#sheet [data-s-team] >> nth=1');p.wait_for_timeout(150)
     ok('red-carded player is not offered again',red_name not in p.locator('#sheet [data-s-player]').all_inner_texts());p.click('[data-s-cancel]')
+    # ---- second yellow = automatic red
+    for k in range(2):
+        p.click('[data-add="yellow_card|?"]');p.click('#sheet [data-s-team] >> nth=0');p.wait_for_timeout(150)
+        yname=p.locator('#sheet [data-s-player]').first.inner_text();p.click('#sheet [data-s-player] >> nth=0')
+        p.fill('#s-rt','0%d:00'%(9-k));p.dispatch_event('#s-rt','input');p.click('#s-save');p.wait_for_timeout(600)
+        if k==0: ok('first yellow adds no red',len([e for e in EVS(p) if e['event_type']=='yellow_card'])==1 and len([e for e in EVS(p) if e['event_type']=='red_card'])==1,[e['event_type'] for e in EVS(p)])
+    ev2=EVS(p);yc=[e for e in ev2 if e['event_type']=='yellow_card'];rc=[e for e in ev2 if e['event_type']=='red_card']
+    ok('second yellow to the same player adds an automatic red card',len(yc)==2 and len(rc)==2 and rc[-1]['player_id']==yc[0]['player_id'] and yc[0]['player_id']==yc[1]['player_id'],[(e['event_type'],e['player_id']) for e in ev2])
     # ---- own goal: Scouts get the goal, an AWAY player is the offender
     p.click('[data-add="goal|H"]');p.check('[data-s-og]');p.wait_for_timeout(150)
     opts=p.locator('#sheet [data-s-player]').all_inner_texts();ok('own goal lists the OTHER team\'s players',not any(o.startswith('S Player') or o in('Bhagyesh Rane','Ajinkya P') for o in opts) and len(opts)>=4,opts)

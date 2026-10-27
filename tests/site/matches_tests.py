@@ -93,6 +93,10 @@ with sync_playwright() as pw:
     p=at('2026-10-28T01:05:00Z')   # Tue Oct 27 9:05 PM EDT: Day 4 M1 kicked off at 9:00, no result yet
     p.click('#mt-tabs button[data-mt-tab=upcoming]');p.wait_for_timeout(200)
     ok('past-kickoff match with no result: Awaiting result pill and banner',p.locator('.match-row .pill.wait').count()>=1 and 'AWAITING RESULTS' in p.locator('.mt-next .k').inner_text().upper(),p.inner_text('#days-list')[:200])
+    p.click('#mt-tabs button[data-mt-tab=recent]');p.wait_for_timeout(200)
+    ok('Recent shows a "results are still being entered" note while a played match has no result','still being entered' in p.inner_text('#days-list') and p.locator('#mt-entering').count()==1,p.inner_text('#days-list')[:200])
+    q=at('2026-10-27T02:00:00Z');q.click('#mt-tabs button[data-mt-tab=recent]');q.wait_for_timeout(200)
+    ok('no note when nothing is awaiting a result',q.locator('#mt-entering').count()==0);q.close()
     p.close()
     # --- no clock override: real now -> page fine; mobile
     mp=s.br.new_context(viewport={'width':375,'height':800});mp.add_init_script('window.__DB='+json.dumps(dict(d,__admin=False))+';')

@@ -47,7 +47,7 @@ with sync_playwright() as pw:
     ok('search',n==['Bhagyesh Rane'],n);p.fill('#r-search','')
     p.click('#rk-body th[data-sort="goals"]');ok('header sort works',rows()[0][1].strip() in ('Ayush','Nasiq','Varun'))
     p.select_option('#r-rest','rested');n=[r[1].strip() for r in rows()]
-    ok('rested filter',set(n)=={'Bilal Yaser','Ajinkya P'},n)
+    ok('rested filter (rested or absent counts as sitting out)',set(n)=={'Bilal Yaser','Ajinkya P','Ayush'},n)
     # Season Stats unchanged and has no Points
     p.click('#sub-nav button[data-sec="season"]')
     ok('Season Stats has no Points column','points' not in [h.strip().lower() for h in p.locator('#ss-body thead th').all_inner_texts()])

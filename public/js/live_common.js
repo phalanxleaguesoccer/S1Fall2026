@@ -6,7 +6,7 @@
 // The database computes events.minute / events.second the same way (sql/migration_live_scoring.sql).
 window.LIVE = (function () {
   var HALF = 600;          // seconds in one half. Keep equal to live_half_seconds() in the SQL.
-  var MIN_PLAYERS = 6;     // players a team needs before kick-off
+  var MIN_PLAYERS = 4;     // players a team needs before kick-off
   var cfg = window.PHALANX_CONFIG || {};
   var enabled = cfg.LIVE_DESK_ENABLED !== false;   // set LIVE_DESK_ENABLED: false in config.js to hide everything live
   var offset = 0;          // server time minus this device's time, ms

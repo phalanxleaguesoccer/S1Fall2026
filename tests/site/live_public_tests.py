@@ -48,7 +48,7 @@ with sync_playwright() as pw:
     # --- second half goal: 4:50 left -> 15:10 played, in the SECOND HALF block
     dbx(p,"(Object.assign(window.__DB.matches[1],{live_phase:'h2',clock_rem:600,clock_running:true,clock_at:new Date(Date.now()-300000).toISOString()}),window.__DB.match_events.push({id:'v10',match_id:'m1',team_id:'%s',player_id:'%s',event_type:'goal',half:2,time_remaining:290,minute:15,second:10,related_player_id:null,is_penalty:false,created_at:'2026-10-27T01:20:00+00:00'}),1)"%(T['Scouts FC'],P['Ajinkya P']))
     p.wait_for_timeout(6000);t=p.inner_text('.m-wrap')
-    ok('2nd half goal shows 15:10 under SECOND HALF',('SECOND HALF' in t) and '15:10' in t and t.index('FIRST HALF')<t.index('SECOND HALF'),t[:500])
+    ok('2nd half goal shows 15:10 under SECOND HALF',('SECOND HALF' in t) and '15:10' in t and t.index('SECOND HALF')<t.index('FIRST HALF'),t[:500])
     ok('score 2 – 1',p.inner_text('.m-score .big').replace('\n',' ').strip()=='2 – 1')
     ok('clock reads 2nd half · 5:0x played (10:00 + 5:00 played)',p.inner_text('#live-clock').startswith('2nd half · 15:0') or p.inner_text('#live-clock').startswith('2nd half · 14:5') or p.inner_text('#live-clock').startswith('2nd half · 15:'),p.inner_text('#live-clock'))
     # --- final
