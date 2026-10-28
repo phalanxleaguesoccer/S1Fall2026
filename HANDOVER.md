@@ -231,3 +231,6 @@ Live-scoring commit(s): `73d0c40`, `409b5b6`, `cd117fe` (details pending + auto-
 
 ## Fix: goal + assist failed with "null value in column is_penalty" - 27 Oct 2026
 - Cause: PostgREST bulk inserts turn keys missing from some rows into explicit NULLs (no column default). The Live desk sent the goal row with `is_penalty` but the assist / automatic-red rows without it. Fixed by sending `is_penalty: false` on those rows. `fake_supabase.js` now emulates this (bulk-insert nulls + not-null `match_events.is_penalty`). Lesson: in any multi-row insert, give every row the same keys.
+
+## Day 4 Matches 13 and 14 scorecards - 28 Oct 2026
+- `sql/day4_results_m13_m14.sql` (owner dictated the scorecards; times were TIME REMAINING, converted in the script). Replaces everything recorded for Day 4 Match 1 (= Match 13, Scouts v Renegades) and Match 2 (= Match 14); teams come from each player's squad; stops if a name/team does not fit. Not given and therefore NOT recorded: toss, captains, fouls, Player of the Match for Match 14. Assumed "remaining" for the two Match 14 times that omitted the word (Vishnu 4:10, Nasiq 6:30).
