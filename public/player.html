@@ -147,7 +147,7 @@ async function loadPlayer() {
 
   // Always resolve stats-body, even if there's no current season or no roster row —
   // never leave it stuck on "Loading…".
-  var curRoster = null;
+  var curRoster = null, curSplit = null;
   var statsFallback = { games_played: 0, rested: 0, absent: 0, goals: 0, assists: 0, own_goals: 0, fouls: 0, yellow_cards: 0, red_cards: 0, potm_awards: 0, saves: 0, tournament_awards: 0 };
   try {
     var season = await getCurrentSeason();
@@ -168,6 +168,8 @@ async function loadPlayer() {
         var otherIds = sRows.map(function (r) { return r.team_id; }).filter(function (t, i, a) { return t !== homeId && a.indexOf(t) === i; });
         if (otherIds.length) {
           var ot = await window.sb.from("teams").select("id, name").in("id", otherIds);
+          ot.data = ot.data || [];
+          curSplit = { home: sRows.filter(function (r) { return r.team_id === homeId; }), loans: ot.data.map(function (t) { return { team: t, rows: sRows.filter(function (r) { return r.team_id === t.id; }) }; }) };
           var links = (ot.data || []).map(function (t) { return '<a href="team.html?id=' + t.id + '">' + escapeHtml(t.name) + "</a>"; });
           var pt = document.getElementById("player-team");
           if (links.length && pt) pt.insertAdjacentHTML("beforeend", ' &middot; <span id="player-team-also">Also played for ' + links.join(", ") + " this season</span>");
@@ -179,10 +181,23 @@ async function loadPlayer() {
     // should never leave the page stuck loading.
   }
   var s = statsFallback;
-  document.getElementById("stats-body").innerHTML =
-    "<tr>" + auctionCells(curRoster) + "<td>" + s.games_played + "</td><td>" + (s.rested || 0) + "</td><td>" + (s.absent || 0) + "</td><td>" + s.goals + "</td><td>" + s.assists + "</td><td>" + (s.own_goals || 0) + "</td><td>" + (s.fouls || 0) + "</td><td>" + (s.saves || 0) + "</td>" +
-    '<td><span class="badge yellow">' + s.yellow_cards + "</span></td><td><span class=\"badge red\">" + s.red_cards + "</span></td>" +
-    "<td>" + (s.potm_awards || 0) + "</td><td>" + (s.tournament_awards || 0) + "</td></tr>";
+  function statCells(s) {
+    return "<td>" + s.games_played + "</td><td>" + (s.rested || 0) + "</td><td>" + (s.absent || 0) + "</td><td>" + s.goals + "</td><td>" + s.assists + "</td><td>" + (s.own_goals || 0) + "</td><td>" + (s.fouls || 0) + "</td><td>" + (s.saves || 0) + "</td>" +
+      '<td><span class="badge yellow">' + s.yellow_cards + "</span></td><td><span class=\"badge red\">" + s.red_cards + "</span></td>" +
+      "<td>" + (s.potm_awards || 0) + "</td><td>" + (s.tournament_awards || 0) + "</td>";
+  }
+  function sumRows(rows) { return rows.reduce(function (acc, r) { Object.keys(statsFallback).forEach(function (k) { acc[k] += r[k] || 0; }); return acc; }, Object.keys(statsFallback).reduce(function (z, k) { z[k] = 0; return z; }, {})); }
+  if (curSplit && curSplit.loans.length) {
+    // one-week transfer(s): one row per team so the games for the other team are visible, then the season total
+    var html = "<tr>" + auctionCells(curRoster) + statCells(sumRows(curSplit.home)) + "</tr>";
+    curSplit.loans.forEach(function (l) {
+      html += '<tr><td class="team-name"><a href="team.html?id=' + l.team.id + '">' + escapeHtml(l.team.name) + '</a> <span class="muted" style="font-size:.78rem;">(one-week transfer)</span></td><td>—</td>' + statCells(sumRows(l.rows)) + "</tr>";
+    });
+    html += '<tr style="font-weight:700;"><td class="team-name">Season total</td><td></td>' + statCells(s) + "</tr>";
+    document.getElementById("stats-body").innerHTML = html;
+  } else {
+    document.getElementById("stats-body").innerHTML = "<tr>" + auctionCells(curRoster) + statCells(s) + "</tr>";
+  }
 }
 
 function auctionCells(ros, team) {   // "Bought by" + "Sold for" cells from a team_season_rosters row

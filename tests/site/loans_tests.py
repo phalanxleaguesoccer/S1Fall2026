@@ -34,6 +34,10 @@ with sync_playwright() as pw:
     ok('profile: plays for Renegades, also played for Desi Steelers this season','Renegades' in tx and 'Also played for' in tx and 'Desi Steelers FC' in tx,tx[:500])
     ok('profile: season totals add up (3 games)',pl.locator('#stats-body td').all_inner_texts()[:1]==['3'] or '3' in pl.locator('#stats-body').inner_text(),pl.locator('#stats-body').inner_text())
     ok('no JS errors on profile',not pl.errs,pl.errs)
+    rows=pl.locator('#stats-body tr').all_inner_texts()
+    ok('profile current-season table: Renegades row, Desi Steelers (one-week transfer) row, Season total row',len(rows)==3 and 'Renegades' in rows[0] and 'Desi Steelers FC' in rows[1] and 'one-week transfer' in rows[1] and 'Season total' in rows[2],rows)
+    cells=lambda r:[x.strip() for x in r.replace('\n','\t').split('\t') if x.strip()!='']
+    ok('profile table: Desi row has 2 games and the own goal, total has 3 games',cells(rows[1])[-14:][0:1]!=[] and '2' in cells(rows[1]) and cells(rows[2])[1]=='3',rows)
     tm=s.page('team.html?id='+T['Desi Steelers FC'],1800);tt=tm.inner_text('#roster-grid')
     ok('Desi squad shows Vivek as transferred in','Vivek' in tt and 'Transferred in' in tt,tt[:400])
     tr=s.page('team.html?id='+T['Renegades'],1800)
