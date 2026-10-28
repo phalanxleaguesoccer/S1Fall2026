@@ -24,6 +24,7 @@ function renderHeader(activePage) {
       "</div></header>"
   );
   renderEnvBanner();
+  maybeShowSponsorPopup();
 }
 
 // Preprod copy only (config.js sets ENV: "preprod"): a fixed red strip so a test
@@ -344,3 +345,69 @@ function withLoans(roster, apps, matches) {
   return out;
 }
 function rosterSkip(r, m) { return r.loan ? !r.loanMatches[m.id] : !!(r.skipDays && r.skipDays[m.match_day]); }
+
+// ---- Sponsor pop-up ----
+// Shown once per browser session (the first public page a visitor opens). Close with the X, the Close button, Esc or a click outside.
+// Skipped on admin pages, on the Sponsors page itself and for automated browsers (window.__FORCE_SPONSOR_POPUP overrides this for tests).
+function maybeShowSponsorPopup() {
+  try {
+    if (window.IN_ADMIN_DIR || /sponsors\.html$/.test(location.pathname)) return;
+    if (!window.__FORCE_SPONSOR_POPUP && navigator.webdriver) return;
+    if ((window.PHALANX_CONFIG || {}).SPONSOR_POPUP === false) return;
+    try { if (sessionStorage.getItem("phalanx_sponsor_popup") === "1") return; } catch (e) {}
+    setTimeout(openSponsorPopup, 700);
+  } catch (e) {}
+}
+function openSponsorPopup() {
+  if (document.getElementById("spp")) return;
+  var prev = document.activeElement;
+  var store = "https://locations.tropicalsmoothiecafe.com/pa/pittsburgh/322-mcholme-dr";
+  var html =
+    '<div class="spp" id="spp" role="dialog" aria-modal="true" aria-labelledby="spp-title">' +
+      '<div class="spp-box">' +
+        '<button type="button" class="spp-x" id="spp-x" aria-label="Close">&times;</button>' +
+        '<div class="spp-kicker">Proudly supported by</div>' +
+        '<h2 id="spp-title">Our Sponsors</h2>' +
+        '<div class="spp-grid">' +
+          '<div class="spp-s">' +
+            '<a class="spp-logo" href="' + store + '" target="_blank" rel="noopener sponsored"><img src="assets/sponsors/tropical-smoothie-cafe.png" alt="Tropical Smoothie Cafe"></a>' +
+            '<h3>Tropical Smoothie Cafe &ndash; Robinson</h3>' +
+            '<p>322 McHolme Dr, Pittsburgh, PA 15275<br><a href="tel:+14125058126">(412) 505-8126</a></p>' +
+            '<div class="spp-acts"><a class="spp-b" href="' + store + '" target="_blank" rel="noopener sponsored">Visit the store &rarr;</a>' +
+            '<a class="spp-b alt" href="https://www.google.com/maps/dir/?api=1&destination=322+McHolme+Dr,+Pittsburgh,+PA+15275" target="_blank" rel="noopener">Directions</a></div>' +
+          '</div>' +
+          '<div class="spp-s">' +
+            '<a class="spp-logo navy" href="https://www.easeourtrip.com/" target="_blank" rel="noopener sponsored"><img src="assets/sponsors/easeourtrip.png" alt="EaseOurTrip"></a>' +
+            '<h3>EaseOurTrip</h3>' +
+            '<p>Compare and book flights, hotels and holidays.</p>' +
+            '<div class="spp-acts"><a class="spp-b" href="https://www.easeourtrip.com/" target="_blank" rel="noopener sponsored">Visit website &rarr;</a></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="spp-foot"><a href="sponsors.html">See all sponsors</a><button type="button" class="spp-close" id="spp-close">Close</button></div>' +
+      '</div>' +
+    '</div>';
+  document.body.insertAdjacentHTML("beforeend", html);
+  document.body.classList.add("spp-open");
+  var el = document.getElementById("spp");
+  function close() {
+    document.removeEventListener("keydown", onKey);
+    el.remove(); document.body.classList.remove("spp-open");
+    try { sessionStorage.setItem("phalanx_sponsor_popup", "1"); } catch (e) {}
+    try { if (prev && prev.focus) prev.focus(); } catch (e) {}
+  }
+  function onKey(e) {
+    if (e.key === "Escape") { close(); return; }
+    if (e.key === "Tab") {   // keep keyboard focus inside the pop-up
+      var f = el.querySelectorAll("a[href],button"); if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  }
+  document.addEventListener("keydown", onKey);
+  document.getElementById("spp-x").addEventListener("click", close);
+  document.getElementById("spp-close").addEventListener("click", close);
+  el.addEventListener("click", function (e) { if (e.target === el) close(); });
+  try { sessionStorage.setItem("phalanx_sponsor_popup", "1"); } catch (e) {}   // counts as shown even if they navigate away without closing
+  document.getElementById("spp-x").focus();
+}

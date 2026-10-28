@@ -272,7 +272,7 @@ function recStandRows() {
   var D = REC.data, srank = {};
   SEASONS.slice().reverse().forEach(function (x, i) { srank[x.id] = i; });
   var played = Object.keys(D.M).map(function (k) { return D.M[k]; }).filter(function (m) { return m.status === "completed" || m.status === "forfeited"; })
-    .sort(function (a, b) { return ((srank[a.season_id] || 0) - (srank[b.season_id] || 0)) || (a.match_day - b.match_day) || (a.match_number - b.match_number); });
+    .sort(function (a, b) { return ((srank[a.season_id] || 0) - (srank[b.season_id] || 0)) || (a.kickoff_at && b.kickoff_at ? Date.parse(a.kickoff_at) - Date.parse(b.kickoff_at) : 0) || (a.match_day - b.match_day) || (a.match_number - b.match_number); });
   var S = {}, ok = function (id) { return TEAMS[id] && !isPlaceholder(TEAMS[id]); };
   var slot = function (id) { return S[id] = S[id] || { team: TEAMS[id], id: id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, cs: 0, form: [] }; };
   played.forEach(function (m) {
@@ -312,7 +312,7 @@ function recTeams() {
     { k: "ga", t: "GA", title: "Goals against", get: function (r) { return r.ga; }, val: function (r) { return r.ga; } },
     { k: "cs", t: "Clean sheets", title: "Matches where the team conceded no goals", sep: 1, get: function (r) { return r.cs; }, val: function (r) { return r.cs; } },
     { k: "winp", t: "Win %", get: function (r) { return r.p ? Math.round(1000 * r.w / r.p) / 10 + "%" : "–"; }, val: function (r) { return r.p ? r.w / r.p : null; } },
-    { k: "form", t: "Form", title: "Last 5 results, newest on the right", nosort: 1, get: function (r) { return '<span class="fchips">' + r.form.slice(-5).map(chip).join("") + "</span>"; }, val: function (r) { return 0; } }];
+    { k: "form", t: "Form", title: "Last 5 results, newest first", nosort: 1, get: function (r) { return '<span class="fchips">' + r.form.slice(-5).reverse().map(chip).join("") + "</span>"; }, val: function (r) { return 0; } }];
   var st = REC.sort && REC.sort.view === "teams" ? REC.sort : null, show = rows.slice(), rank, tied;
   if (st) {
     var col = cols.filter(function (c) { return c.k === st.key; })[0] || cols[1];

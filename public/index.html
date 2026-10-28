@@ -62,7 +62,7 @@
             <th>GD</th>
             <th>GF</th>
             <th>GA</th>
-            <th>Form</th>
+            <th title="Last 5 results, latest game first (leftmost = most recent)">Form<br><small style="font-weight:600;letter-spacing:0;text-transform:none;color:var(--chalk-dim);font-size:.66rem;">latest first</small></th>
           </tr>
         </thead>
         <tbody id="standings-body">
@@ -188,16 +188,16 @@ async function loadStandings() {
     (sres.error ? [] : (sres.data || [])).forEach(function (r) { shootoutPos[r.team_id] = r.position; });
   }
   rows = resolveTies(rows, played, shootoutPos);
-  // Form: last five results per team, newest on the right
+  // Form: last five results per team, newest FIRST (leftmost)
   var srk = {}; SEASONS.slice().reverse().forEach(function (x, i) { srk[x.id] = i; });
   var formBy = {};
-  played.slice().sort(function (a, b) { return ((srk[a.season_id] || 0) - (srk[b.season_id] || 0)) || (a.match_day - b.match_day) || (a.match_number - b.match_number); }).forEach(function (m) {
+  played.slice().sort(function (a, b) { return ((srk[a.season_id] || 0) - (srk[b.season_id] || 0)) || (a.kickoff_at && b.kickoff_at ? Date.parse(a.kickoff_at) - Date.parse(b.kickoff_at) : 0) || (a.match_day - b.match_day) || (a.match_number - b.match_number); }).forEach(function (m) {
     [[m.home_team_id, m.home_score, m.away_score], [m.away_team_id, m.away_score, m.home_score]].forEach(function (x) {
       var r = m.status === "forfeited" ? (m.forfeited_by_team_id === x[0] ? "L" : "W") : (x[1] > x[2] ? "W" : x[1] < x[2] ? "L" : "D");
       (formBy[x[0]] = formBy[x[0]] || []).push(r);
     });
   });
-  rows.forEach(function (r) { r.form = (formBy[r.team.id] || []).slice(-5); });
+  rows.forEach(function (r) { r.form = (formBy[r.team.id] || []).slice(-5).reverse(); });
 
   var noteEl = document.getElementById("tie-note");
   var unresolved = rows.filter(function (r) { return r.unresolved && r.played > 0; });

@@ -25,12 +25,12 @@ with sync_playwright() as pw:
     d,T=scen();s=Site(pw,d);p=s.page('index.html',2000)
     ok('no JS errors',not p.errs,p.errs)
     hdr=[h.strip().upper() for h in p.locator('#standings-table thead th').all_inner_texts()]
-    ok('table now ends with a Form column',hdr[-1]=='FORM' and hdr[:3]==['#','TEAM','PTS'],hdr)
+    ok('table now ends with a Form column',hdr[-1].startswith('FORM') and 'LATEST FIRST' in hdr[-1] and hdr[:3]==['#','TEAM','PTS'],hdr)
     st=standings(p)
     ok('standings order: Scouts (4, GD+2), Renegades (4, GD+1), Desi (2, GD-1), Muggles (2, GD-2)',[r[1] for r in st]==['Scouts FC','Renegades','Desi Steelers FC','Muggles FC'],[r[1] for r in st])
     forms={r.split('\t')[1].strip():r.split('\t')[10].split() for r in p.locator('#standings-body tr').all_inner_texts()}
-    ok('Form chips oldest to newest: Scouts W W L, Muggles L L W, Renegades D D W',forms.get('Scouts FC')==['W','W','L'] and forms.get('Muggles FC')==['L','L','W'] and forms.get('Renegades')==['D','D','W'],forms)
-    ok('Form for Desi = D D L (0-0, 0-0, 0-1)',forms.get('Desi Steelers FC')==['D','D','L'],forms)
+    ok('Form chips newest FIRST: Scouts L W W, Muggles W L L, Renegades W D D',forms.get('Scouts FC')==['L','W','W'] and forms.get('Muggles FC')==['W','L','L'] and forms.get('Renegades')==['W','D','D'],forms)
+    ok('Form for Desi = L D D (newest first: 0-1, 0-0, 0-0)',forms.get('Desi Steelers FC')==['L','D','D'],forms)
     ok('Form chips use W/D/L colour classes',p.locator('.fm5 .W').count()>=1 and p.locator('.fm5 .D').count()>=1 and p.locator('.fm5 .L').count()>=1)
     # upcoming + win %
     ok('upcoming rows show 3-part win % bars summing to 100',p.locator('.up-bar').count()==2 and all(sum(int(x.rstrip('%')) for x in b.locator('div').all_inner_texts())==100 for b in p.locator('.up-bar').all()),p.inner_text('#upcoming-list'))
