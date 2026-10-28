@@ -225,3 +225,6 @@ Live-scoring commit(s): `73d0c40`, `409b5b6`, `cd117fe` (details pending + auto-
 - Code: `records.js`, `stats.html` (3 places), `player.html` ("Details pending" status), SQL view `player_season_stats` (`sql/migration_details_pending.sql`, also section 8 of `migration_live_scoring.sql`). Run the SQL on PREPROD, then live. `rollback_live_scoring.sql` restores the OLD view (everybody played) - revert the JS too if rolling back.
 - Auto-refresh: `watchResults(cb)` in `common.js` polls a fingerprint (matches status/score/phase + counts of events and lineup rows) every 12 s while the tab is visible; used by landing, stats (all tabs), match, team, player pages.
 - Tests: `pending_tests.py` (8 checks); `fixtures.fill_lineups()` keeps older tests (ranking, season_stats, ranking_weeks) on the old "no lineup = played" fixtures.
+
+## Sponsors band - 27 Oct 2026
+- Landing page (`index.html`, `#sponsors`, between Upcoming Matches and Tournament records): Tropical Smoothie Cafe - Robinson (featured, address/phone/Visit the store/Get directions) and EaseOurTrip. Styles `.spx*` at the end of `css/app.css`; logos in `public/assets/sponsors/`. Test: `tests/site/sponsors_tests.py`. To add a sponsor copy an `<article>` block. Not part of the live-scoring rollback.
