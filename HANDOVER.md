@@ -227,4 +227,4 @@ Live-scoring commit(s): `73d0c40`, `409b5b6`, `cd117fe` (details pending + auto-
 - Tests: `pending_tests.py` (8 checks); `fixtures.fill_lineups()` keeps older tests (ranking, season_stats, ranking_weeks) on the old "no lineup = played" fixtures.
 
 ## Sponsors band - 27 Oct 2026
-- Landing page (`index.html`, `#sponsors`, between Upcoming Matches and Tournament records): Tropical Smoothie Cafe - Robinson (featured, address/phone/Visit the store/Get directions) and EaseOurTrip. Styles `.spx*` at the end of `css/app.css`; logos in `public/assets/sponsors/`. Test: `tests/site/sponsors_tests.py`. To add a sponsor copy an `<article>` block. Not part of the live-scoring rollback.
+- Own page `sponsors.html` (nav tab "Sponsors" between Auction and Admin; removed from the landing page): Tropical Smoothie Cafe - Robinson (featured, address/phone/Visit the store/Get directions) and EaseOurTrip. Styles `.spx*` at the end of `css/app.css`; logos in `public/assets/sponsors/`. Test: `tests/site/sponsors_tests.py`. To add a sponsor copy an `<article>` block. Not part of the live-scoring rollback.

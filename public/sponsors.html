@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sponsors — Phalanx League Soccer</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" type="image/png" href="assets/brand/favicon.png">
+</head>
+<body>
+
+<div class="container">
+  <h1>Sponsors</h1>
+  <p class="muted">The businesses that support Phalanx League Soccer. Please visit them and say thanks.</p>
+  <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+
+    <section class="spx" id="sponsors" aria-label="Sponsors">
+    <div class="spx-head"><h2>Proudly supported by</h2><i></i></div>
+    <article class="spx-feat" id="sponsor-tropical">
+      <div class="spx-l">
+        <a class="spx-logo" href="https://locations.tropicalsmoothiecafe.com/pa/pittsburgh/322-mcholme-dr" target="_blank" rel="noopener sponsored" aria-label="Tropical Smoothie Cafe, Robinson: visit the store page">
+          <img src="assets/sponsors/tropical-smoothie-cafe.png" alt="Tropical Smoothie Cafe" loading="lazy">
+        </a>
+        <div><span class="spx-kicker">Sponsor</span><h3>Tropical Smoothie Cafe &ndash; Robinson</h3><p>Fuel up before and after the match at our local cafe.</p></div>
+      </div>
+      <div class="spx-r">
+        <span class="spx-pin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>Our Robinson location</span>
+        <h4>Tropical Smoothie Cafe &ndash; Robinson</h4>
+        <address class="spx-addr"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span>322 McHolme Dr<br>Pittsburgh, PA 15275</span></address>
+        <a class="spx-ph" href="tel:+14125058126"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.6 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.6 3.6a1 1 0 0 1-.25 1z"/></svg>(412) 505-8126</a>
+        <div class="spx-acts">
+          <a class="spx-b" href="https://locations.tropicalsmoothiecafe.com/pa/pittsburgh/322-mcholme-dr" target="_blank" rel="noopener sponsored">Visit the store &rarr;</a>
+          <a class="spx-b alt" href="https://www.google.com/maps/dir/?api=1&amp;destination=322+McHolme+Dr,+Pittsburgh,+PA+15275" target="_blank" rel="noopener">Get directions</a>
+        </div>
+      </div>
+    </article>
+    <article class="spx-sec" id="sponsor-easeourtrip">
+      <a class="spx-logo navy" href="https://www.easeourtrip.com/" target="_blank" rel="noopener sponsored" aria-label="EaseOurTrip website">
+        <img src="assets/sponsors/easeourtrip.png" alt="EaseOurTrip" loading="lazy">
+      </a>
+      <div><span class="spx-kicker">Sponsor</span><h3>EaseOurTrip</h3><p>Compare and book flights, hotels and holidays.</p></div>
+      <a class="spx-b" href="https://www.easeourtrip.com/" target="_blank" rel="noopener sponsored">Visit website &rarr;</a>
+    </article>
+    <p class="spx-thanks">Thank you to our sponsors for supporting Phalanx League Soccer.</p>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderHeader("sponsors.html");
+renderFooter();
+renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Sponsors" }]);
+trackPageView("sponsors").then(function (count) {
+  document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
+});
+</script>
+</body>
+</html>
