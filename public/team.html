@@ -255,6 +255,13 @@ async function renderSquad() {
   var att = {}; aggregateByPlayer(attRes.data || []).forEach(function (a) { att[a.player_id] = a; });
 
   var rows = rosterRes.data || [];
+  // players who played for this team on a one-week transfer have stats rows here but no roster row
+  var haveP = {}; rows.forEach(function (r) { haveP[r.player_id] = 1; });
+  var loanIds = (attRes.data || []).map(function (s) { return s.player_id; }).filter(function (id, i, a) { return !haveP[id] && a.indexOf(id) === i; });
+  if (loanIds.length) {
+    var lp = await window.sb.from("players").select("*").in("id", loanIds);
+    (lp.data || []).forEach(function (p) { rows.push({ id: "loan-" + p.id, player_id: p.id, season_id: (attRes.data.filter(function (s) { return s.player_id === p.id; })[0] || {}).season_id, team_id: teamId, is_owner: false, auction_price: null, players: p, loan: true }); });
+  }
   if (isAllSquad) {
     // A player can have one roster row per season on this team — collapse to
     // one row per player (most recent season's row wins) so "All Seasons"
@@ -306,7 +313,7 @@ async function renderSquad() {
           (r.jersey_number ? '<div class="rating-badge">#' + r.jersey_number + "</div>" : "") +
         "</div>" +
         '<div class="info"><div class="name">' + escapeHtml(p.full_name) + "</div>" +
-        '<div class="meta">' + escapeHtml(p.preferred_position || "") + (r.is_owner ? " &middot; Owner" : (r.auction_price != null ? " &middot; " + r.auction_price + " pts" : "")) + "</div>" + attLine(att[p.id]) + "</div>" +
+        '<div class="meta">' + escapeHtml(p.preferred_position || "") + (r.is_owner ? " &middot; Owner" : (r.loan ? " &middot; Transferred in" : (r.auction_price != null ? " &middot; " + r.auction_price + " pts" : ""))) + "</div>" + attLine(att[p.id]) + "</div>" +
         "</a>";
     }).join("");
   }

@@ -344,10 +344,10 @@ function renderAvailability(cfg, view) {
   if (!tids.length) { box.innerHTML = '<p class="muted">' + cfg.none + "</p>"; return; }
   var teams = tids.map(function (tid) {
     var ms = done.filter(function (m) { return m.home_team_id === tid || m.away_team_id === tid; });
-    var players = ROSTER.filter(function (r) { return r.team_id === tid; }).map(function (r) {
+    var players = ROSTER.filter(function (r) { return r.team_id === tid && !r.loan; }).map(function (r) {
       var cells = ms.map(function (m) {
         var a = appBy[m.id + "|" + r.player_id];
-        var st = a ? (a.status || "played") : (teamHas[m.id + "|" + tid] ? "none" : "pending");   // no lineup row while the team has a lineup = did not play
+        var st = rosterSkip(r, m) ? "skip" : a ? (a.status || "played") : (teamHas[m.id + "|" + tid] ? "none" : "pending");   // no lineup row while the team has a lineup = did not play
         return { m: m, st: st, inj: !!(a && a.absent_reason === "injury") };
       });
       var count = function (s) { return cells.filter(function (c) { return c.st === s; }).length; };
@@ -694,7 +694,7 @@ function buildHistory(matches, recs, appBy, teamHas, events) {
   function slot(pid, day) { var w = wk[pid]; if (!w) return null; return w[day] || (w[day] = ZERO()); }
   recs.forEach(function (r) {
     done.forEach(function (m) {
-      if (m.home_team_id !== r.team_id && m.away_team_id !== r.team_id) return;
+      if ((m.home_team_id !== r.team_id && m.away_team_id !== r.team_id) || (r._r && rosterSkip(r._r, m))) return;
       var a = appBy[m.id + "|" + r.id], st = a ? (a.status || "played") : (teamHas[m.id + "|" + r.team_id] ? "absent?" : "pending");
       var o = slot(r.id, m.match_day);
       if (st === "rested") { o.rested++; return; }
@@ -754,6 +754,7 @@ async function loadBoard(B) {
   if (matches.length) { var ar = await window.sb.from("match_appearances").select("*").in("match_id", matches.map(function (m) { return m.id; })); apps = ar.data || []; }
   var appBy = {}, teamHas = {};
   apps.forEach(function (a) { appBy[a.match_id + "|" + a.player_id] = a; teamHas[a.match_id + "|" + a.team_id] = true; });
+  roster = withLoans(roster, apps, matches);   // one-week transfers: see common.js
   var vBy = {}; view.forEach(function (v) { vBy[v.season_id + "|" + v.player_id + "|" + v.team_id] = v; });
   var teamsSeen = {};
   var recs = roster.filter(function (r) { return TEAMS[r.team_id] && !isPlaceholder(TEAMS[r.team_id]); }).map(function (r) {
@@ -762,7 +763,7 @@ async function loadBoard(B) {
     var w = 0, d = 0, l = 0, p = 0;
     matches.forEach(function (m) {
       if (m.season_id !== r.season_id || m.status !== "completed" || m.home_score == null || m.away_score == null) return;
-      if (m.home_team_id !== r.team_id && m.away_team_id !== r.team_id) return;
+      if ((m.home_team_id !== r.team_id && m.away_team_id !== r.team_id) || rosterSkip(r, m)) return;
       var a = appBy[m.id + "|" + r.player_id];
       var played = a ? (a.status || "played") === "played" : false;   // no lineup yet = details pending, not counted
       if (!played) return;
@@ -770,7 +771,7 @@ async function loadBoard(B) {
       var mine = m.home_team_id === r.team_id ? m.home_score : m.away_score, theirs = m.home_team_id === r.team_id ? m.away_score : m.home_score;
       if (mine > theirs) w++; else if (mine < theirs) l++; else d++;
     });
-    return { id: r.player_id, team_id: r.team_id, season_id: r.season_id, p: p, w: w, d: d, l: l,
+    return { _r: r, id: r.player_id, team_id: r.team_id, season_id: r.season_id, p: p, w: w, d: d, l: l,
       goals: v.goals || 0, assists: v.assists || 0, potm: v.potm_awards || 0, yellow: v.yellow_cards || 0, red: v.red_cards || 0, fouls: v.fouls || 0, og: v.own_goals || 0,
       rested: v.rested || 0, absent: v.absent || 0 };
   });
@@ -836,6 +837,7 @@ async function loadSeason() {
   if (ids.length) {
     var apRes = await window.sb.from("match_appearances").select("*").in("match_id", ids);
     APPS = apRes.data || [];
+    ROSTER = withLoans(ROSTER, APPS, Object.keys(MATCHES).map(function (k) { return MATCHES[k]; }));
     var eRes = await window.sb.from("match_events").select("*").in("match_id", ids);
     EVENTS = (eRes.data || []).filter(function (e) { return MATCHES[e.match_id]; });
   }

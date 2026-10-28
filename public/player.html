@@ -159,8 +159,20 @@ async function loadPlayer() {
           : (rosterRes.data.auction_price != null ? " : Auction sold for " + rosterRes.data.auction_price + " pts" : "");
         document.getElementById("player-team").innerHTML = 'Plays for <a href="team.html?id=' + rosterRes.data.teams.id + '">' + escapeHtml(rosterRes.data.teams.name) + "</a>" + auc;
       }
-      var statsRes = await window.sb.from("player_season_stats").select("*").eq("player_id", playerId).eq("season_id", season.id).maybeSingle();
-      if (statsRes.data) statsFallback = statsRes.data;
+      // one row per team this season (a one-week transfer gives a second team): add them up
+      var statsRes = await window.sb.from("player_season_stats").select("*").eq("player_id", playerId).eq("season_id", season.id);
+      var sRows = statsRes.data || [];
+      if (sRows.length) {
+        statsFallback = sRows.reduce(function (acc, r) { Object.keys(statsFallback).forEach(function (k) { acc[k] += r[k] || 0; }); return acc; }, Object.assign({}, statsFallback, Object.keys(statsFallback).reduce(function (z, k) { z[k] = 0; return z; }, {})));
+        var homeId = rosterRes.data && rosterRes.data.team_id;
+        var otherIds = sRows.map(function (r) { return r.team_id; }).filter(function (t, i, a) { return t !== homeId && a.indexOf(t) === i; });
+        if (otherIds.length) {
+          var ot = await window.sb.from("teams").select("id, name").in("id", otherIds);
+          var links = (ot.data || []).map(function (t) { return '<a href="team.html?id=' + t.id + '">' + escapeHtml(t.name) + "</a>"; });
+          var pt = document.getElementById("player-team");
+          if (links.length && pt) pt.insertAdjacentHTML("beforeend", ' &middot; <span id="player-team-also">Also played for ' + links.join(", ") + " this season</span>");
+        }
+      }
     }
   } catch (err) {
     // Swallow and fall through to the zeroed stats below — a data hiccup here

@@ -59,6 +59,7 @@ function recBuild(matches, roster, apps, events) {
   var appBy = {}, teamHas = {};
   apps.forEach(function (a) { appBy[a.match_id + "|" + a.player_id] = a; teamHas[a.match_id + "|" + a.team_id] = true; });
   var srank = {}; SEASONS.slice().reverse().forEach(function (s, i) { srank[s.id] = i; });
+  roster = withLoans(roster, apps, matches);   // one-week transfers: see common.js
   var P = {};      // player id -> totals
   var slot = function (pid) {
     return P[pid] = P[pid] || { id: pid, team_id: null, tr: -1, played: 0, won: 0, drawn: 0, lost: 0, rested: 0, absent: 0, injury: 0, goals: 0, pens: 0, h1: 0, h2: 0, assists: 0, potm: 0, saves: 0, yellow: 0, red: 0, fouls: 0, og: 0, hat: 0, best: 0, bestMatch: null, cap: 0, capW: 0, capD: 0, capL: 0, capGF: 0, capPotm: 0, capDone: 0, gm: {} };
@@ -67,9 +68,9 @@ function recBuild(matches, roster, apps, events) {
   events.forEach(function (e) { if (e.event_type === "player_of_match") potmAt[e.match_id + "|" + e.player_id] = true; });
   roster.filter(function (r) { return TEAMS[r.team_id] && !isPlaceholder(TEAMS[r.team_id]); }).forEach(function (r) {
     var o = slot(r.player_id), rk = srank[r.season_id] || 0;
-    if (rk >= o.tr) { o.tr = rk; o.team_id = r.team_id; }
+    if (!r.loan && rk >= o.tr) { o.tr = rk; o.team_id = r.team_id; }
     done.forEach(function (m) {
-      if (m.season_id !== r.season_id || (m.home_team_id !== r.team_id && m.away_team_id !== r.team_id)) return;
+      if (m.season_id !== r.season_id || (m.home_team_id !== r.team_id && m.away_team_id !== r.team_id) || rosterSkip(r, m)) return;
       var a = appBy[m.id + "|" + r.player_id], st = a ? (a.status || "played") : (teamHas[m.id + "|" + r.team_id] ? "absent" : "pending");   // no lineup entered yet = details pending: not counted as played
       if (st === "pending") return;
       if (st === "rested") { o.rested++; if (a && a.absent_reason === "injury") o.injury++; return; }

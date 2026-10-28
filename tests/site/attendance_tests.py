@@ -46,7 +46,7 @@ with sync_playwright() as pw:
     ok('schedule shows rested/absent counts',('Rested: Muggles FC 1' in bt) and ('Absent: Desi Steelers FC 1' in bt) and ('Rested: Scouts FC 1' in bt),bt)
     # profile
     q=s.page('player.html?id='+P['Ayush'],1500);hd=q.locator('table thead').first.locator('th').all_inner_texts();vals=q.locator('#stats-body td').all_inner_texts()
-    ok('profile: Rested/Absent columns; Ayush absent 1, GP 1 (only M3, which has no lineup)',[h.upper() for h in hd][2:5]==['GP','RESTED','ABSENT'] and vals[2:5]==['1','0','1'],(hd,vals))   # GP 1 = match 3 had no lineup entered (legacy: counts as played)
+    ok('profile: Rested/Absent columns; Ayush absent 1, GP 0 (M3 has no lineup yet = details pending, not counted)',[h.upper() for h in hd][2:5]==['GP','RESTED','ABSENT'] and vals[2:5]==['0','0','1'],(hd,vals))
     q=s.page('player.html?id='+P['Bilal Yaser'],1500);vals=q.locator('#stats-body td').all_inner_texts()
     ok('profile: Bilal GP 0 (rested), rested 1',vals[2:5]==['0','1','0'],vals)
     q=s.page('player.html?id='+P['Vignesh'],1500);vals=q.locator('#stats-body td').all_inner_texts()
@@ -54,7 +54,7 @@ with sync_playwright() as pw:
     q.click('#history-toggle');q.wait_for_timeout(300);ok('career totals + season table have Rested/Absent',q.locator('#career-totals-body td').count()==12 and 'rested' in q.inner_text('#history-seasons-view').lower(),q.locator('#career-totals-body td').count())
     # team page
     q=s.page('team.html?id='+T['Desi Steelers FC'],1500);cards=q.locator('#roster-grid .player-card').all_inner_texts()
-    ok('team page squad: counts per player (Ayush: Played 1 · Rested 0 · Absent 1)',any('Ayush' in c and 'Played 1' in c and 'Absent 1' in c for c in cards),cards)
+    ok('team page squad: counts per player (Ayush: Played 0 · Rested 0 · Absent 1)',any('Ayush' in c and 'Played 0' in c and 'Absent 1' in c for c in cards),cards)
     # admin lineup form
     sa=Site(pw,build()[0],admin=True);a=sa.page('admin/dashboard.html',1500);a.click('button[data-tab=records]')
     a.select_option('#lu-match','m3' if False else 'm1');a.wait_for_timeout(600)

@@ -23,19 +23,28 @@
       return Object.values(acc).map(function(a){a.goal_difference=a.goals_for-a.goals_against;return a;});
     }
     if(name==='player_season_stats'){
-      return DB.team_season_rosters.map(function(r){
+      // mirrors sql/migration_player_loans.sql: stints = roster rows + one-week transfers (appearance team != roster team)
+      var stints=DB.team_season_rosters.map(function(r){return {player_id:r.player_id,season_id:r.season_id,team_id:r.team_id,loan:false};});
+      var home={};DB.team_season_rosters.forEach(function(r){home[r.season_id+'|'+r.player_id]=r.team_id;});
+      var mAll={};DB.matches.forEach(function(m){mAll[m.id]=m;});
+      DB.match_appearances.forEach(function(a){var m=mAll[a.match_id];if(!m)return;var h=home[m.season_id+'|'+a.player_id];if(h&&h!==a.team_id&&!stints.some(function(x){return x.loan&&x.player_id===a.player_id&&x.season_id===m.season_id&&x.team_id===a.team_id;}))stints.push({player_id:a.player_id,season_id:m.season_id,team_id:a.team_id,loan:true});});
+      return stints.map(function(r){
         var p=DB.players.find(function(x){return x.id===r.player_id;})||{};
-        var ms=DB.matches.filter(function(m){return m.season_id===r.season_id;});
-        var mids={};ms.forEach(function(m){mids[m.id]=m;});
-        var ev=DB.match_events.filter(function(e){return mids[e.match_id]&&e.player_id===r.player_id;});
+        var ms=DB.matches.filter(function(m){
+          if(m.season_id!==r.season_id||(m.home_team_id!==r.team_id&&m.away_team_id!==r.team_id))return false;
+          var other=DB.match_appearances.some(function(a){var xm=mAll[a.match_id];return a.player_id===r.player_id&&xm&&xm.season_id===m.season_id&&xm.match_day===m.match_day&&a.team_id!==r.team_id;});
+          if(!r.loan)return !other;
+          return DB.match_appearances.some(function(a){return a.player_id===r.player_id&&a.match_id===m.id&&a.team_id===r.team_id;});
+        });
+        var mids={};(r.loan||stints.some(function(x){return x.loan&&x.player_id===r.player_id&&x.season_id===r.season_id;})?ms:DB.matches.filter(function(m){return m.season_id===r.season_id;})).forEach(function(m){mids[m.id]=m;});   /* older fixtures attach events to any season match */
+        var ev=DB.match_events.filter(function(e){return mids[e.match_id]&&e.player_id===r.player_id;   /* NB the real view counts events of completed matches only; older fixtures here put events on unconfirmed matches */});
         function c(t){return ev.filter(function(e){return e.event_type===t;}).length;}
-        var done=ms.filter(function(m){return m.status==='completed'&&(m.home_team_id===r.team_id||m.away_team_id===r.team_id);});
+        var done=ms.filter(function(m){return m.status==='completed';});
         var gp=0,rest=0,abs=0;
         done.forEach(function(m){
           var mine=DB.match_appearances.find(function(a){return a.match_id===m.id&&a.player_id===r.player_id;});
-          var teamHas=DB.match_appearances.some(function(a){return a.match_id===m.id&&a.team_id===r.team_id;});
           var st=mine?(mine.status||'played'):null;
-          if(st==='played'||(!mine&&!teamHas))gp++; if(st==='rested')rest++; if(st==='absent')abs++;
+          if(st==='played')gp++; if(st==='rested')rest++; if(st==='absent')abs++;
         });
         var app=gp;gp=0;
         return {player_id:r.player_id,full_name:p.full_name,season_id:r.season_id,team_id:r.team_id,games_played:app,rested:rest,absent:abs,goals:c('goal'),assists:c('assist'),yellow_cards:c('yellow_card'),red_cards:c('red_card'),potm_awards:c('player_of_match'),saves:c('save'),tournament_awards:c('player_of_tournament'),clean_sheets:0,own_goals:DB.__nocols?undefined:c('own_goal'),fouls:DB.__nocols?undefined:c('foul')};

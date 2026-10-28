@@ -320,3 +320,27 @@ function watchResults(onChange, everyMs) {
   tick();
   return setInterval(tick, everyMs || 12000);
 }
+
+// One-week transfers ("loans"): a player whose lineup row names a team other than his roster team that match day
+// plays for that team that day. withLoans() adds a virtual roster row for the other team (only its loan matches count)
+// and makes his home-team matches on those match days not count at all (neither played nor absent).
+// rosterSkip(r, m) tells the stats loops which (roster row, match) pairs to ignore.
+function withLoans(roster, apps, matches) {
+  var Mx = {}; (matches || []).forEach(function (m) { Mx[m.id] = m; });
+  var home = {}; roster.forEach(function (r) { if (!r.loan) home[r.season_id + "|" + r.player_id] = r; });
+  var skip = {}, loans = {};
+  (apps || []).forEach(function (a) {
+    var m = Mx[a.match_id]; if (!m) return;
+    var h = home[m.season_id + "|" + a.player_id];
+    if (!h || h.team_id === a.team_id) return;
+    var k = m.season_id + "|" + a.player_id;
+    (skip[k] = skip[k] || {})[m.match_day] = true;
+    var lk = k + "|" + a.team_id;
+    loans[lk] = loans[lk] || { id: "loan-" + lk, season_id: m.season_id, player_id: a.player_id, team_id: a.team_id, is_owner: false, auction_price: null, jersey_number: null, loan: true, loanMatches: {} };
+    loans[lk].loanMatches[m.id] = true;
+  });
+  var out = roster.map(function (r) { var s = skip[r.season_id + "|" + r.player_id]; return s && !r.loan ? Object.assign({}, r, { skipDays: s }) : r; });
+  Object.keys(loans).forEach(function (k) { out.push(loans[k]); });
+  return out;
+}
+function rosterSkip(r, m) { return r.loan ? !r.loanMatches[m.id] : !!(r.skipDays && r.skipDays[m.match_day]); }
