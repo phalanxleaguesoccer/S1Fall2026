@@ -15,11 +15,20 @@
   .filters select { min-width:200px; max-width:100%; }
   .ms-n { font-family:'Anton',sans-serif; font-size:1.15rem; color:var(--amber); width:48px; }
   tr.det td { background:rgba(255,255,255,.03); padding:10px 14px; }
+  /* Stats uses a wider frame so the 15-column Ranking table fits without sideways scroll */
+  .wide-page .container, .wide-page .breadcrumbs { max-width:1360px; }
   /* Ranking: fit the screen, no sideways scroll */
-  #rk-body .table-scroll { overflow-x: visible; }
+  #rk-body .table-scroll { overflow-x: auto; }
   #rk-body table.data-table { width:100%; }
   #rk-body table.data-table th, #rk-body table.data-table td { padding:9px 5px; }
+  #rk-body td.detcol, #rk-body th.detcol { width:92px; text-align:right; padding-right:8px; white-space:nowrap; }
+  #rk-body td.detcol .btn { min-width:72px; text-align:center; white-space:nowrap; }
   #rk-body .rk-sub, #rk-body .rk-detbtn, #rk-body th .sh, #rk-body .rk-legend { display:none; }
+  @media (min-width: 1061px) and (max-width: 1240px) {
+    #rk-body table.data-table th, #rk-body table.data-table td { padding:9px 3px; font-size:.84rem; }
+    #rk-body td.detcol, #rk-body th.detcol { width:80px; padding-right:4px; }
+    #rk-body td.detcol .btn { min-width:62px; padding:4px 6px; }
+  }
   @media (max-width: 1000px) {
     #rk-body table.data-table th, #rk-body table.data-table td { padding:8px 3px; font-size:.8rem; }
     #rk-body table.data-table th { letter-spacing:0; }
@@ -175,7 +184,7 @@
   @media (max-width:560px) { .rv-picker { grid-template-columns:repeat(2,1fr); } .rv-big { font-size:52px; } .rv-cr { grid-template-columns:1fr 84px 1fr; } .rv-pl, .rv-fm { grid-template-columns:1fr; } .rv-nm { font-size:.88rem; } }
 </style>
 </head>
-<body>
+<body class="wide-page">
 <div class="container">
   <h1>Stats</h1>
   <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
@@ -839,7 +848,7 @@ async function loadSeason() {
     APPS = apRes.data || [];
     ROSTER = withLoans(ROSTER, APPS, Object.keys(MATCHES).map(function (k) { return MATCHES[k]; }));
     var eRes = await window.sb.from("match_events").select("*").in("match_id", ids);
-    EVENTS = (eRes.data || []).filter(function (e) { return MATCHES[e.match_id]; });
+    EVENTS = (eRes.data || []).filter(function (e) { return MATCHES[e.match_id] && MATCHES[e.match_id].status === "completed"; });   // live / unconfirmed matches count once confirmed
   }
   var inSeason = {};
   Object.keys(MATCHES).forEach(function (k) { inSeason[MATCHES[k].home_team_id] = true; inSeason[MATCHES[k].away_team_id] = true; });

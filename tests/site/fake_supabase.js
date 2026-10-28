@@ -6,6 +6,7 @@
   var ALIAS = {home:'home_team_id',away:'away_team_id'};
   function uid(){return 'id'+Math.random().toString(36).slice(2,10);}
   function computeView(name){
+    if(DB.__views && DB.__views[name]) return DB.__views[name];   /* audit: real Postgres view output */
     if(name==='league_standings'){
       var seasons={};DB.seasons.forEach(function(s){seasons[s.id]=s;});
       var acc={};

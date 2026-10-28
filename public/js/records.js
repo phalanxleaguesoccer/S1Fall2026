@@ -71,7 +71,7 @@ function recBuild(matches, roster, apps, events) {
     if (!r.loan && rk >= o.tr) { o.tr = rk; o.team_id = r.team_id; }
     done.forEach(function (m) {
       if (m.season_id !== r.season_id || (m.home_team_id !== r.team_id && m.away_team_id !== r.team_id) || rosterSkip(r, m)) return;
-      var a = appBy[m.id + "|" + r.player_id], st = a ? (a.status || "played") : (teamHas[m.id + "|" + r.team_id] ? "absent" : "pending");   // no lineup entered yet = details pending: not counted as played
+      var a = appBy[m.id + "|" + r.player_id], st = a ? (a.status || "played") : "pending";   // no lineup row = details pending, or simply not listed: not counted at all (same as the database view and the player page)
       if (st === "pending") return;
       if (st === "rested") { o.rested++; if (a && a.absent_reason === "injury") o.injury++; return; }
       if (st === "absent") { o.absent++; if (a && a.absent_reason === "injury") o.injury++; return; }
@@ -84,7 +84,7 @@ function recBuild(matches, roster, apps, events) {
   var gk = { goal: "goals", assist: "assists", player_of_match: "potm", save: "saves", yellow_card: "yellow", red_card: "red", foul: "fouls", own_goal: "og" };
   events.forEach(function (e) {
     var k = gk[e.event_type];
-    if (!k || !M[e.match_id] || !known(e.player_id)) return;
+    if (!k || !M[e.match_id] || M[e.match_id].status !== "completed" || !known(e.player_id)) return;   // live / unconfirmed matches count only once confirmed (same as Stats and Ranking)
     var o = P[e.player_id];
     o[k]++;
     if (e.event_type === "goal") {
@@ -125,7 +125,7 @@ function recBuild(matches, roster, apps, events) {
     });
   });
   events.forEach(function (e) {
-    if (!M[e.match_id] || !T[e.team_id]) return;
+    if (!M[e.match_id] || M[e.match_id].status !== "completed" || !T[e.team_id]) return;
     if (e.event_type === "yellow_card") T[e.team_id].yellow++; else if (e.event_type === "red_card") T[e.team_id].red++;
     else if (e.event_type === "foul") T[e.team_id].fouls++; else if (e.event_type === "own_goal") T[e.team_id].og++;
   });

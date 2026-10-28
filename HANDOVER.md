@@ -242,3 +242,9 @@ Live-scoring commit(s): `73d0c40`, `409b5b6`, `cd117fe` (details pending + auto-
 ## Sponsor pop-up + Form label - 28 Oct 2026
 - `maybeShowSponsorPopup()` / `openSponsorPopup()` at the end of `common.js` (styles `.spp*` in `app.css`): shown once per browser tab/session on the first public page opened (sessionStorage `phalanx_sponsor_popup`), 0.7 s after load; closes with X, Close, Esc, outside click; focus trapped; skipped on admin pages, `sponsors.html` and automated browsers (`navigator.webdriver`; tests force it with `window.__FORCE_SPONSOR_POPUP`). Turn off with `SPONSOR_POPUP: false` in `config.js`. Tests: `popup_tests.py`.
 - Form column (landing page + Records team summary): already newest first; now also sorted by kickoff time (fallback match day/number) and the header says "latest first".
+
+## Stats audit + visual fixes - 28 Oct 2026
+- Sponsor pop-up: sponsor names use Work Sans bold (Anton was unreadable on the dark card).
+- Stats page uses a wider frame (`body.wide-page`, 1360px); Ranking Details column fixed-width inside the card, table scroller `overflow-x:auto` as a safety net, tighter padding 1061-1240px.
+- Records / home-page records / Milestones now count events of COMPLETED matches only (same as Stats/Ranking); a roster player with no lineup row is not counted at all (was "absent" in Records).
+- `tests/audit/`: random-league audit. `pg_audit.py` (real Postgres views vs independent oracle) and `site_audit.py` (Ranking page, Records engine, Standings page vs oracle). Needs scratch Postgres at /tmp/pgs, db `audit` (`create database audit template lt`). Run: `python3 tests/audit/pg_audit.py 100`, `python3 tests/audit/site_audit.py 40`. fake_supabase.js accepts `DB.__views` to inject real view output.
