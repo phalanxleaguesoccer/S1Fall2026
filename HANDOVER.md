@@ -228,3 +228,6 @@ Live-scoring commit(s): `73d0c40`, `409b5b6`, `cd117fe` (details pending + auto-
 
 ## Sponsors band - 27 Oct 2026
 - Own page `sponsors.html` (nav tab "Sponsors" between Auction and Admin; removed from the landing page): Tropical Smoothie Cafe - Robinson (featured, address/phone/Visit the store/Get directions) and EaseOurTrip. Styles `.spx*` at the end of `css/app.css`; logos in `public/assets/sponsors/`. Test: `tests/site/sponsors_tests.py`. To add a sponsor copy an `<article>` block. Not part of the live-scoring rollback.
+
+## Fix: goal + assist failed with "null value in column is_penalty" - 27 Oct 2026
+- Cause: PostgREST bulk inserts turn keys missing from some rows into explicit NULLs (no column default). The Live desk sent the goal row with `is_penalty` but the assist / automatic-red rows without it. Fixed by sending `is_penalty: false` on those rows. `fake_supabase.js` now emulates this (bulk-insert nulls + not-null `match_events.is_penalty`). Lesson: in any multi-row insert, give every row the same keys.

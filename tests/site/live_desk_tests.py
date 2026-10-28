@@ -100,6 +100,7 @@ with sync_playwright() as pw:
     p.fill('#s-rt','07:20');p.dispatch_event('#s-rt','input');p.click('#s-save');p.wait_for_timeout(700)
     ev=EVS(p);g=[e for e in ev if e['event_type']=='goal'];a=[e for e in ev if e['event_type']=='assist']
     ok('goal + linked assist saved atomically',len(g)==1 and len(a)==1 and g[0]['related_player_id']==a[0]['player_id'] and a[0]['related_player_id']==g[0]['player_id'],ev)
+    ok('every saved event row has is_penalty set (false, never null) - bulk-insert regression',all(e.get('is_penalty') is False for e in ev),[(e['event_type'],e.get('is_penalty')) for e in ev])
     ok('stored half 1, time_remaining 440, minute 2 second 40',g[0]['half']==1 and g[0]['time_remaining']==440 and g[0]['minute']==2 and g[0]['second']==40,g[0])
     ok('scoreboard 1–0',p.inner_text('#hs')=='1' and p.inner_text('#as')=='0')
     tl=p.inner_text('#tl-live');ok('timeline shows 2:40 with 1H tag and running score','2:40' in tl and '1H' in tl and '1–0' in tl and 'FIRST HALF' in tl.upper(),tl)
@@ -116,6 +117,7 @@ with sync_playwright() as pw:
         if k==0: ok('first yellow adds no red',len([e for e in EVS(p) if e['event_type']=='yellow_card'])==1 and len([e for e in EVS(p) if e['event_type']=='red_card'])==1,[e['event_type'] for e in EVS(p)])
     ev2=EVS(p);yc=[e for e in ev2 if e['event_type']=='yellow_card'];rc=[e for e in ev2 if e['event_type']=='red_card']
     ok('second yellow to the same player adds an automatic red card',len(yc)==2 and len(rc)==2 and rc[-1]['player_id']==yc[0]['player_id'] and yc[0]['player_id']==yc[1]['player_id'],[(e['event_type'],e['player_id']) for e in ev2])
+    ok('automatic red row also has is_penalty false',all(e.get('is_penalty') is False for e in ev2),[(e['event_type'],e.get('is_penalty')) for e in ev2])
     # ---- own goal: Scouts get the goal, an AWAY player is the offender
     p.click('[data-add="goal|H"]');p.check('[data-s-og]');p.wait_for_timeout(150)
     opts=p.locator('#sheet [data-s-player]').all_inner_texts();ok('own goal lists the OTHER team\'s players',not any(o.startswith('S Player') or o in('Bhagyesh Rane','Ajinkya P') for o in opts) and len(opts)>=4,opts)

@@ -86,7 +86,12 @@
       var AUD=(DB.__audit&&{match_events:1,matches:1,match_appearances:1}[name])?DB.audit_log||(DB.audit_log=[]):null;
       function aud(act,o,n){ if(!AUD)return; AUD.push({id:uid(),table_name:name,record_id:(n||o).id,action:act,changed_by:'u-test',changed_by_label:DB.__who||'Tester',changed_at:new Date().toISOString(),old_data:o?Object.assign({},o):null,new_data:n?Object.assign({},n):null}); }
       if(q.mode==='insert'&&name==='audit_log'){ [].concat(q.payload).forEach(function(x){ if(x.table_name==='live_note'){ x.changed_by_label=DB.__who||'Tester'; x.changed_at=new Date().toISOString(); x.action='NOTE'; x.changed_by='u-test'; } }); }
-      if(q.mode==='insert'){ if(name==='team_season_rosters'&&[].concat(q.payload).some(function(x){return tt.some(function(r){return r.season_id===x.season_id&&r.player_id===x.player_id;});}))return {data:null,error:{message:'duplicate key value violates unique constraint'}}; var arr=[].concat(q.payload).map(function(x){return Object.assign({id:uid()},x);});
+      if(q.mode==='insert'){ if(name==='team_season_rosters'&&[].concat(q.payload).some(function(x){return tt.some(function(r){return r.season_id===x.season_id&&r.player_id===x.player_id;});}))return {data:null,error:{message:'duplicate key value violates unique constraint'}}; var __rows=[].concat(q.payload);
+        if(__rows.length>1){ /* like PostgREST: in a bulk insert a key missing from some rows becomes an explicit null (no column default) */
+          var __keys={};__rows.forEach(function(x){Object.keys(x).forEach(function(k){__keys[k]=1;});});
+          __rows=__rows.map(function(x){var y=Object.assign({},x);Object.keys(__keys).forEach(function(k){if(!(k in y))y[k]=null;});return y;}); }
+        if(name==='match_events'){ for(var __i=0;__i<__rows.length;__i++){ if(__rows[__i].is_penalty===null)return {data:null,error:{message:'null value in column "is_penalty" of relation "match_events" violates not-null constraint'}}; if(!('is_penalty' in __rows[__i]))__rows[__i]=Object.assign({is_penalty:false},__rows[__i]); } }
+        var arr=__rows.map(function(x){return Object.assign({id:uid()},x);});
         // unique checks
         if(name==='tiebreak_shootout_order'){for(var i=0;i<arr.length;i++){if(tt.concat(arr.slice(0,i)).some(function(r){return r.season_id===arr[i].season_id&&r.position===arr[i].position;}))return {data:null,error:{message:'duplicate key value violates unique constraint'}};}}
         arr.forEach(function(x){if(!x.created_at)x.created_at=new Date().toISOString();tt.push(x);aud('INSERT',null,x);});return {data:arr,error:null};}

@@ -431,11 +431,11 @@ async function saveDraft() {
     var assistId = type === "goal" && d.assist ? d.assist : null;
     if (!d.id) {
       var rows = [Object.assign({}, base, { event_type: type, team_id: teamId, player_id: d.player, related_player_id: assistId, is_penalty: type === "goal" && !!d.pen })];
-      if (assistId) rows.push(Object.assign({}, base, { event_type: "assist", team_id: teamId, player_id: assistId, related_player_id: d.player }));
+      if (assistId) rows.push(Object.assign({}, base, { event_type: "assist", team_id: teamId, player_id: assistId, related_player_id: d.player, is_penalty: false }));
       // a second yellow card to the same player in this match also gives him a red card automatically
       var autoRed = type === "yellow_card" && items().some(function (it) { return it.e.event_type === "yellow_card" && it.e.player_id === d.player; }) &&
         !items().some(function (it) { return it.e.event_type === "red_card" && it.e.player_id === d.player; });
-      if (autoRed) rows.push(Object.assign({}, base, { event_type: "red_card", team_id: teamId, player_id: d.player, related_player_id: null }));
+      if (autoRed) rows.push(Object.assign({}, base, { event_type: "red_card", team_id: teamId, player_id: d.player, related_player_id: null, is_penalty: false }));
       var ins = await window.sb.from("match_events").insert(rows); if (ins.error) return ins;
       if (autoRed) { var nr = await note("Automatic red card: second yellow card for " + pname(d.player)); if (nr.error) return nr; }
       if (late) { var n = await note("Late entry: " + TYPE[type] + " · " + pname(d.player) + " added to the " + (d.half === 1 ? "first" : "second") + " half after it ended"); if (n.error) return n; }
@@ -447,7 +447,7 @@ async function saveDraft() {
       if (assistId) { var u2 = await window.sb.from("match_events").update(Object.assign({}, base, { team_id: teamId, player_id: assistId, related_player_id: d.player })).eq("id", o.assist.id); if (u2.error) return u2; }
       else { var d2 = await window.sb.from("match_events").delete().eq("id", o.assist.id); if (d2.error) return d2; }
     } else if (assistId) {
-      var i2 = await window.sb.from("match_events").insert(Object.assign({}, base, { event_type: "assist", team_id: teamId, player_id: assistId, related_player_id: d.player })); if (i2.error) return i2;
+      var i2 = await window.sb.from("match_events").insert(Object.assign({}, base, { event_type: "assist", team_id: teamId, player_id: assistId, related_player_id: d.player, is_penalty: false })); if (i2.error) return i2;
     }
     return null;
   });
