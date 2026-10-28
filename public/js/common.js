@@ -344,6 +344,13 @@ function withLoans(roster, apps, matches) {
   Object.keys(loans).forEach(function (k) { out.push(loans[k]); });
   return out;
 }
+// Weekly rule (Eastern time) shared by the Matches page and the landing card: Upcoming comes first from Friday 12:00 AM
+// to Tuesday 8:30 PM; results come first from Tuesday 8:31 PM to Thursday 11:59 PM.
+function etParts(d) {
+  var p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "numeric", hour12: false }).formatToParts(d), g = function (t) { return p.filter(function (x) { return x.type === t; })[0].value; };
+  return { dow: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(g("weekday")), min: (parseInt(g("hour"), 10) % 24) * 60 + parseInt(g("minute"), 10) };
+}
+function inUpcomingWindow(d) { if (window.__WEEK_WINDOW) return window.__WEEK_WINDOW === "upcoming"; var e = etParts(d);   /* __WEEK_WINDOW: test hook only */ return e.dow === 5 || e.dow === 6 || e.dow === 0 || e.dow === 1 || (e.dow === 2 && e.min <= 20 * 60 + 30); }
 function rosterSkip(r, m) { return r.loan ? !r.loanMatches[m.id] : !!(r.skipDays && r.skipDays[m.match_day]); }
 
 // ---- Sponsor pop-up ----

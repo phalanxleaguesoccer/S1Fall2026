@@ -21,6 +21,7 @@ class Site:
             def _open(r):
                 resp=r.fetch();r.fulfill(response=resp,body=resp.text().replace('var AUCTION_CLOSED = true;','var AUCTION_CLOSED = false;'))
             self.ctx.route('**/auction.html*',_open)
+        if not getattr(Site,'real_week',False): self.ctx.add_init_script("window.__WEEK_WINDOW='upcoming';")   # tests are not tied to today's weekday (landing_card_tests sets real_week)
         self.errors=[]
     def page(self,path,wait=900):
         p=self.ctx.new_page();errs=[]

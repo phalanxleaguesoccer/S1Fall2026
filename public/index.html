@@ -76,7 +76,7 @@
   </div>
 
   <div class="card">
-    <div class="card-title">Upcoming Matches</div>
+    <div class="card-title" id="up-title">Upcoming Matches</div>
     <div id="upcoming-list"><p class="muted">Loading…</p></div>
     <p class="muted" id="up-note" style="font-size:.78rem; margin:10px 0 0; display:none;"></p>
     <p class="mt-16"><a href="matches.html">View full schedule &rarr;</a></p>
@@ -233,6 +233,32 @@ async function loadStandings() {
   }).join("");
 }
 
+async function renderLatestResults(allM, doneM, teams) {
+  window.__upLive = false;
+  var list = document.getElementById("upcoming-list"), note = document.getElementById("up-note");
+  if (note) note.style.display = "none";
+  var day = Math.max.apply(null, doneM.map(function (m) { return m.match_day; }));
+  var ms = allM.filter(function (m) { return m.match_day === day; }).sort(function (a, b) { return a.match_number - b.match_number; });
+  var ids = ms.map(function (m) { return m.id; });
+  var ev = (await window.sb.from("match_events").select("*").in("match_id", ids).in("event_type", ["goal", "own_goal", "assist"])).data || [];
+  var pl = {}; ((await window.sb.from("players").select("id, full_name")).data || []).forEach(function (p) { pl[p.id] = p.full_name; });
+  list.innerHTML = ms.map(function (m) {
+    var home = teamLink(m.home_team_id, teams[m.home_team_id].name), away = teamLink(m.away_team_id, teams[m.away_team_id].name);
+    var done = (m.status === "completed" && m.home_score != null && m.away_score != null) || m.status === "forfeited";
+    var score = m.status === "forfeited" ? "Forfeit" : done ? m.home_score + " &ndash; " + m.away_score : "Awaiting result";
+    var es = ev.filter(function (e) { return e.match_id === m.id; }), used = {};
+    var goals = es.filter(function (e) { return e.event_type === "goal" || e.event_type === "own_goal"; });
+    var scorers = done ? goals.map(function (g) {
+      var a = es.filter(function (x) { return x.event_type === "assist" && !used[x.id] && ((g.related_player_id && x.player_id === g.related_player_id) || x.related_player_id === g.player_id); })[0];
+      if (a) used[a.id] = 1;
+      return escapeHtml(pl[g.player_id] || "?") + (g.event_type === "own_goal" ? " (OG)" : "") + (a ? " (assist " + escapeHtml(pl[a.player_id] || "?") + ")" : "");
+    }).join(", ") : "";
+    var when = m.kickoff_at ? formatKickoff(m.kickoff_at) : "";
+    return '<div class="up-row"><div><strong>' + matchLink(m, "Day " + m.match_day) + "</strong> &middot; " + home + " " + (done ? matchLink(m, "<b>" + score + "</b>") : '<span class="muted">' + score + "</span>") + " " + away +
+      '<div class="muted" style="font-size:0.82rem;">' + when + (scorers ? " &middot; " + scorers : "") + "</div></div></div>";
+  }).join("");
+}
+
 async function loadUpcoming() {
   var season = await getCurrentSeason();
   if (!season) return;
@@ -240,6 +266,16 @@ async function loadUpcoming() {
   var teams = {};
   (teamsRes.data || []).forEach(function (t) { teams[t.id] = t; });
 
+  // Weekly rule (Eastern): results show from Tuesday 8:31 PM to Thursday 11:59 PM, upcoming matches from Friday 12:00 AM to Tuesday 8:30 PM.
+  // Fallbacks like the Matches page: nothing left to play -> results; nothing played yet -> upcoming. Live matches do not change this.
+  var realTeam = function (id) { return teams[id] && !/^Team [A-Z]$/.test(teams[id].name); };
+  var allM0 = ((await window.sb.from("matches").select("*").eq("season_id", season.id)).data || []).filter(function (m) { return realTeam(m.home_team_id) && realTeam(m.away_team_id); });
+  var isDone = function (m) { return (m.status === "completed" && m.home_score != null && m.away_score != null) || m.status === "forfeited"; };
+  var doneM = allM0.filter(isDone), anyLeft = allM0.some(function (m) { return !isDone(m); });
+  var showResults = doneM.length > 0 && (!anyLeft || !inUpcomingWindow(new Date()));
+  var upTitle = document.getElementById("up-title");
+  if (upTitle) upTitle.textContent = showResults ? "Latest Results" : "Upcoming Matches";
+  if (showResults) { await renderLatestResults(allM0, doneM, teams); return; }
   var res = await window.sb
     .from("matches")
     .select("*")
@@ -285,6 +321,7 @@ async function loadUpcoming() {
 populateStandingsSeasonFilter().then(function () { loadStandings(); loadHomeRecords(document.getElementById("standings-season-filter").value); });
 watchResults(function () { loadStandings(); loadHomeRecords(document.getElementById("standings-season-filter").value); });
 loadUpcoming();
+setInterval(function () { if (!document.hidden) loadUpcoming(); }, 5 * 60000);   // flips between results and upcoming on the weekly schedule without a reload
 setInterval(function () { if (LIVE.enabled && !document.hidden && window.__upLive) loadUpcoming(); }, 8000);   // live scores on the landing page
 trackPageView("standings").then(function (count) {
   document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);

@@ -249,3 +249,8 @@ Live-scoring commit(s): `73d0c40`, `409b5b6`, `cd117fe` (details pending + auto-
 - Records / home-page records / Milestones now count events of COMPLETED matches only (same as Stats/Ranking); a roster player with no lineup row is not counted at all (was "absent" in Records).
 - `tests/audit/`: random-league audit. `pg_audit.py` (real Postgres views vs independent oracle) and `site_audit.py` (Ranking page, Records engine, Standings page vs oracle). Needs scratch Postgres at /tmp/pgs, db `audit` (`create database audit template lt`). Run: `python3 tests/audit/pg_audit.py 100`, `python3 tests/audit/site_audit.py 40`. fake_supabase.js accepts `DB.__views` to inject real view output.
 - player.html "Current Season Stats": with a one-week transfer the table shows one row per team ("(one-week transfer)") plus a "Season total" row, instead of summing everything into the home-team row.
+
+## Landing page weekly rule - 28 Oct 2026
+- Root cause of the bug: the Tuesday 8:31 PM-Thursday 11:59 PM "results" / Friday-Tuesday 8:30 PM "upcoming" rule existed only on matches.html; the landing card always showed Upcoming.
+- `index.html` card now switches "Latest Results" (latest match day with scores, scorers, assists) / "Upcoming Matches" using `inUpcomingWindow()` + `etParts()` in common.js (America/New_York). Re-checks every 5 min. Fallbacks: nothing left to play -> results; nothing played -> upcoming; live matches ignored.
+- Tests: `landing_card_tests.py` (20, real clock via Playwright). `harness.py` sets `window.__WEEK_WINDOW='upcoming'` for every other suite unless `Site.real_week=True`.
