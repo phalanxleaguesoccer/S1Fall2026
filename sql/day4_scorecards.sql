@@ -78,7 +78,8 @@ begin
       (2,'Rishabh Devgon','yellow_card',1, 4*60+15, null),
       (2,'Vishnu Mohan','goal',1, 4*60+10, null),
       (2,'Dhruv','goal',2, 8*60+58, null),
-      (2,'Nasiq','goal',2, 6*60+30, null)
+      (2,'Nasiq','goal',2, 6*60+30, null),
+      (2,'Dhruv','player_of_match',null, null, null)
     ) v(n, who, typ, half, remaining, rel)
   loop
     mid := m[r.n];
