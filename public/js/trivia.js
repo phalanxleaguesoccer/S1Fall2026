@@ -324,7 +324,7 @@ function trivBuild(c) {
   // T4. Scored first yet lost
   var sfl = [], sfd = [];
   ordered.forEach(function (m) { var g = goalsBy[m.id] || []; if (!g.length) return; var first = g[0].team, f = gf(m, first), a = gf(m, other(m, first)); if (f < a) sfl.push({ m: m, t: first }); else if (f === a) sfd.push({ m: m, t: first }); });
-  add("sflost", "drama", "💔", "Scored first, still lost",
+  add("sflost", "drama", "💔", "Scored first, then lost the match",
     sfl.length ? plural(sfl.length, "time") : "Never so far", sfd.length ? plural(sfd.length, "more match", "more matches") + " where the first scorer only drew" : "",
     "<h4>Scored first and lost</h4>" + (sfl.length ? rows(sfl.map(function (x) { return [mlink(x.m), esc(T(x.t)), line(x.m)]; }), ["Match", "Team that scored first", "Result"]) : '<p class="muted">None yet.</p>') +
     "<h4>Scored first and drew</h4>" + (sfd.length ? rows(sfd.map(function (x) { return [mlink(x.m), esc(T(x.t)), line(x.m)]; }), ["Match", "Team that scored first", "Result"]) : '<p class="muted">None yet.</p>') +
@@ -417,6 +417,9 @@ function trivBuild(c) {
     "<h4>Captain missing for one or both teams (" + noCap.length + ")</h4><p>" + mlist(noCap) + "</p>" +
     "<h4>No Player of the Match (" + noPotm.length + ")</h4><p>" + mlist(noPotm) + "</p>" +
     note("Comebacks, score-first, halves and fastest/latest goals need goal-by-goal scorecards. Toss cards need a recorded toss. Captain cards need a recorded captain."));
+
+  // "Scored first" is one card: the matches where a team scored first and still lost (the win-rate table moves inside it)
+  (function () { var sfi = items.filter(function (i) { return i.id === "scorefirst"; })[0], lost = items.filter(function (i) { return i.id === "sflost"; })[0]; if (sfi && lost) { lost.detail += sfi.detail; lost.sub = (sfT ? "When a team scored first: " + sf.w + " won, " + sf.d + " drew, " + sf.l + " lost" : lost.sub); items = items.filter(function (i) { return i.id !== "scorefirst"; }); } })();
 
   return items;
 }
