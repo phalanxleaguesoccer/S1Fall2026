@@ -421,6 +421,8 @@ function trivBuild(c) {
   // "Scored first" is one card: the matches where a team scored first and still lost (the win-rate table moves inside it)
   (function () { var sfi = items.filter(function (i) { return i.id === "scorefirst"; })[0], lost = items.filter(function (i) { return i.id === "sflost"; })[0]; if (sfi && lost) { lost.detail += sfi.detail; lost.sub = (sfT ? "When a team scored first: " + sf.w + " won, " + sf.d + " drew, " + sf.l + " lost" : lost.sub); items = items.filter(function (i) { return i.id !== "scorefirst"; }); } })();
 
+  items = items.filter(function (i) { return i.id !== "pen"; });   // penalties/own-goals card removed on request
+
   return items;
 }
 
