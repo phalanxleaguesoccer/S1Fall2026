@@ -1,4 +1,4 @@
--- MATCH DAY 5 (Matches 17-20): scores, toss, lineups (played / rested / absent), captains and every event, from the owner's scorecards.
+-- MATCH DAY 5 (Matches 17-20): scores, toss, lineups (played / rested / absent), captains (all four matches) and every event, from the owner's scorecards.
 --   M17 Scouts FC 4-0 Desi Steelers FC   M18 Renegades 1-1 Muggles FC   M19 Renegades 0-1 Desi Steelers FC   M20 Muggles FC 0-2 Scouts FC
 -- Times were given as TIME REMAINING in the half; they are converted (1st half: played = 10:00 - remaining; 2nd half: played = 10:00 + (10:00 - remaining)).
 -- Safe to re-run: it REPLACES the lineups and events of the four Day 5 matches (this is the base the stats read from).
@@ -56,9 +56,10 @@ begin
     if n_ok <> 1 then raise exception 'Day 5 Match %: "%" is not in either squad of this match', r.n, r.who; end if;
   end loop;
 
-  -- captains (Matches 19 and 20 were not given, so none is recorded for them)
+  -- captains
   for r in
-    select * from (values (1,'Desi Steelers FC','Nasiq'),(1,'Scouts FC','Pradnyal Gandhi'),(2,'Muggles FC','Amritpal Singh'),(2,'Renegades','Dhananjay')) v(n, team, who)
+    select * from (values (1,'Desi Steelers FC','Nasiq'),(1,'Scouts FC','Pradnyal Gandhi'),(2,'Muggles FC','Amritpal Singh'),(2,'Renegades','Dhananjay'),
+      (3,'Desi Steelers FC','Ketan Shilimkar'),(3,'Renegades','Dhananjay'),(4,'Muggles FC','Amritpal Singh'),(4,'Scouts FC','Pradnyal Gandhi')) v(n, team, who)
   loop
     select id into pid from players where full_name = r.who;
     select id into tid from teams where name = r.team;
