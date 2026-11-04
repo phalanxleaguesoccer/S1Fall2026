@@ -77,7 +77,8 @@ begin
       (1,'Sandeep Naik','assist',1, 6*60+10,'Bilal Yaser'),
       (1,'Bilal Yaser','goal',1, 4*60+2,'Bhagyesh Rane'),
       (1,'Bhagyesh Rane','assist',1, 4*60+2,'Bilal Yaser'),
-      (1,'Bilal Yaser','goal',1, 2*60+42,null),
+      (1,'Bilal Yaser','goal',1, 2*60+42,'Bhagyesh Rane'),
+      (1,'Bhagyesh Rane','assist',1, 2*60+42,'Bilal Yaser'),
       (1,'Sandeep Naik','goal',2, 1*60+54,null),
       (1,'Bilal Yaser','player_of_match',null,null,null),
       -- Match 18: Renegades 1-1 Muggles FC
