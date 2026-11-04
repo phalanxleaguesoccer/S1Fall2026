@@ -62,7 +62,7 @@ function recBuild(matches, roster, apps, events) {
   roster = withLoans(roster, apps, matches);   // one-week transfers: see common.js
   var P = {};      // player id -> totals
   var slot = function (pid) {
-    return P[pid] = P[pid] || { id: pid, team_id: null, tr: -1, played: 0, won: 0, drawn: 0, lost: 0, rested: 0, absent: 0, injury: 0, goals: 0, pens: 0, h1: 0, h2: 0, assists: 0, potm: 0, saves: 0, yellow: 0, red: 0, fouls: 0, og: 0, hat: 0, best: 0, bestMatch: null, cap: 0, capW: 0, capD: 0, capL: 0, capGF: 0, capPotm: 0, capDone: 0, gm: {} };
+    return P[pid] = P[pid] || { id: pid, team_id: null, tr: -1, played: 0, won: 0, drawn: 0, lost: 0, rested: 0, absent: 0, injury: 0, injA: 0, injR: 0, goals: 0, pens: 0, h1: 0, h2: 0, assists: 0, potm: 0, saves: 0, yellow: 0, red: 0, fouls: 0, og: 0, hat: 0, best: 0, bestMatch: null, cap: 0, capW: 0, capD: 0, capL: 0, capGF: 0, capPotm: 0, capDone: 0, gm: {} };
   };
   var potmAt = {};
   events.forEach(function (e) { if (e.event_type === "player_of_match") potmAt[e.match_id + "|" + e.player_id] = true; });
@@ -73,8 +73,8 @@ function recBuild(matches, roster, apps, events) {
       if (m.season_id !== r.season_id || (m.home_team_id !== r.team_id && m.away_team_id !== r.team_id) || rosterSkip(r, m)) return;
       var a = appBy[m.id + "|" + r.player_id], st = a ? (a.status || "played") : "pending";   // no lineup row = details pending, or simply not listed: not counted at all (same as the database view and the player page)
       if (st === "pending") return;
-      if (st === "rested") { o.rested++; if (a && a.absent_reason === "injury") o.injury++; return; }
-      if (st === "absent") { o.absent++; if (a && a.absent_reason === "injury") o.injury++; return; }
+      if (st === "rested") { o.rested++; if (a && a.absent_reason === "injury") { o.injury++; o.injR++; } return; }
+      if (st === "absent") { o.absent++; if (a && a.absent_reason === "injury") { o.injury++; o.injA++; } return; }
       o.played++;
       var mine = m.home_team_id === r.team_id ? m.home_score : m.away_score, theirs = m.home_team_id === r.team_id ? m.away_score : m.home_score;
       if (mine > theirs) o.won++; else if (mine < theirs) o.lost++; else o.drawn++;
@@ -263,7 +263,9 @@ function recAvail() {
   var cols = recPCols([{ k: "rested", t: "Rested", get: function (r) { return r.rested; }, val: function (r) { return r.rested; } },
     { k: "absent", t: "Absent", get: function (r) { return r.absent; }, val: function (r) { return r.absent; } },
     { k: "missed", t: "Missed", hl: 1, get: function (r) { return r.rested + r.absent; }, val: function (r) { return r.rested + r.absent; } },
-    { k: "injury", t: "Injury", title: "Missed matches marked as an injury", get: function (r) { return r.injury; }, val: function (r) { return r.injury; } }]);
+    { k: "injA", t: "Absent (injury)", title: "Matches missed (absent) because of an injury", get: function (r) { return r.injA; }, val: function (r) { return r.injA; } },
+    { k: "injR", t: "Rested (injury)", title: "Matches rested because of an injury", get: function (r) { return r.injR; }, val: function (r) { return r.injR; } },
+    { k: "injury", t: "Injury total", title: "Absent + rested because of an injury", hl: 1, get: function (r) { return r.injury; }, val: function (r) { return r.injury; } }]);
   return '<div class="card-title" style="margin-top:0;">Availability</div>' + recTable("avail", cols, rows, "missed", "Nobody has been rested or absent yet.");
 }
 

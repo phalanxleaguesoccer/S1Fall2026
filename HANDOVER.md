@@ -268,3 +268,5 @@ Live-scoring commit(s): `73d0c40`, `409b5b6`, `cd117fe` (details pending + auto-
 - Next: add a "Trivia" button + section to `public/stats.html` (init with `initTrivia(opts)`), after the owner approves the preview.
 
 - `sql/captains_toss_day1_day4.sql` (owner dictated): Day 1 captains (M1-4), Day 4 toss + captains (M13-16). Touches only those 8 matches; Day 1 has no lineups, so captains are added as `played` rows. "Sagar Awate" = player `Sagar` (Desi). Day 4 M2 Muggles captain = Dhruv (Amritpal was rested). Re-running `captains.sql` clears ALL captain flags in the season; re-run this file afterwards.
+
+- Injury (owner dictated, Nov 4): Records > Availability now shows Absent (injury), Rested (injury) and Injury total separately (`js/records.js`: `injA`, `injR`). Data set on the live DB via the Supabase connector: absent_reason='injury' for Vamshi/Rishabh Devgon/Vija absent rows (D5M1, D5M3), Vija rested D4M2, Chirag rested D3M4. Still open: Chirag +1 missed, Vija +2 missed, Vamshi counted 11 missed (Desi has played only 10 matches, 9 absent + 1 rested).
