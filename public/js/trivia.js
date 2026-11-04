@@ -15,6 +15,10 @@ function trivBuild(c) {
   var isDone = {}; done.forEach(function (m) { isDone[m.id] = true; });
   var ev = c.events.filter(function (e) { return isDone[e.match_id]; });
   var n = done.length;
+  // Own goals are ignored in the goal RECORDS (team / day / match / half totals): goals = score minus own goals credited to that side.
+  var ogFor = {}; ev.forEach(function (e) { if (e.event_type === "own_goal" && M[e.match_id]) { var m0 = M[e.match_id], cr = m0.home_team_id === e.team_id ? m0.away_team_id : m0.home_team_id; ogFor[m0.id + "|" + cr] = (ogFor[m0.id + "|" + cr] || 0) + 1; } });
+  function gfx(m, t) { return (m.home_team_id === t ? m.home_score : m.away_score) - (ogFor[m.id + "|" + t] || 0); }
+  function totx(m) { return gfx(m, m.home_team_id) + gfx(m, m.away_team_id); }
   function other(m, t) { return m.home_team_id === t ? m.away_team_id : m.home_team_id; }
   function gf(m, t) { return m.home_team_id === t ? m.home_score : m.away_score; }
   function plural(k, w, ws) { return k + " " + (k === 1 ? w : (ws || w + "s")); }
@@ -76,7 +80,7 @@ function trivBuild(c) {
 
   // =============== GOALS ===============
   // 1. Most goals in the league
-  var teamGoals = TEAMS.map(function (t) { var r = tm.filter(function (x) { return x.t === t; }); return { t: t, g: r.reduce(function (s, x) { return s + x.f; }, 0), ga: r.reduce(function (s, x) { return s + x.a; }, 0), p: r.length }; });
+  var teamGoals = TEAMS.map(function (t) { var r = tm.filter(function (x) { return x.t === t; }); return { t: t, g: r.reduce(function (s, x) { return s + gfx(x.m, x.t); }, 0), ga: r.reduce(function (s, x) { return s + x.a; }, 0), p: r.length }; });
   var pg = {}; ev.forEach(function (e) { if (e.event_type === "goal") { var k = e.player_id; pg[k] = pg[k] || { pid: k, g: 0, ms: {} }; pg[k].g++; pg[k].ms[e.match_id] = 1; } });
   var pgl = Object.keys(pg).map(function (k) { return pg[k]; }).sort(function (a, b) { return b.g - a.g || Object.keys(a.ms).length - Object.keys(b.ms).length; });
   var tw = winners(teamGoals, function (x) { return x.g; }), pw = pgl.length ? winners(pgl, function (x) { return x.g; }) : [];
@@ -88,7 +92,7 @@ function trivBuild(c) {
     note("League total: " + plural(teamGoals.reduce(function (s, x) { return s + x.g; }, 0), "goal") + " in " + plural(n, "match", "matches") + "."));
 
   // 2. Most goals in a day
-  var days = {}; done.forEach(function (m) { var d = days[m.match_day] = days[m.match_day] || { day: m.match_day, g: 0, ms: [], t: {} }; d.g += m.home_score + m.away_score; d.ms.push(m); d.t[m.home_team_id] = (d.t[m.home_team_id] || 0) + m.home_score; d.t[m.away_team_id] = (d.t[m.away_team_id] || 0) + m.away_score; });
+  var days = {}; done.forEach(function (m) { var d = days[m.match_day] = days[m.match_day] || { day: m.match_day, g: 0, ms: [], t: {} }; d.g += totx(m); d.ms.push(m); d.t[m.home_team_id] = (d.t[m.home_team_id] || 0) + gfx(m, m.home_team_id); d.t[m.away_team_id] = (d.t[m.away_team_id] || 0) + gfx(m, m.away_team_id); });
   var dayList = Object.keys(days).map(function (k) { return days[k]; }).sort(function (a, b) { return a.day - b.day; });
   var teamDays = []; dayList.forEach(function (d) { Object.keys(d.t).forEach(function (t) { teamDays.push({ day: d.day, t: t, g: d.t[t] }); }); });
   var pday = {}; ev.forEach(function (e) { if (e.event_type !== "goal") return; var m = M[e.match_id]; var k = e.player_id + "|" + m.match_day; pday[k] = pday[k] || { pid: e.player_id, day: m.match_day, g: 0 }; pday[k].g++; });
@@ -102,24 +106,24 @@ function trivBuild(c) {
     (pdl.length ? "<h4>Biggest player days</h4>" + rows(top(pdl, function (x) { return x.g; }, 5).map(function (x) { return [c.pl(x.pid, P(x.pid)), x.g, "Day " + x.day]; }), ["Player", "Goals", "Day"]) : ""));
 
   // 3. Most goals in a match
-  var byTot = done.slice().sort(function (a, b) { return (b.home_score + b.away_score) - (a.home_score + a.away_score); });
-  var recTot = byTot.length ? byTot[0].home_score + byTot[0].away_score : 0;
-  var recMatches = byTot.filter(function (m) { return m.home_score + m.away_score === recTot; });
+  var byTot = done.slice().sort(function (a, b) { return totx(b) - totx(a); });
+  var recTot = byTot.length ? totx(byTot[0]) : 0;
+  var recMatches = byTot.filter(function (m) { return totx(m) === recTot; });
   var pmatch = {}; ev.forEach(function (e) { if (e.event_type !== "goal") return; var k = e.player_id + "|" + e.match_id; pmatch[k] = pmatch[k] || { pid: e.player_id, m: M[e.match_id], g: 0 }; pmatch[k].g++; });
   var pml = Object.keys(pmatch).map(function (k) { return pmatch[k]; }).sort(function (a, b) { return b.g - a.g; });
   var margin = done.slice().sort(function (a, b) { return Math.abs(b.home_score - b.away_score) - Math.abs(a.home_score - a.away_score); });
   add("match", "goals", "🔥", "Most goals in a match",
     recTot ? recTot + " goals" : "–",
     (recMatches.length ? "League: " + recMatches.map(function (m) { return line(m); }).join(" · ") : "") + (pml.length ? " · Player: " + names(winners(pml, function (x) { return x.g; }), function (x) { return esc(P(x.pid)); }) + " (" + pml[0].g + ")" : "") + (function () { var tb = []; done.forEach(function (m) { tb.push({ t: m.home_team_id, g: m.home_score, m: m }); tb.push({ t: m.away_team_id, g: m.away_score, m: m }); }); var w = tb.length ? winners(tb, function (x) { return x.g; }) : []; return w.length ? " · Team: " + names(w, function (x) { return esc(T(x.t)); }) + " (" + w[0].g + ")" : ""; })(),
-    "<h4>Highest-scoring matches</h4>" + rows(byTot.slice(0, 8).map(function (m) { return [mlink(m), line(m), m.home_score + m.away_score]; }), ["Match", "Result", "Goals"]) +
+    "<h4>Highest-scoring matches</h4>" + rows(byTot.slice(0, 8).map(function (m) { return [mlink(m), line(m), totx(m)]; }), ["Match", "Result", "Goals (no own goals)"]) +
     "<h4>Biggest winning margins</h4>" + rows(margin.filter(function (m) { return m.home_score !== m.away_score; }).slice(0, 6).map(function (m) { return [mlink(m), line(m), Math.abs(m.home_score - m.away_score)]; }), ["Match", "Result", "Margin"]) +
     (pml.length ? "<h4>Most goals by one player in a match</h4>" + rows(pml.slice(0, 6).map(function (x) { return [c.pl(x.pid, P(x.pid)), x.g, mlink(x.m)]; }), ["Player", "Goals", "Match"]) : ""));
 
   // 4. Most goals in a half
   var halves = [];
-  ordered.forEach(function (m) { [1, 2].forEach(function (h) { var gs = (goalsBy[m.id] || []).filter(function (g) { return g.half === h; }); if (gs.length) { var by = {}; gs.forEach(function (g) { by[g.team] = (by[g.team] || 0) + 1; }); halves.push({ m: m, h: h, tot: gs.length, by: by }); } }); });
+  ordered.forEach(function (m) { [1, 2].forEach(function (h) { var gs = (goalsBy[m.id] || []).filter(function (g) { return g.half === h && !g.og; }); if (gs.length) { var by = {}; gs.forEach(function (g) { by[g.team] = (by[g.team] || 0) + 1; }); halves.push({ m: m, h: h, tot: gs.length, by: by }); } }); });
   var th = []; halves.forEach(function (x) { Object.keys(x.by).forEach(function (t) { th.push({ m: x.m, h: x.h, t: t, g: x.by[t] }); }); });
-  var h1 = 0, h2 = 0; ordered.forEach(function (m) { (goalsBy[m.id] || []).forEach(function (g) { if (g.half === 2) h2++; else h1++; }); });
+  var h1 = 0, h2 = 0; ordered.forEach(function (m) { (goalsBy[m.id] || []).forEach(function (g) { if (g.og) return; if (g.half === 2) h2++; else h1++; }); });
   var halfPl = [];
   var bth = th.length ? winners(th, function (x) { return x.g; }) : [], bh = halves.length ? winners(halves, function (x) { return x.tot; }) : [];
   add("half", "goals", "⏱️", "Most goals in a half",
@@ -286,7 +290,7 @@ function trivBuild(c) {
 
   // =============== MORE TRIVIA ===============
   // L. League at a glance
-  var totG = done.reduce(function (s, m) { return s + m.home_score + m.away_score; }, 0);
+  var totG = done.reduce(function (s, m) { return s + totx(m); }, 0);
   var draws = done.filter(function (m) { return m.home_score === m.away_score; }), oneG = done.filter(function (m) { return Math.abs(m.home_score - m.away_score) === 1; }), bigW = done.filter(function (m) { return Math.abs(m.home_score - m.away_score) >= 3; });
   add("glance", "goals", "📊", "The league at a glance",
     plural(totG, "goal") + " · " + (n ? (totG / n).toFixed(2) : "0") + " per match",
@@ -384,14 +388,14 @@ function trivBuild(c) {
   function trio(pv, tv, lv) { return '<span class="triv-line"><em>Player</em>' + pv + '</span><span class="triv-line"><em>Team</em>' + tv + '</span><span class="triv-line"><em>League</em>' + lv + "</span>"; }
   function setHead(id, html, sub) { items.forEach(function (it) { if (it.id === id) { it.headline = html; it.sub = sub || ""; } }); }
   function nmv(list, f, v) { return list.length ? names(list, f) + " · " + v : "–"; }
-  var mTeam = []; done.forEach(function (m) { mTeam.push({ t: m.home_team_id, g: m.home_score, m: m }); mTeam.push({ t: m.away_team_id, g: m.away_score, m: m }); });
+  var mTeam = []; done.forEach(function (m) { mTeam.push({ t: m.home_team_id, g: gfx(m, m.home_team_id), m: m }); mTeam.push({ t: m.away_team_id, g: gfx(m, m.away_team_id), m: m }); });
   var mTeamBest = mTeam.length ? winners(mTeam, function (x) { return x.g; }) : [];
   var bhl = bh;
-  setHead("lg", trio(pw.length ? nmv(pw, function (x) { return esc(P(x.pid)); }, pw[0].g) : "–", tw.length ? nmv(tw, function (x) { return esc(T(x.t)); }, tw[0].g) : "–", plural(totG, "goal") + " in " + plural(n, "match", "matches")), "Season total. Tap for the full tables.");
-  setHead("day", trio(pdl.length ? nmv(winners(pdl, function (x) { return x.g; }), function (x) { return esc(P(x.pid)) + " (Day " + x.day + ")"; }, Math.max.apply(null, pdl.map(function (x) { return x.g; }))) : "–", btd.length ? nmv(btd, function (x) { return esc(T(x.t)) + " (Day " + x.day + ")"; }, btd[0].g) : "–", bd.length ? "Day " + bd.map(function (d) { return d.day; }).join(" & Day ") + " · " + bd[0].g : "–"), "Most goals on one match day (2 matches per team per day).");
-  setHead("match", trio(pml.length ? nmv(winners(pml, function (x) { return x.g; }), function (x) { return esc(P(x.pid)); }, pml[0].g) : "–", mTeamBest.length ? nmv(mTeamBest, function (x) { return esc(T(x.t)) + " (D" + x.m.match_day + " M" + x.m.match_number + ")"; }, mTeamBest[0].g) : "–", recMatches.length ? recMatches.length + (recMatches.length > 1 ? " matches" : " match") + " · " + recTot : "–"), "League = most goals by both teams in one match.");
+  setHead("lg", trio(pw.length ? nmv(pw, function (x) { return esc(P(x.pid)); }, pw[0].g) : "–", tw.length ? nmv(tw, function (x) { return esc(T(x.t)); }, tw[0].g) : "–", plural(totG, "goal") + " in " + plural(n, "match", "matches")), "Own goals not counted. Tap for the full tables.");
+  setHead("day", trio(pdl.length ? nmv(winners(pdl, function (x) { return x.g; }), function (x) { return esc(P(x.pid)) + " (Day " + x.day + ")"; }, Math.max.apply(null, pdl.map(function (x) { return x.g; }))) : "–", btd.length ? nmv(btd, function (x) { return esc(T(x.t)) + " (Day " + x.day + ")"; }, btd[0].g) : "–", bd.length ? "Day " + bd.map(function (d) { return d.day; }).join(" & Day ") + " · " + bd[0].g : "–"), "Most goals on one match day (2 matches per team per day). Own goals not counted.");
+  setHead("match", trio(pml.length ? nmv(winners(pml, function (x) { return x.g; }), function (x) { return esc(P(x.pid)); }, pml[0].g) : "–", mTeamBest.length ? nmv(mTeamBest, function (x) { return esc(T(x.t)) + " (D" + x.m.match_day + " M" + x.m.match_number + ")"; }, mTeamBest[0].g) : "–", recMatches.length ? recMatches.length + (recMatches.length > 1 ? " matches" : " match") + " · " + recTot : "–"), "League = most goals by both teams in one match. Own goals not counted.");
   var hpl = halfPl.length ? winners(halfPl, function (x) { return x.g; }) : [];
-  setHead("half", trio(hpl.length ? nmv(hpl, function (x) { return esc(P(x.pid)) + " (" + (x.h === 1 ? "1st" : "2nd") + " half, D" + x.m.match_day + " M" + x.m.match_number + ")"; }, hpl[0].g) : "–", bth.length ? nmv(bth, function (x) { return esc(T(x.t)) + " (" + (x.h === 1 ? "1st" : "2nd") + " half, D" + x.m.match_day + " M" + x.m.match_number + ")"; }, bth[0].g) : "–", bhl.length ? nmv(bhl, function (x) { return (x.h === 1 ? "1st" : "2nd") + " half, D" + x.m.match_day + " M" + x.m.match_number; }, bhl[0].tot) : "–"), "Counts matches where the order of goals is known (" + ordered.length + " of " + n + ").");
+  setHead("half", trio(hpl.length ? nmv(hpl, function (x) { return esc(P(x.pid)) + " (" + (x.h === 1 ? "1st" : "2nd") + " half, D" + x.m.match_day + " M" + x.m.match_number + ")"; }, hpl[0].g) : "–", bth.length ? nmv(bth, function (x) { return esc(T(x.t)) + " (" + (x.h === 1 ? "1st" : "2nd") + " half, D" + x.m.match_day + " M" + x.m.match_number + ")"; }, bth[0].g) : "–", bhl.length ? nmv(bhl, function (x) { return (x.h === 1 ? "1st" : "2nd") + " half, D" + x.m.match_day + " M" + x.m.match_number; }, bhl[0].tot) : "–"), "Own goals not counted. Only matches where the order of goals is known (" + ordered.length + " of " + n + ").");
 
   // ---- Kick-off: every way a team ended up starting ----
   var kickAll = TEAMS.map(function (t) { var r = tm.filter(function (x) { return x.t === t && x.kicked === true; }); var viaStart = r.filter(function (x) { return x.choice === "kickoff"; }), viaOpp = r.filter(function (x) { return x.choice !== "kickoff"; }); var tv = tally(viaStart), to = tally(viaOpp); return [c.tl(t, T(t)), r.length, viaStart.length, wdl(tv), viaOpp.length, wdl(to), wdl(tally(r))]; });
