@@ -3,18 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sponsors — Phalanx League Soccer</title>
+<title>Branding &amp; Sponsors — Phalanx League Soccer</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="icon" type="image/png" href="assets/brand/favicon.png">
 </head>
 <body>
 
 <div class="container">
-  <h1>Sponsors</h1>
-  <p class="muted">The businesses that support Phalanx League Soccer. Please visit them and say thanks.</p>
+  <h1>Branding &amp; Sponsors</h1>
+  <p class="muted">The businesses that support Phalanx League Soccer, and the music behind the league.</p>
   <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+  <nav class="page-jump" aria-label="On this page"><a href="#sponsors">Sponsors</a><a href="#music">Theme music</a><a href="#composer">Composer</a></nav>
 
-    <section class="spx" id="sponsors" aria-label="Sponsors">
+  <section class="spx" id="sponsors" aria-label="Sponsors">
     <div class="spx-head"><h2>Proudly supported by</h2><i></i></div>
     <article class="spx-feat" id="sponsor-tropical">
       <div class="spx-l">
@@ -44,16 +45,59 @@
     <p class="spx-thanks">Thank you to our sponsors for supporting Phalanx League Soccer.</p>
   </section>
 
+  <section class="tm" id="music" aria-label="Theme music">
+    <div class="spx-head"><h2>Theme music &amp; composer</h2><i></i></div>
+    <div class="tm-grid">
+      <div class="tm-track">
+        <img class="tm-art" src="assets/music/theme-english.jpg" alt="English theme music cover art" loading="lazy">
+        <div class="tm-body">
+          <div><span class="tm-lang">English</span><h3 class="tm-title">Phalanx League Theme &ndash; English</h3></div>
+          <div class="tm-ctl">
+            <button type="button" class="tm-play" aria-label="Play"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+            <input class="tm-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek English theme music">
+            <span class="tm-time">0:00 / 0:00</span>
+          </div>
+          <audio preload="none" src="assets/music/theme-english.mp3"></audio>
+        </div>
+      </div>
+      <div class="tm-track">
+        <img class="tm-art" src="assets/music/theme-hindi.jpg" alt="Hindi theme music cover art" loading="lazy">
+        <div class="tm-body">
+          <div><span class="tm-lang">Hindi</span><h3 class="tm-title">Phalanx League Theme &ndash; Hindi</h3></div>
+          <div class="tm-ctl">
+            <button type="button" class="tm-play" aria-label="Play"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+            <input class="tm-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek Hindi theme music">
+            <span class="tm-time">0:00 / 0:00</span>
+          </div>
+          <audio preload="none" src="assets/music/theme-hindi.mp3"></audio>
+        </div>
+      </div>
+    </div>
+    <p class="tm-note">Tap play to listen. Only one track plays at a time.</p>
+      <div class="tm-comp" id="composer" aria-label="Music producer">
+      <div class="tm-avatar" aria-hidden="true">ST</div>
+      <div class="tm-who">
+        <span class="spx-kicker">Music producer</span>
+        <h3>Sumit Tandon</h3>
+        <p>Composed and produced both league theme tracks. More of his work is on his YouTube channel, Tape Studioz.</p>
+      </div>
+      <a class="tm-yt" href="https://youtube.com/@tapestudioz?si=_bwFl2KwO3N7BUwX" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z"/></svg>Watch on YouTube</a>
+    </div>
+  </section>
+
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/supabase-client.js"></script>
 <script src="js/common.js"></script>
+<script src="js/music.js"></script>
 <script>
 renderHeader("sponsors.html");
+initThemeMusic();
 renderFooter();
-renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Sponsors" }]);
+renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Branding & Sponsors" }]);
 trackPageView("sponsors").then(function (count) {
   document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
 });

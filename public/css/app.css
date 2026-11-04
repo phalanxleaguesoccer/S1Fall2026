@@ -421,3 +421,50 @@ body.spp-open { overflow:hidden; }
 .spp-close:hover { background:var(--card-edge-2); }
 @media (max-width:640px) { .spp-grid { grid-template-columns:1fr; } .spp-box { padding:22px 16px 14px; } }
 @media (prefers-reduced-motion:reduce) { .spp { animation:none; } }
+
+/* ---- Theme music (Branding & Sponsors page + opening pop-up) ---- */
+.tm{position:relative;border-radius:var(--radius);border:1px solid var(--card-edge);background:linear-gradient(160deg,#1d1a12 0%,var(--card-charcoal) 55%);padding:22px;margin-top:16px;overflow:hidden;scroll-margin-top:84px}
+.tm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.tm-track{display:flex;gap:14px;align-items:center;border:1px solid var(--card-edge-2);background:var(--card-charcoal);border-radius:14px;padding:14px;min-width:0}
+.tm-track.on{border-color:var(--amber);box-shadow:0 0 0 1px rgba(231,169,61,.35)}
+.tm-art{width:84px;height:84px;border-radius:10px;object-fit:cover;flex:none;background:#000}
+.tm-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.tm-lang{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);font-weight:800}
+.tm-title{margin:0;font-size:1.05rem;line-height:1.25;font-family:'Work Sans',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-weight:800;letter-spacing:0;text-transform:none;color:var(--chalk-white)}
+.tm-ctl{display:flex;align-items:center;gap:10px}
+.tm-play{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--coral);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.tm-play:hover{filter:brightness(1.12)}
+.tm-play svg{width:20px;height:20px;fill:currentColor}
+.tm-play .i-pause{display:none}
+.tm-play.playing .i-play{display:none}
+.tm-play.playing .i-pause{display:block}
+.tm-seek{flex:1;min-width:0;height:28px;accent-color:var(--amber);cursor:pointer;background:transparent}
+.tm-time{flex:none;font-size:.78rem;color:var(--chalk-dim);font-variant-numeric:tabular-nums;min-width:5.6em;text-align:right}
+.tm-note{margin:12px 0 0;font-size:.78rem;color:var(--chalk-dim)}
+.tm-comp{margin-top:14px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;border:1px solid var(--card-edge-2);background:var(--card-charcoal);border-radius:14px;padding:16px 20px;scroll-margin-top:84px}
+.tm-comp:target,.tm:target{outline:2px solid var(--amber);outline-offset:2px}
+.tm-avatar{flex:none;width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--amber),var(--coral));color:#1C1C1F;font-family:'Anton',Impact,sans-serif;font-size:1.5rem;letter-spacing:.02em}
+.tm-comp .tm-who{flex:1 1 260px;min-width:0}
+.tm-comp h3{margin:2px 0 0;font-size:1.3rem}
+.tm-comp p{margin:6px 0 0;color:var(--chalk-dim);font-size:.92rem}
+.tm-yt{display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-weight:800;font-size:.9rem;border-radius:10px;padding:11px 18px;background:#C4302B;color:#fff;border:1px solid #C4302B}
+.tm-yt:hover{filter:brightness(1.12)}
+.tm-yt svg{width:20px;height:20px;fill:currentColor}
+.page-jump{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0}
+.page-jump a{font-size:.82rem;font-weight:700;text-decoration:none;color:var(--chalk-white);border:1px solid var(--card-edge-2);background:rgba(0,0,0,.25);border-radius:999px;padding:7px 14px}
+.page-jump a:hover{background:var(--card-edge-2)}
+@media(max-width:820px){.tm{padding:16px}.tm-grid{grid-template-columns:1fr}}
+@media(max-width:420px){.tm-art{width:64px;height:64px}.tm-time{min-width:0}}
+
+/* theme-music pop-up (reuses .spp shell) */
+.spp-box.tmp{width:min(520px,100%)}
+.tmp-top{display:flex;gap:16px;align-items:center}
+.tmp-top .tm-art{width:104px;height:104px}
+.tmp-top .tm-body{gap:10px}
+.tmp-comp{display:flex;align-items:center;gap:12px;margin-top:16px;padding:10px 12px;border:1px solid var(--card-edge-2);border-radius:12px;background:var(--card-charcoal);text-decoration:none;color:var(--chalk-white)}
+.tmp-comp:hover{border-color:var(--amber)}
+.tmp-comp .tm-avatar{width:44px;height:44px;font-size:1.05rem}
+.tmp-comp span{display:block;font-size:.72rem;color:var(--chalk-dim)}
+.tmp-comp b{display:block;font-size:.98rem}
+.tmp-comp em{margin-left:auto;font-style:normal;color:var(--amber);font-weight:800;font-size:.82rem;white-space:nowrap}
+@media(max-width:420px){.tmp-top{flex-direction:column;align-items:stretch}.tmp-top .tm-art{width:100%;height:auto;aspect-ratio:1/1;max-height:220px}}

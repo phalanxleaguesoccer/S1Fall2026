@@ -8,7 +8,7 @@ function renderHeader(activePage) {
     ["teams.html", "Teams"],
     ["players.html", "Players"],
     ["auction.html", "Auction"],
-    ["sponsors.html", "Sponsors"],
+    ["sponsors.html", "Branding &amp; Sponsors"],
     ["admin/login.html", "Admin"]
   ];
   var nav = links.map(function (l) {
@@ -353,9 +353,10 @@ function etParts(d) {
 function inUpcomingWindow(d) { if (window.__WEEK_WINDOW) return window.__WEEK_WINDOW === "upcoming"; var e = etParts(d);   /* __WEEK_WINDOW: test hook only */ return e.dow === 5 || e.dow === 6 || e.dow === 0 || e.dow === 1 || (e.dow === 2 && e.min <= 20 * 60 + 30); }
 function rosterSkip(r, m) { return r.loan ? !r.loanMatches[m.id] : !!(r.skipDays && r.skipDays[m.match_day]); }
 
-// ---- Sponsor pop-up ----
-// Shown once per browser session (the first public page a visitor opens). Close with the X, the Close button, Esc or a click outside.
-// Skipped on admin pages, on the Sponsors page itself and for automated browsers (window.__FORCE_SPONSOR_POPUP overrides this for tests).
+// ---- Theme-music pop-up (replaces the old sponsor pop-up) ----
+// Shown once per browser session (the first public page a visitor opens). Music never autoplays: the visitor taps play.
+// Close with the X, the Close button, Esc or a click outside. Skipped on admin pages, on the Branding & Sponsors page itself
+// and for automated browsers (window.__FORCE_SPONSOR_POPUP overrides this for tests). PHALANX_CONFIG.SPONSOR_POPUP === false turns it off.
 function maybeShowSponsorPopup() {
   try {
     if (window.IN_ADMIN_DIR || /sponsors\.html$/.test(location.pathname)) return;
@@ -368,44 +369,49 @@ function maybeShowSponsorPopup() {
 function openSponsorPopup() {
   if (document.getElementById("spp")) return;
   var prev = document.activeElement;
-  var store = "https://locations.tropicalsmoothiecafe.com/pa/pittsburgh/322-mcholme-dr";
   var html =
     '<div class="spp" id="spp" role="dialog" aria-modal="true" aria-labelledby="spp-title">' +
-      '<div class="spp-box">' +
+      '<div class="spp-box tmp">' +
         '<button type="button" class="spp-x" id="spp-x" aria-label="Close">&times;</button>' +
-        '<div class="spp-kicker">Proudly supported by</div>' +
-        '<h2 id="spp-title">Our Sponsors</h2>' +
-        '<div class="spp-grid">' +
-          '<div class="spp-s">' +
-            '<a class="spp-logo" href="' + store + '" target="_blank" rel="noopener sponsored"><img src="assets/sponsors/tropical-smoothie-cafe.png" alt="Tropical Smoothie Cafe"></a>' +
-            '<h3>Tropical Smoothie Cafe &ndash; Robinson</h3>' +
-            '<p>322 McHolme Dr, Pittsburgh, PA 15275<br><a href="tel:+14125058126">(412) 505-8126</a></p>' +
-            '<div class="spp-acts"><a class="spp-b" href="' + store + '" target="_blank" rel="noopener sponsored">Visit the store &rarr;</a>' +
-            '<a class="spp-b alt" href="https://www.google.com/maps/dir/?api=1&destination=322+McHolme+Dr,+Pittsburgh,+PA+15275" target="_blank" rel="noopener">Directions</a></div>' +
-          '</div>' +
-          '<div class="spp-s">' +
-            '<a class="spp-logo navy" href="https://www.easeourtrip.com/" target="_blank" rel="noopener sponsored"><img src="assets/sponsors/easeourtrip.png" alt="EaseOurTrip"></a>' +
-            '<h3>EaseOurTrip</h3>' +
-            '<p>Compare and book flights, hotels and holidays.</p>' +
-            '<div class="spp-acts"><a class="spp-b" href="https://www.easeourtrip.com/" target="_blank" rel="noopener sponsored">Visit website &rarr;</a></div>' +
+        '<div class="spp-kicker">Theme music</div>' +
+        '<h2 id="spp-title">Listen to the league theme</h2>' +
+        '<div class="tmp-top">' +
+          '<img class="tm-art" src="assets/music/theme-english.jpg" alt="English theme music cover art">' +
+          '<div class="tm-body">' +
+            '<div><span class="tm-lang">English</span><h3 class="tm-title">Phalanx League Theme &ndash; English</h3></div>' +
+            '<div class="tm-ctl">' +
+              '<button type="button" class="tm-play" id="spp-play" aria-label="Play"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>' +
+              '<input class="tm-seek" id="spp-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek theme music">' +
+              '<span class="tm-time" id="spp-time">0:00 / 0:00</span>' +
+            '</div>' +
           '</div>' +
         '</div>' +
-        '<div class="spp-foot"><a href="sponsors.html">See all sponsors</a><button type="button" class="spp-close" id="spp-close">Close</button></div>' +
+        '<audio id="spp-audio" preload="none" src="assets/music/theme-english.mp3"></audio>' +
+        '<a class="tmp-comp" href="sponsors.html#composer"><div class="tm-avatar" aria-hidden="true">ST</div><div><span>Music producer</span><b>Sumit Tandon</b></div><em>View profile &rarr;</em></a>' +
+        '<div class="spp-foot"><a href="sponsors.html#music">Hindi version &amp; sponsors</a><button type="button" class="spp-close" id="spp-close">Close</button></div>' +
       '</div>' +
     '</div>';
   document.body.insertAdjacentHTML("beforeend", html);
   document.body.classList.add("spp-open");
-  var el = document.getElementById("spp");
+  var el = document.getElementById("spp"), au = document.getElementById("spp-audio"), pb = document.getElementById("spp-play"), sk = document.getElementById("spp-seek"), tt = document.getElementById("spp-time");
+  function fmt(s) { if (!isFinite(s)) return "0:00"; var m = Math.floor(s / 60), r = Math.floor(s % 60); return m + ":" + (r < 10 ? "0" : "") + r; }
+  function paint() { tt.textContent = fmt(au.currentTime) + " / " + fmt(au.duration); if (au.duration) sk.value = String(Math.round(au.currentTime / au.duration * 1000)); }
+  pb.addEventListener("click", function () { if (au.paused) { var p = au.play(); if (p && p.catch) p.catch(function () {}); } else au.pause(); });
+  au.addEventListener("play", function () { pb.classList.add("playing"); pb.setAttribute("aria-label", "Pause"); });
+  au.addEventListener("pause", function () { pb.classList.remove("playing"); pb.setAttribute("aria-label", "Play"); });
+  au.addEventListener("ended", function () { au.currentTime = 0; paint(); });
+  au.addEventListener("timeupdate", paint); au.addEventListener("loadedmetadata", paint);
+  sk.addEventListener("input", function () { if (au.duration) au.currentTime = au.duration * sk.value / 1000; });
   function close() {
     document.removeEventListener("keydown", onKey);
-    el.remove(); document.body.classList.remove("spp-open");
+    au.pause(); el.remove(); document.body.classList.remove("spp-open");
     try { sessionStorage.setItem("phalanx_sponsor_popup", "1"); } catch (e) {}
     try { if (prev && prev.focus) prev.focus(); } catch (e) {}
   }
   function onKey(e) {
     if (e.key === "Escape") { close(); return; }
     if (e.key === "Tab") {   // keep keyboard focus inside the pop-up
-      var f = el.querySelectorAll("a[href],button"); if (!f.length) return;
+      var f = el.querySelectorAll("a[href],button,input"); if (!f.length) return;
       var first = f[0], last = f[f.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
