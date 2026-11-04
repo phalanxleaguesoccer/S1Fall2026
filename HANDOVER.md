@@ -266,3 +266,5 @@ Live-scoring commit(s): `73d0c40`, `409b5b6`, `cd117fe` (details pending + auto-
 - `public/trivia-preview.html` (unlinked, noindex) reads LIVE data and renders `public/js/trivia.js` + `public/css/trivia.css`. `trivBuild(ctx)` is pure. 33 cards incl. a "Data check" card listing matches with no toss, goals missing/unordered, no captain, no Player of the Match.
 - Goal cards (league/day/match/half) each show Player / Team / League records. Comeback, score-first, halves use matches whose goal ORDER is known (each goal has a half; goals without exact times in a half must be one team's). Fastest/latest goals need exact times.
 - Next: add a "Trivia" button + section to `public/stats.html` (init with `initTrivia(opts)`), after the owner approves the preview.
+
+- `sql/captains_toss_day1_day4.sql` (owner dictated): Day 1 captains (M1-4), Day 4 toss + captains (M13-16). Touches only those 8 matches; Day 1 has no lineups, so captains are added as `played` rows. "Sagar Awate" = player `Sagar` (Desi). Day 4 M2 Muggles captain = Dhruv (Amritpal was rested). Re-running `captains.sql` clears ALL captain flags in the season; re-run this file afterwards.
