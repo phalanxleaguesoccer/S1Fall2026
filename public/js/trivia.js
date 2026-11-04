@@ -426,6 +426,121 @@ function trivBuild(c) {
   return items;
 }
 
+
+// =====================================================================
+// Stat explorer: pick filters (team, toss, kick-off, half-time, scorer, captain ...) and see the matching matches + totals.
+// One row per team per match. Filters that need data a match does not have (toss, goal order) skip that match and say so.
+// =====================================================================
+function trivRows(c) {
+  var T = c.tname, P = c.pname, M = {};
+  c.matches.forEach(function (m) { M[m.id] = m; });
+  var done = c.matches.filter(function (m) { return m.status === "completed" && m.home_score != null && m.away_score != null; }).sort(function (a, b) { return (a.match_day - b.match_day) || (a.match_number - b.match_number); });
+  var isDone = {}; done.forEach(function (m) { isDone[m.id] = 1; });
+  var goals = {}, byM = {};
+  c.events.forEach(function (e) {
+    if (!isDone[e.match_id]) return;
+    (byM[e.match_id] = byM[e.match_id] || []).push(e);
+    if (e.event_type !== "goal" && e.event_type !== "own_goal") return;
+    var m = M[e.match_id], sec = e.minute != null ? e.minute * 60 + (e.second || 0) : (e.time_remaining != null && e.half ? (e.half === 2 ? 2 * TRIV_HALF : TRIV_HALF) - e.time_remaining : null);
+    var half = e.half || (sec != null ? (sec >= TRIV_HALF ? 2 : 1) : null), team = e.event_type === "goal" ? e.team_id : (m.home_team_id === e.team_id ? m.away_team_id : m.home_team_id);
+    (goals[m.id] = goals[m.id] || []).push({ team: team, pid: e.player_id, og: e.event_type === "own_goal", half: half, sec: sec });
+  });
+  function key(g) { return (g.half || 3) * 100000 + (g.sec == null ? 99999 : g.sec); }
+  function isOrdered(m) {
+    var g = goals[m.id] || []; if (g.length !== m.home_score + m.away_score) return false;
+    if (!g.every(function (x) { return x.half != null; })) return false;
+    return [1, 2].every(function (h) { var a = g.filter(function (x) { return x.half === h; }); if (a.every(function (x) { return x.sec != null; })) return true; var t = {}; a.forEach(function (x) { t[x.team] = 1; }); return Object.keys(t).length <= 1; });
+  }
+  var caps = {}, played = {};
+  c.apps.forEach(function (a) { if (!isDone[a.match_id]) return; if (a.is_captain) caps[a.match_id + "|" + a.team_id] = a.player_id; if (a.status === "played") (played[a.match_id + "|" + a.team_id] = played[a.match_id + "|" + a.team_id] || []).push(a.player_id); });
+  var rows = [];
+  done.forEach(function (m) {
+    var ord = isOrdered(m), g = (goals[m.id] || []).slice().sort(function (a, b) { return key(a) - key(b); });
+    var tw = m.toss_winner_team_id && m.toss_choice ? m.toss_winner_team_id : null;
+    [m.home_team_id, m.away_team_id].forEach(function (t) {
+      var o = t === m.home_team_id ? m.away_team_id : m.home_team_id, f = t === m.home_team_id ? m.home_score : m.away_score, a = t === m.home_team_id ? m.away_score : m.home_score;
+      var kick = tw ? (m.toss_choice === "kickoff" ? tw === t : tw !== t) : null;   // Start: toss winner kicks off; Side: the other team kicks off
+      var first = null, ht = null, h1 = null, h2 = null;
+      if (f + a === 0) { first = "none"; ht = "level"; h1 = 0; h2 = 0; }
+      else if (ord) {
+        first = g[0].team === t ? "scored" : "conceded";
+        var hf = g.filter(function (x) { return x.half === 1 && x.team === t; }).length, ha = g.filter(function (x) { return x.half === 1 && x.team !== t; }).length;
+        ht = hf > ha ? "lead" : hf < ha ? "trail" : "level"; h1 = hf; h2 = f - hf;
+      }
+      var scorers = (goals[m.id] || []).filter(function (x) { return x.team === t && !x.og; }).map(function (x) { return x.pid; });
+      rows.push({ m: m, t: t, o: o, f: f, a: a, res: f > a ? "W" : f < a ? "L" : "D", day: m.match_day, toss: tw ? (tw === t ? "won" : "lost") : null, choice: tw ? m.toss_choice : null, kick: kick,
+        first: first, ht: ht, h1: h1, h2: h2, cap: caps[m.id + "|" + t] || null, scorers: scorers, played: played[m.id + "|" + t] || [], hasLineup: !!played[m.id + "|" + t] });
+    });
+  });
+  return rows;
+}
+
+var TRIV_EX = { rows: [], f: {}, ctx: null };
+function trivBucket(n, max) { return n == null ? null : (n >= max ? max + "+" : String(n)); }
+function trivExDefs() {
+  var c = TRIV_EX.ctx, T = c.tname, P = c.pname, rows = TRIV_EX.rows;
+  var teams = {}, days = {}, caps = {}, sc = {}, pl = {};
+  rows.forEach(function (r) { teams[r.t] = 1; days[r.day] = 1; if (r.cap) caps[r.cap] = 1; r.scorers.forEach(function (p) { sc[p] = 1; }); r.played.forEach(function (p) { pl[p] = 1; }); });
+  function byName(o) { return Object.keys(o).map(function (id) { return [id, P(id)]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); }); }
+  var tl = Object.keys(teams).map(function (id) { return [id, T(id)]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); });
+  var dl = Object.keys(days).map(Number).sort(function (a, b) { return a - b; }).map(function (d) { return [String(d), "Day " + d]; });
+  return [
+    { k: "t", label: "Team", opts: tl, test: function (r, v) { return r.t === v; } },
+    { k: "o", label: "Opponent", opts: tl, test: function (r, v) { return r.o === v; } },
+    { k: "day", label: "Match day", opts: dl, test: function (r, v) { return String(r.day) === v; } },
+    { k: "res", label: "Result", opts: [["W", "Won"], ["D", "Drew"], ["L", "Lost"]], test: function (r, v) { return r.res === v; } },
+    { k: "toss", label: "Toss", opts: [["won", "Won the toss"], ["lost", "Lost the toss"]], need: "toss", test: function (r, v) { return r.toss === v; } },
+    { k: "choice", label: "Toss winner chose", opts: [["kickoff", "Start (kick-off)"], ["side", "Side"]], need: "choice", test: function (r, v) { return r.choice === v; } },
+    { k: "kick", label: "Kick-off", opts: [["y", "Started the match"], ["n", "Did not start"]], need: "kick", test: function (r, v) { return r.kick === (v === "y"); } },
+    { k: "first", label: "First goal", opts: [["scored", "Scored first"], ["conceded", "Conceded first"], ["none", "No goals in match"]], need: "first", test: function (r, v) { return r.first === v; } },
+    { k: "ht", label: "At half-time", opts: [["lead", "Leading"], ["level", "Level"], ["trail", "Trailing"]], need: "ht", test: function (r, v) { return r.ht === v; } },
+    { k: "h1", label: "Goals in 1st half", opts: [["0", "0"], ["1", "1"], ["2", "2 or more"]], need: "h1", test: function (r, v) { return trivBucket(r.h1, 2) === (v === "2" ? "2+" : v); } },
+    { k: "h2", label: "Goals in 2nd half", opts: [["0", "0"], ["1", "1"], ["2", "2 or more"]], need: "h2", test: function (r, v) { return trivBucket(r.h2, 2) === (v === "2" ? "2+" : v); } },
+    { k: "gf", label: "Goals scored", opts: [["0", "0"], ["1", "1"], ["2", "2"], ["3", "3 or more"]], test: function (r, v) { return trivBucket(r.f, 3) === (v === "3" ? "3+" : v); } },
+    { k: "ga", label: "Goals conceded", opts: [["0", "0 (clean sheet)"], ["1", "1"], ["2", "2"], ["3", "3 or more"]], test: function (r, v) { return trivBucket(r.a, 3) === (v === "3" ? "3+" : v); } },
+    { k: "cap", label: "Captain", opts: byName(caps), need: "cap", test: function (r, v) { return r.cap === v; } },
+    { k: "scorer", label: "Scorer in the match", opts: byName(sc), test: function (r, v) { return r.scorers.indexOf(v) >= 0; } },
+    { k: "pl", label: "Player who played", opts: byName(pl), need: "hasLineup", test: function (r, v) { return r.played.indexOf(v) >= 0; } }
+  ];
+}
+function trivExRun() {
+  var c = TRIV_EX.ctx, T = c.tname, esc = c.esc, defs = TRIV_EX.defs, F = TRIV_EX.f, rows = TRIV_EX.rows;
+  var act = defs.filter(function (d) { return F[d.k]; });
+  var ok = [], skipped = [];
+  rows.forEach(function (r) {
+    var no = false, unk = false;
+    act.forEach(function (d) { var has = !d.need || (d.need === "hasLineup" ? r.hasLineup : r[d.need] != null); if (!has) { unk = true; return; } if (!d.test(r, F[d.k])) no = true; });
+    if (no) return; if (unk) skipped.push(r); else ok.push(r);
+  });
+  var w = ok.filter(function (r) { return r.res === "W"; }).length, d = ok.filter(function (r) { return r.res === "D"; }).length, l = ok.filter(function (r) { return r.res === "L"; }).length;
+  var gf = ok.reduce(function (s, r) { return s + r.f; }, 0), ga = ok.reduce(function (s, r) { return s + r.a; }, 0), n = ok.length;
+  var desc = act.length ? act.map(function (x) { var o = x.opts.filter(function (z) { return z[0] === F[x.k]; })[0]; return x.label + ": " + (o ? o[1] : F[x.k]); }).join(" · ") : "No filters yet: showing every team in every match.";
+  var sumTxt = (act.length ? desc : "All team-matches") + " → " + n + (n === 1 ? " match" : " matches") + (n ? ": " + w + "W " + d + "D " + l + "L (" + Math.round(100 * w / n) + "% wins), goals " + gf + "–" + ga : "");
+  TRIV_EX.summary = sumTxt;
+  var tile = function (v, t) { return '<div class="triv-tile"><b>' + v + "</b><span>" + t + "</span></div>"; };
+  var html = '<div class="triv-ex-desc">' + esc(desc) + "</div>" +
+    '<div class="triv-tiles">' + tile(n, "Matches") + tile(w + "-" + d + "-" + l, "W-D-L") + tile(n ? Math.round(100 * w / n) + "%" : "–", "Win rate") + tile(gf, "Goals for") + tile(ga, "Goals against") + tile(n ? (gf >= ga ? "+" : "") + (gf - ga) : "–", "Goal diff") + tile(n ? (gf / n).toFixed(2) : "–", "Goals / match") + "</div>";
+  if (skipped.length) html += '<p class="muted triv-note">' + skipped.length + " more team-match" + (skipped.length === 1 ? "" : "es") + " could not be checked because the toss, goal order, captain or lineup is not recorded for them.</p>";
+  html += n ? '<div class="table-scroll"><table class="data-table triv-table"><thead><tr><th>Match</th><th>Team</th><th>Opponent</th><th class="num">Score</th><th>Result</th><th>Toss</th><th>Kick-off</th><th>First goal</th><th>Half-time</th></tr></thead><tbody>' + ok.map(function (r) {
+      return "<tr><td>" + c.ml(r.m, "Day " + r.m.match_day + " · M" + r.m.match_number) + "</td><td>" + c.tl(r.t, T(r.t)) + "</td><td>" + c.tl(r.o, T(r.o)) + '</td><td class="num">' + r.f + "–" + r.a + "</td><td>" + (r.res === "W" ? "Won" : r.res === "D" ? "Drew" : "Lost") + "</td><td>" + (r.toss ? (r.toss === "won" ? "Won, chose " : "Lost, they chose ") + (r.choice === "kickoff" ? "Start" : "Side") : "–") + "</td><td>" + (r.kick == null ? "–" : r.kick ? "Started" : "Did not") + "</td><td>" + (r.first == null ? "–" : r.first === "scored" ? "Scored first" : r.first === "conceded" ? "Conceded first" : "No goals") + "</td><td>" + (r.ht == null ? "–" : r.ht === "lead" ? "Leading" : r.ht === "trail" ? "Trailing" : "Level") + "</td></tr>"; }).join("") + "</tbody></table></div>" : '<p class="muted">No matches fit these filters.</p>';
+  document.getElementById("triv-ex-out").innerHTML = html;
+}
+function trivExRender() {
+  var box = document.getElementById("triv-ex"); if (!box) return;
+  var c = TRIV_EX.ctx; TRIV_EX.defs = trivExDefs();
+  box.innerHTML = '<h3 class="triv-ex-title">Build your own stat</h3><p class="muted triv-ex-lead">Pick any mix of filters. Every pick narrows the matches; the totals update at once. Each row is one team in one match.</p>' +
+    '<div class="triv-ex-grid">' + TRIV_EX.defs.map(function (d) { return '<label class="triv-ex-f"><span>' + d.label + '</span><select data-k="' + d.k + '"><option value="">Any</option>' + d.opts.map(function (o) { return '<option value="' + c.esc(o[0]) + '"' + (TRIV_EX.f[d.k] === o[0] ? " selected" : "") + ">" + c.esc(o[1]) + "</option>"; }).join("") + "</select></label>"; }).join("") + "</div>" +
+    '<div class="triv-ex-btns"><button type="button" id="triv-ex-reset">Reset</button><button type="button" id="triv-ex-copy">Copy summary</button><span class="muted" id="triv-ex-msg"></span></div><div id="triv-ex-out"></div>';
+  box.querySelector(".triv-ex-grid").addEventListener("change", function (e) { var s = e.target.closest("select"); if (!s) return; TRIV_EX.f[s.getAttribute("data-k")] = s.value; trivExRun(); });
+  document.getElementById("triv-ex-reset").addEventListener("click", function () { TRIV_EX.f = {}; trivExRender(); });
+  document.getElementById("triv-ex-copy").addEventListener("click", function () {
+    var txt = "Phalanx League Soccer stat: " + TRIV_EX.summary, msg = document.getElementById("triv-ex-msg");
+    function fallback() { var ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); msg.textContent = "Copied."; } catch (e) { msg.textContent = "Select and copy: " + txt; } document.body.removeChild(ta); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { msg.textContent = "Copied."; }, fallback); else fallback();
+  });
+  trivExRun();
+}
+
 // ---------- page ----------
 function renderTrivia() {
   var box = document.getElementById("triv-body");
@@ -455,10 +570,14 @@ async function loadTrivia() {
   var ids = matches.map(function (m) { return m.id; });
   var events = ids.length ? await recFetchAll("match_events", ids) : [];
   var apps = ids.length ? await recFetchAll("match_appearances", ids) : [];
-  TRIV.items = trivBuild({ matches: matches, events: events, apps: apps, esc: escapeHtml,
+  var TRIV_CTX = { matches: matches, events: events, apps: apps, esc: escapeHtml,
     tname: function (id) { return (TEAMS[id] && TEAMS[id].name) || "?"; }, pname: function (id) { return (PLAYERS[id] && PLAYERS[id].full_name) || (typeof pname === "function" ? pname(id) : "?"); },
-    ml: function (m, label) { return matchLink(m, label); }, pl: function (id, name) { return playerLink(id, name); }, tl: function (id, name) { return teamLink(id, name); } });
+    ml: function (m, label) { return matchLink(m, label); }, pl: function (id, name) { return playerLink(id, name); }, tl: function (id, name) { return teamLink(id, name); } };
+  TRIV.items = trivBuild(TRIV_CTX);
   TRIV.loaded = true;
+  TRIV_EX.ctx = TRIV_CTX;
+  TRIV_EX.rows = trivRows(TRIV_EX.ctx); TRIV_EX.f = {};
+  trivExRender();
   renderTrivia();
 }
 function initTrivia(seasonOpts) {
