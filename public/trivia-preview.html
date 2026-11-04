@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Trivia preview — Phalanx League Soccer</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/trivia.css">
+<link rel="icon" type="image/png" href="assets/brand/favicon.png">
+</head>
+<body class="wide-page">
+<div class="container">
+  <h1>Trivia <span class="muted" style="font-size:.9rem;">preview</span></h1>
+  <p class="muted">Live data from the league database. Not linked from the site yet: this is the draft of the Stats &rsaquo; Trivia tab. Open the "What the trivia can and cannot see" card to check for gaps.</p>
+  <div class="filters"><div><label class="muted" for="triv-season">Season</label><select id="triv-season"></select></div></div>
+  <div class="triv-chips" id="triv-chips"></div>
+  <div class="triv-count muted" id="triv-count"></div>
+  <div class="triv-grid" id="triv-body"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/common.js"></script>
+<script src="js/records.js"></script>
+<script src="js/trivia.js"></script>
+<script>
+var TEAMS = {}, PLAYERS = {}, SEASONS = [];
+function pname(id) { return PLAYERS[id] ? PLAYERS[id].full_name : "?"; }
+(async function () {
+  var sRes = await window.sb.from("seasons").select("*").order("created_at", { ascending: false });
+  SEASONS = sRes.data || [];
+  (await window.sb.from("teams").select("*")).data.forEach(function (t) { TEAMS[t.id] = t; });
+  (await window.sb.from("players").select("id, full_name")).data.forEach(function (p) { PLAYERS[p.id] = p; });
+  var cur = SEASONS.find(function (s) { return s.is_current; }) || SEASONS[0];
+  var opts = SEASONS.map(function (s) { return '<option value="' + s.id + '"' + (cur && s.id === cur.id ? " selected" : "") + ">" + escapeHtml(s.name) + "</option>"; }).join("");
+  initTrivia(opts + '<option value="all">All seasons (career)</option>');
+  loadTrivia();
+})();
+</script>
+</body>
+</html>

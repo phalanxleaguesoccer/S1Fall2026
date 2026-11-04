@@ -261,3 +261,8 @@ Live-scoring commit(s): `73d0c40`, `409b5b6`, `cd117fe` (details pending + auto-
 ## Day 5 scorecards (Matches 17-20) - 3 Nov 2026
 - `sql/day5_scorecards.sql` (owner dictated; times are TIME REMAINING). M17 Scouts 4-0 Desi, M18 Renegades 1-1 Muggles, M19 Renegades 0-1 Desi, M20 Muggles 0-2 Scouts. Records toss, lineups (rested/absent), captains for all four matches (M19/M20 added later), goals, assists, yellow cards, fouls, Player of the Match. REPLACES lineups/events of the four Day 5 matches (safe to re-run); scores are counted from the goals and the script stops if they differ from the owner's scores.
 - Assumed: Nasiq's yellow in M19 "1 min 20 sec" = remaining; Dhananjay's yellow AND foul both recorded; "Rishabh" = Rishabh Devgon, "Dheeraj" = Dheeraj R Vatti, "Bilal" = Bilal Yaser. Tested on scratch Postgres (runs twice; audit_data_consistency.sql silent for Day 5).
+
+## Trivia (preview, not yet in the Stats tabs)
+- `public/trivia-preview.html` (unlinked, noindex) reads LIVE data and renders `public/js/trivia.js` + `public/css/trivia.css`. `trivBuild(ctx)` is pure. 33 cards incl. a "Data check" card listing matches with no toss, goals missing/unordered, no captain, no Player of the Match.
+- Goal cards (league/day/match/half) each show Player / Team / League records. Comeback, score-first, halves use matches whose goal ORDER is known (each goal has a half; goals without exact times in a half must be one team's). Fastest/latest goals need exact times.
+- Next: add a "Trivia" button + section to `public/stats.html` (init with `initTrivia(opts)`), after the owner approves the preview.
