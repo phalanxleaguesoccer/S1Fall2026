@@ -67,7 +67,7 @@ begin
   -- ---------- 3. events of Match 1 (= Match 13) and Match 2 (= Match 14); half, time REMAINING in seconds, related player ----------
   for r in
     select * from (values
-      (1,'Minti','own_goal',1, 8*60+10, null::text),
+      (1,'Kartik','goal',1, 8*60+10, null::text),   -- was recorded as a Minti own goal; corrected to a Kartik (Scouts FC) goal, same time
       (1,'Sagar SJ','goal',1, 6*60+52, 'Pradnyal Gandhi'),
       (1,'Pradnyal Gandhi','assist',1, 6*60+52, 'Sagar SJ'),
       (1,'Bhagyesh Rane','goal',2, 0*60+20, 'Pradnyal Gandhi'),
