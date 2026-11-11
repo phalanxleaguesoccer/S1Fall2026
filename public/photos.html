@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photos — Phalanx League Soccer</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" type="image/png" href="assets/brand/favicon.png">
+</head>
+<body>
+
+<div class="container">
+  <h1>Photos</h1>
+  <p class="muted">Moments from the matches, newest first. Filter by match day.</p>
+  <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
+  <div class="ph-filters" id="ph-filters" role="group" aria-label="Filter by match day"></div>
+  <p class="ph-count" id="ph-count" aria-live="polite"></p>
+  <div id="ph-body"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/common.js"></script>
+<script src="js/photos-data.js"></script>
+<script>
+renderHeader("photos.html");
+renderFooter();
+renderBreadcrumbs([{ label: "Home", href: "index.html" }, { label: "Photos" }]);
+trackPageView("photos").then(function (count) {
+  document.getElementById("page-views").textContent = "Page viewed " + formatViewCount(count);
+});
+
+(function () {
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  // newest first: higher match day first; within a day the later entry in photos-data.js first
+  var list = PHOTOS.map(function (p, i) { p._i = i; return p; }).sort(function (a, b) { return b.day - a.day || b._i - a._i; });
+  var days = []; list.forEach(function (p) { if (days.indexOf(p.day) < 0) days.push(p.day); });
+  var sel = "all";
+  function fromHash() { var m = /^#day-(\d+)$/.exec(location.hash); sel = m && days.indexOf(+m[1]) >= 0 ? +m[1] : "all"; }
+  function chip(val, label, n) { return '<button type="button" class="ph-chip' + (sel === val ? " on" : "") + '" data-day="' + val + '" aria-pressed="' + (sel === val) + '">' + label + "<span>" + n + "</span></button>"; }
+  var shown = [];
+  function card(p, idx) {
+    return '<figure class="ph-card"><button type="button" data-i="' + idx + '" aria-label="Open photo: ' + esc(p.title) + '"><img src="' + esc(p.thumb || p.file) + '" alt="' + esc(p.alt || p.title) + '" loading="lazy"></button>' +
+      '<figcaption><b>' + esc(p.title) + "</b>Match Day " + p.day + (p.credit ? '<span class="ph-credit">Pic courtesy: ' + esc(p.credit) + "</span>" : "") + "</figcaption></figure>";
+  }
+  function render() {
+    document.getElementById("ph-filters").innerHTML = chip("all", "All", list.length) + days.map(function (d) { return chip(d, "Day " + d, list.filter(function (p) { return p.day === d; }).length); }).join("");
+    shown = list.filter(function (p) { return sel === "all" || p.day === sel; });
+    var body = document.getElementById("ph-body");
+    if (!shown.length) { body.innerHTML = '<p class="ph-empty">No photos yet.</p>'; document.getElementById("ph-count").textContent = ""; return; }
+    var html = "", idx = 0;
+    days.forEach(function (d) {
+      var g = shown.filter(function (p) { return p.day === d; }); if (!g.length) return;
+      html += '<section class="ph-group"><h2>Match Day ' + d + '</h2><div class="ph-grid">' + g.map(function (p) { return card(p, shown.indexOf(p)); }).join("") + "</div></section>";
+    });
+    body.innerHTML = html;
+    document.getElementById("ph-count").textContent = shown.length + (shown.length === 1 ? " photo" : " photos") + (sel === "all" ? "" : " from Match Day " + sel);
+  }
+  document.getElementById("ph-filters").addEventListener("click", function (e) {
+    var b = e.target.closest(".ph-chip"); if (!b) return;
+    var v = b.getAttribute("data-day"); sel = v === "all" ? "all" : +v;
+    history.replaceState(null, "", sel === "all" ? location.pathname + location.search : "#day-" + sel); render();
+  });
+  document.getElementById("ph-body").addEventListener("click", function (e) { var b = e.target.closest("button[data-i]"); if (b) open(+b.getAttribute("data-i"), b); });
+  window.addEventListener("hashchange", function () { fromHash(); render(); });
+
+  var box = null, cur = 0, opener = null;
+  function show() {
+    var p = shown[cur];
+    box.querySelector("img").src = p.file; box.querySelector("img").alt = p.alt || p.title;
+    box.querySelector(".phl-cap").innerHTML = "<b>" + esc(p.title) + "</b><br>Match Day " + p.day + (p.credit ? '<span class="ph-credit">Pic courtesy: ' + esc(p.credit) + "</span>" : "") + "<br><span class='muted' style='font-size:.78rem'>" + (cur + 1) + " / " + shown.length + "</span>";
+    box.querySelector(".phl-p").hidden = box.querySelector(".phl-n").hidden = shown.length < 2;
+  }
+  function step(d) { cur = (cur + d + shown.length) % shown.length; show(); }
+  function onKey(e) {
+    if (e.key === "Escape") close(); else if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1);
+    else if (e.key === "Tab") { var f = box.querySelectorAll("button:not([hidden])"); if (!f.length) return; var a = f[0], z = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); } }
+  }
+  function open(i, from) {
+    cur = i; opener = from;
+    document.body.insertAdjacentHTML("beforeend", '<div class="phl" id="phl" role="dialog" aria-modal="true" aria-label="Photo viewer"><button type="button" class="phl-x" aria-label="Close">&times;</button><button type="button" class="phl-p" aria-label="Previous photo">&#8249;</button><img alt=""><div class="phl-cap"></div><button type="button" class="phl-n" aria-label="Next photo">&#8250;</button></div>');
+    box = document.getElementById("phl"); document.body.style.overflow = "hidden";
+    box.querySelector(".phl-x").onclick = close; box.querySelector(".phl-p").onclick = function () { step(-1); }; box.querySelector(".phl-n").onclick = function () { step(1); };
+    box.addEventListener("click", function (e) { if (e.target === box) close(); });
+    document.addEventListener("keydown", onKey); show(); box.querySelector(".phl-x").focus();
+  }
+  function close() { document.removeEventListener("keydown", onKey); box.remove(); box = null; document.body.style.overflow = ""; try { opener && opener.focus(); } catch (e) {} }
+
+  fromHash(); render();
+})();
+</script>
+</body>
+</html>

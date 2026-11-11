@@ -8,6 +8,7 @@ function renderHeader(activePage) {
     ["teams.html", "Teams"],
     ["players.html", "Players"],
     ["auction.html", "Auction"],
+    ["photos.html", "Photos"],
     ["sponsors.html", "Branding &amp; Sponsors"],
     ["admin/login.html", "Admin"]
   ];
