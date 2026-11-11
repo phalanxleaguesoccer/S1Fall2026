@@ -37,22 +37,26 @@ trackPageView("photos").then(function (count) {
   // newest first: higher match day first; within a day the later entry in photos-data.js first
   var list = PHOTOS.map(function (p, i) { p._i = i; return p; }).sort(function (a, b) { return b.day - a.day || b._i - a._i; });
   var days = []; list.forEach(function (p) { if (days.indexOf(p.day) < 0) days.push(p.day); });
-  var sel = "all", tagOn = false, TAG = "Owner facilitation";
-  function fromHash() { sel = "all"; tagOn = false; location.hash.replace(/^#/, "").split("&").forEach(function (x) { var m = /^day-(\d+)$/.exec(x); if (m && days.indexOf(+m[1]) >= 0) sel = +m[1]; if (x === "owner") tagOn = true; }); }
-  function toHash() { var h = []; if (sel !== "all") h.push("day-" + sel); if (tagOn) h.push("owner"); history.replaceState(null, "", h.length ? "#" + h.join("&") : location.pathname + location.search); }
+  var sel = "all", tagSel = "";
+  var tags = []; list.forEach(function (p) { if (p.tag && tags.indexOf(p.tag) < 0) tags.push(p.tag); });
+  function slug(t) { return t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+  function fromHash() { sel = "all"; tagSel = ""; location.hash.replace(/^#/, "").split("&").forEach(function (x) { var m = /^day-(\d+)$/.exec(x); if (m && days.indexOf(+m[1]) >= 0) sel = +m[1]; tags.forEach(function (t) { if (x === slug(t) || (x === "owner" && t === "Owner facilitation")) tagSel = t; }); }); }
+  function toHash() { var h = []; if (sel !== "all") h.push("day-" + sel); if (tagSel) h.push(slug(tagSel)); history.replaceState(null, "", h.length ? "#" + h.join("&") : location.pathname + location.search); }
   function creditHtml(p) { return p.credit ? '<span class="ph-credit">Pic courtesy: ' + (p.creditId ? '<a href="player.html?id=' + esc(p.creditId) + '">' + esc(p.credit) + "</a>" : esc(p.credit)) + "</span>" : ""; }
   function tagHtml(p) { return p.tag ? '<span class="ph-tag">' + esc(p.tag) + "</span>" : ""; }
-  function chip(val, label, n, isTag) { var on = isTag ? tagOn : sel === val; return '<button type="button" class="ph-chip' + (on ? " on" : "") + '" ' + (isTag ? 'data-tag="1"' : 'data-day="' + val + '"') + ' aria-pressed="' + on + '">' + label + "<span>" + n + "</span></button>"; }
+  function chip(val, label, n, isTag) { var on = isTag ? tagSel === val : sel === val; return '<button type="button" class="ph-chip' + (on ? " on" : "") + '" ' + (isTag ? 'data-tag="' + esc(val) + '"' : 'data-day="' + val + '"') + ' aria-pressed="' + on + '">' + label + "<span>" + n + "</span></button>"; }
   var shown = [];
   function card(p, idx) {
     return '<figure class="ph-card"><button type="button" data-i="' + idx + '" aria-label="Open photo: ' + esc(p.title) + '"><img src="' + esc(p.thumb || p.file) + '" alt="' + esc(p.alt || p.title) + '" loading="lazy"' + (p.pos ? ' style="object-position:' + esc(p.pos) + '"' : "") + '></button>' +
       '<figcaption><b>' + esc(p.title) + "</b>Match Day " + p.day + tagHtml(p) + creditHtml(p) + "</figcaption></figure>";
   }
   function render() {
-    var pool = list.filter(function (p) { return !tagOn || p.tag === TAG; });
+    var pool = list.filter(function (p) { return !tagSel || p.tag === tagSel; });
     document.getElementById("ph-filters").innerHTML = chip("all", "All days", pool.length) + days.map(function (d) { return chip(d, "Day " + d, pool.filter(function (p) { return p.day === d; }).length); }).join("");
-    var nTag = list.filter(function (p) { return p.tag === TAG && (sel === "all" || p.day === sel); }).length;
-    document.getElementById("ph-tags").innerHTML = nTag || tagOn ? chip("owner", TAG, nTag, true) : "";
+    document.getElementById("ph-tags").innerHTML = tags.map(function (t) {
+      var n = list.filter(function (p) { return p.tag === t && (sel === "all" || p.day === sel); }).length;
+      return n || tagSel === t ? chip(t, esc(t), n, true) : "";
+    }).join("");
     shown = pool.filter(function (p) { return sel === "all" || p.day === sel; });
     var body = document.getElementById("ph-body");
     if (!shown.length) { body.innerHTML = '<p class="ph-empty">No photos yet.</p>'; document.getElementById("ph-count").textContent = ""; return; }
@@ -62,11 +66,11 @@ trackPageView("photos").then(function (count) {
       html += '<section class="ph-group"><h2>Match Day ' + d + '</h2><div class="ph-grid">' + g.map(function (p) { return card(p, shown.indexOf(p)); }).join("") + "</div></section>";
     });
     body.innerHTML = html;
-    document.getElementById("ph-count").textContent = shown.length + (shown.length === 1 ? " photo" : " photos") + (sel === "all" ? "" : " from Match Day " + sel) + (tagOn ? " \u00b7 " + TAG : "");
+    document.getElementById("ph-count").textContent = shown.length + (shown.length === 1 ? " photo" : " photos") + (sel === "all" ? "" : " from Match Day " + sel) + (tagSel ? " \u00b7 " + tagSel : "");
   }
   function onChip(e) {
     var b = e.target.closest(".ph-chip"); if (!b) return;
-    if (b.hasAttribute("data-tag")) tagOn = !tagOn; else { var v = b.getAttribute("data-day"); sel = v === "all" ? "all" : +v; }
+    if (b.hasAttribute("data-tag")) { var t = b.getAttribute("data-tag"); tagSel = tagSel === t ? "" : t; } else { var v = b.getAttribute("data-day"); sel = v === "all" ? "all" : +v; }
     toHash(); render();
   }
   document.getElementById("ph-filters").addEventListener("click", onChip);
