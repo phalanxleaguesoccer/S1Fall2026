@@ -38,10 +38,10 @@ function renderHomeRecords(matches, all) {
   if (!D.done.length) { box.innerHTML = '<div class="hr-head">Tournament records</div><div class="card"><p class="muted" style="margin:0;">Records appear after the first result.</p></div>'; return; }
   var rows = recStandRows();
   var goals = D.done.reduce(function (s, m) { return s + m.home_score + m.away_score; }, 0), n = D.done.length;
-  var cs = rows.reduce(function (s, r) { return s + r.cs; }, 0);
+  var cs = D.done.filter(function (m) { return m.home_score === 0 || m.away_score === 0; }).length;   // league clean sheets: matches where at least one team conceded nothing (a 0-0 counts once)
   var goalless = D.done.filter(function (m) { return m.home_score === 0 && m.away_score === 0; });
   var total = matches.length, lastDay = Math.max.apply(null, D.done.map(function (m) { return m.match_day; })), maxDay = Math.max.apply(null, matches.map(function (m) { return m.match_day; }));
-  var tiles = [[n, "matches played"], [goals, "goals"], [(goals / n).toFixed(2), "goals per match"], [cs, "clean sheets"]].map(function (t) { return '<div class="hr-tile"><b>' + t[0] + "</b><span>" + t[1] + "</span></div>"; }).join("");
+  var tiles = [[n, "matches played"], [goals, "goals"], [(goals / n).toFixed(2), "goals per match"], [cs, "clean sheets", "Matches where at least one team kept a clean sheet (a 0\u20130 counts once)"]].map(function (t) { return '<div class="hr-tile"' + (t[2] ? ' title="' + t[2] + '"' : "") + '><b>' + t[0] + "</b><span>" + t[1] + "</span></div>"; }).join("");
   var glance = '<div class="card"><div class="card-title">Tournament at a glance</div><div class="hr-tiles">' + tiles + "</div>" +
     (all ? "" : '<div class="hr-prog"><i style="width:' + Math.min(100, n / total * 100) + '%"></i></div><div class="muted" style="font-size:.72rem;">' + n + " of " + total + " matches played &middot; Match Day " + lastDay + " of " + maxDay + " &middot; " + goalless.length + " goalless draw" + (goalless.length === 1 ? "" : "s") + "</div>") + "</div>";
   // team records (ties listed together)
