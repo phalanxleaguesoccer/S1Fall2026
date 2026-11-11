@@ -153,7 +153,7 @@ function recRanks(rows, val, dir) {
 }
 
 // generic leaderboard table. cols: [{k, t, title, l (left aligned), get(r) html, val(r) sort value, hl}]
-function recTable(id, cols, rows, defKey, emptyText) {
+function recTable(id, cols, rows, defKey, emptyText, tie) {
   if (!rows.length) return '<p class="muted">' + emptyText + "</p>";
   var st = REC.sort && REC.sort.view === id ? REC.sort : { view: id, key: defKey, dir: -1 };
   var col = cols.filter(function (c) { return c.k === st.key; })[0] || cols.filter(function (c) { return c.k === defKey; })[0];
@@ -161,9 +161,9 @@ function recTable(id, cols, rows, defKey, emptyText) {
     var x = col.val(a), y = col.val(b);
     if (typeof x === "string" || typeof y === "string") return st.dir * String(x).localeCompare(String(y)) || pname(a.id).localeCompare(pname(b.id));
     if (x == null) x = -Infinity; if (y == null) y = -Infinity;
-    return st.dir * (x - y) || pname(a.id || "").localeCompare(pname(b.id || ""));
+    return st.dir * (x - y) || (tie && col.k === defKey ? tie(a) - tie(b) : 0) || pname(a.id || "").localeCompare(pname(b.id || ""));
   });
-  var rk = recRanks(sorted, function (r) { return col.val(r); }, st.dir);
+  var rk = recRanks(sorted, tie && col.k === defKey ? function (r) { return col.val(r) + "|" + tie(r); } : function (r) { return col.val(r); }, st.dir);
   var arrow = function (c) { return c.k === col.k ? (st.dir > 0 ? " ▲" : " ▼") : ""; };
   var h = '<div class="table-scroll"><table class="data-table rec-table"><thead><tr><th class="num">#</th>' +
     cols.map(function (c) { return '<th class="' + (c.l ? "team-name " : "") + 'sortable' + (c.k === col.k ? " sorted" : "") + '" data-rsort="' + c.k + '" data-rview="' + id + '" title="' + (c.title || "") + '">' + c.t + arrow(c) + "</th>"; }).join("") +
@@ -187,7 +187,7 @@ function recStats() {
   var per = function (k) { return function (r) { return recElig(r) ? recRate(r[k], r.played) : null; }; };
   var perShow = function (k) { return function (r) { return recElig(r) ? recFmt(recRate(r[k], r.played), 2) : "–"; }; };
   return {
-    goals: { title: "Most goals", key: "goals", min: 1, show: function (r) { return r.goals; }, val: function (r) { return r.goals; },
+    goals: { title: "Most goals", key: "goals", min: 1, tie: function (r) { return r.red * 3 + r.yellow; }, show: function (r) { return r.goals; }, val: function (r) { return r.goals; },
       cols: recPCols([{ k: "goals", t: "Goals", hl: 1, get: function (r) { return r.goals; }, val: function (r) { return r.goals; } },
         { k: "pm", t: "Per match", title: "Goals per match (needs the minimum matches)", get: perShow("goals"), val: per("goals") },
         { k: "pens", t: "Penalties", get: function (r) { return r.pens; }, val: function (r) { return r.pens; } },
@@ -215,8 +215,8 @@ function recStats() {
 function recTop(def, n) {
   var rows = REC.data.players.filter(function (o) { return recTeamOk(o) && (def.minElig ? (recElig(o)) : (o.played + o.rested + o.absent + o.goals + o.assists + o.potm + o.saves + o.yellow + o.red + o.fouls + o.cap > 0)); });
   if (!def.asc && def.min) rows = rows.filter(function (o) { return def.val(o) >= def.min; });
-  rows.sort(function (a, b) { return (def.asc ? 1 : -1) * (def.val(a) - def.val(b)) || (def.asc ? b.played - a.played : 0) || pname(a.id).localeCompare(pname(b.id)); });
-  var rk = recRanks(rows, def.val);
+  rows.sort(function (a, b) { return (def.asc ? 1 : -1) * (def.val(a) - def.val(b)) || (def.tie ? def.tie(a) - def.tie(b) : 0) || (def.asc ? b.played - a.played : 0) || pname(a.id).localeCompare(pname(b.id)); });
+  var rk = recRanks(rows, def.tie ? function (r) { return def.val(r) + "|" + def.tie(r); } : def.val);
   return rows.slice(0, n).map(function (r, i) { return { r: r, rank: rk.ranks[i], tied: rk.tied[i] }; });
 }
 
@@ -243,7 +243,7 @@ function recPlayerBoard(statKey) {
   var def = recStats()[statKey];
   var rows = REC.data.players.filter(function (o) { return recTeamOk(o) && def.val(o) >= 1; });
   return '<div class="card-title" style="margin-top:0;">' + def.title + "</div>" +
-    recTable(statKey, def.cols, rows, def.key, "Nothing recorded yet.") +
+    recTable(statKey, def.cols, rows, def.key, "Nothing recorded yet.", def.tie) +
     '<p class="note">Ties share a rank. Click a heading to sort. Per match needs ' + REC.minM + "+ matches. Names, teams and matches are links.</p>";
 }
 
