@@ -1,0 +1,39 @@
+/* ---- Champions pop-up (winner + runner-up, confetti and fireworks) ---- */
+body.cpp-open{overflow:hidden}
+.cpp{position:fixed;inset:0;z-index:10000;background:radial-gradient(ellipse at 50% 30%,rgba(40,30,8,.82),rgba(3,8,6,.94) 70%);display:flex;align-items:center;justify-content:center;padding:16px;animation:cppf .35s ease}
+@keyframes cppf{from{opacity:0}to{opacity:1}}
+.cpp-fx{position:absolute;z-index:2;inset:0;width:100%;height:100%;pointer-events:none}
+.cpp-box{position:relative;z-index:1;width:min(560px,100%);max-height:calc(100vh - 32px);overflow:auto;text-align:center;
+  background:linear-gradient(165deg,#1b2a22 0%,#1C1C1F 55%,#241d0d 100%);border:1px solid rgba(231,169,61,.55);border-radius:18px;padding:26px 22px 18px;
+  box-shadow:0 0 0 1px rgba(255,214,120,.12),0 0 60px rgba(231,169,61,.28),0 20px 60px rgba(0,0,0,.6);animation:cppin .6s cubic-bezier(.2,1.2,.3,1)}
+@keyframes cppin{from{transform:translateY(24px) scale(.92);opacity:0}to{transform:none;opacity:1}}
+.cpp-x{position:absolute;top:10px;right:12px;width:40px;height:40px;border-radius:50%;border:1px solid var(--card-edge-2);background:rgba(0,0,0,.35);color:var(--chalk-white);font-size:1.6rem;line-height:1;cursor:pointer}
+.cpp-x:hover{background:var(--coral);border-color:var(--coral)}
+.cpp-kicker{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);font-weight:800}
+.cpp-title{margin:2px 0 14px;font-family:'Anton',Impact,'Arial Narrow',sans-serif;font-weight:400;font-size:clamp(2.2rem,9vw,3.4rem);letter-spacing:.06em;line-height:1.05;text-transform:uppercase;
+  background:linear-gradient(100deg,#b8862a 0%,#ffe9a6 22%,#e7a93d 40%,#fff6d2 52%,#e7a93d 64%,#b8862a 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:cppshine 3.2s linear infinite}
+@keyframes cppshine{from{background-position:120% 0}to{background-position:-130% 0}}
+.cpp-trophy{display:block;width:74px;height:74px;margin:0 auto 4px;cursor:pointer;filter:drop-shadow(0 0 14px rgba(255,205,90,.65));animation:cppfloat 3s ease-in-out infinite}
+@keyframes cppfloat{50%{transform:translateY(-4px) rotate(-2deg)}}
+.cpp-win{position:relative;padding:18px 14px 16px;border-radius:16px;border:1px solid rgba(231,169,61,.7);background:linear-gradient(180deg,rgba(231,169,61,.18),rgba(231,169,61,.04));overflow:hidden}
+.cpp-win::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(255,240,190,.22) 50%,transparent 60%);transform:translateX(-120%);animation:cppsweep 3.6s ease-in-out infinite;pointer-events:none}
+@keyframes cppsweep{55%,100%{transform:translateX(120%)}}
+.cpp-logo{display:block;margin:0 auto;border-radius:16px;overflow:hidden;border:3px solid #e7a93d;box-shadow:0 0 0 3px rgba(231,169,61,.25),0 0 26px rgba(231,169,61,.45)}
+.cpp-win .cpp-logo{width:132px;height:132px}
+.cpp-logo img{display:block;width:100%;height:100%;object-fit:contain}
+.cpp-name{margin:12px 0 2px;font-size:1.7rem;line-height:1.15;font-family:'Anton',Impact,'Arial Narrow',sans-serif;font-weight:400;letter-spacing:.04em;text-transform:uppercase;color:var(--chalk-white)}
+.cpp-role{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:var(--amber)}
+.cpp-stats{margin-top:8px;font-size:.9rem;color:var(--chalk-dim);font-variant-numeric:tabular-nums}
+.cpp-stats b{color:var(--chalk-white)}
+.cpp-run{margin-top:14px;display:flex;align-items:center;justify-content:center;gap:14px;text-align:left;padding:12px 14px;border-radius:14px;border:1px solid rgba(200,205,215,.4);background:linear-gradient(180deg,rgba(200,205,215,.12),rgba(200,205,215,.03))}
+.cpp-run .cpp-logo{width:68px;height:68px;flex:none;border-radius:12px;border:2px solid #C9CED6;box-shadow:0 0 16px rgba(200,205,215,.3)}
+.cpp-run .cpp-role{color:#C9CED6}
+.cpp-run .cpp-name{margin:2px 0 0;font-size:1.25rem}
+.cpp-run .cpp-stats{margin-top:4px;font-size:.82rem}
+.cpp-thanks{margin:14px 0 0;font-size:.85rem;color:var(--chalk-dim)}
+.cpp-foot{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.cpp-b{flex:1 1 150px;text-align:center;text-decoration:none;font-weight:800;font-size:.9rem;border-radius:10px;padding:11px 16px;border:1px solid var(--amber);background:var(--amber);color:#1C1C1F;font-family:inherit;cursor:pointer}
+.cpp-b.alt{background:rgba(0,0,0,.3);border-color:var(--card-edge-2);color:var(--chalk-white)}
+.cpp-b:hover{filter:brightness(1.1)}
+@media(max-width:420px){.cpp-win .cpp-logo{width:108px;height:108px}.cpp-name{font-size:1.45rem}}
+@media(prefers-reduced-motion:reduce){.cpp,.cpp-box,.cpp-title,.cpp-trophy,.cpp-win::after{animation:none}.cpp-fx{display:none}}
