@@ -14,6 +14,7 @@
   <p class="muted">Moments from the matches, newest first. Filter by match day.</p>
   <p class="muted" id="page-views" style="font-size:0.82rem;"></p>
   <div class="ph-filters" id="ph-filters" role="group" aria-label="Filter by match day"></div>
+  <div class="ph-filters ph-tags" id="ph-tags" role="group" aria-label="Filter by type"></div>
   <p class="ph-count" id="ph-count" aria-live="polite"></p>
   <div id="ph-body"></div>
 </div>
@@ -36,17 +37,23 @@ trackPageView("photos").then(function (count) {
   // newest first: higher match day first; within a day the later entry in photos-data.js first
   var list = PHOTOS.map(function (p, i) { p._i = i; return p; }).sort(function (a, b) { return b.day - a.day || b._i - a._i; });
   var days = []; list.forEach(function (p) { if (days.indexOf(p.day) < 0) days.push(p.day); });
-  var sel = "all";
-  function fromHash() { var m = /^#day-(\d+)$/.exec(location.hash); sel = m && days.indexOf(+m[1]) >= 0 ? +m[1] : "all"; }
-  function chip(val, label, n) { return '<button type="button" class="ph-chip' + (sel === val ? " on" : "") + '" data-day="' + val + '" aria-pressed="' + (sel === val) + '">' + label + "<span>" + n + "</span></button>"; }
+  var sel = "all", tagOn = false, TAG = "Owner facilitation";
+  function fromHash() { sel = "all"; tagOn = false; location.hash.replace(/^#/, "").split("&").forEach(function (x) { var m = /^day-(\d+)$/.exec(x); if (m && days.indexOf(+m[1]) >= 0) sel = +m[1]; if (x === "owner") tagOn = true; }); }
+  function toHash() { var h = []; if (sel !== "all") h.push("day-" + sel); if (tagOn) h.push("owner"); history.replaceState(null, "", h.length ? "#" + h.join("&") : location.pathname + location.search); }
+  function creditHtml(p) { return p.credit ? '<span class="ph-credit">Pic courtesy: ' + (p.creditId ? '<a href="player.html?id=' + esc(p.creditId) + '">' + esc(p.credit) + "</a>" : esc(p.credit)) + "</span>" : ""; }
+  function tagHtml(p) { return p.tag ? '<span class="ph-tag">' + esc(p.tag) + "</span>" : ""; }
+  function chip(val, label, n, isTag) { var on = isTag ? tagOn : sel === val; return '<button type="button" class="ph-chip' + (on ? " on" : "") + '" ' + (isTag ? 'data-tag="1"' : 'data-day="' + val + '"') + ' aria-pressed="' + on + '">' + label + "<span>" + n + "</span></button>"; }
   var shown = [];
   function card(p, idx) {
-    return '<figure class="ph-card"><button type="button" data-i="' + idx + '" aria-label="Open photo: ' + esc(p.title) + '"><img src="' + esc(p.thumb || p.file) + '" alt="' + esc(p.alt || p.title) + '" loading="lazy"></button>' +
-      '<figcaption><b>' + esc(p.title) + "</b>Match Day " + p.day + (p.credit ? '<span class="ph-credit">Pic courtesy: ' + esc(p.credit) + "</span>" : "") + "</figcaption></figure>";
+    return '<figure class="ph-card"><button type="button" data-i="' + idx + '" aria-label="Open photo: ' + esc(p.title) + '"><img src="' + esc(p.thumb || p.file) + '" alt="' + esc(p.alt || p.title) + '" loading="lazy"' + (p.pos ? ' style="object-position:' + esc(p.pos) + '"' : "") + '></button>' +
+      '<figcaption><b>' + esc(p.title) + "</b>Match Day " + p.day + tagHtml(p) + creditHtml(p) + "</figcaption></figure>";
   }
   function render() {
-    document.getElementById("ph-filters").innerHTML = chip("all", "All", list.length) + days.map(function (d) { return chip(d, "Day " + d, list.filter(function (p) { return p.day === d; }).length); }).join("");
-    shown = list.filter(function (p) { return sel === "all" || p.day === sel; });
+    var pool = list.filter(function (p) { return !tagOn || p.tag === TAG; });
+    document.getElementById("ph-filters").innerHTML = chip("all", "All days", pool.length) + days.map(function (d) { return chip(d, "Day " + d, pool.filter(function (p) { return p.day === d; }).length); }).join("");
+    var nTag = list.filter(function (p) { return p.tag === TAG && (sel === "all" || p.day === sel); }).length;
+    document.getElementById("ph-tags").innerHTML = nTag || tagOn ? chip("owner", TAG, nTag, true) : "";
+    shown = pool.filter(function (p) { return sel === "all" || p.day === sel; });
     var body = document.getElementById("ph-body");
     if (!shown.length) { body.innerHTML = '<p class="ph-empty">No photos yet.</p>'; document.getElementById("ph-count").textContent = ""; return; }
     var html = "", idx = 0;
@@ -55,13 +62,15 @@ trackPageView("photos").then(function (count) {
       html += '<section class="ph-group"><h2>Match Day ' + d + '</h2><div class="ph-grid">' + g.map(function (p) { return card(p, shown.indexOf(p)); }).join("") + "</div></section>";
     });
     body.innerHTML = html;
-    document.getElementById("ph-count").textContent = shown.length + (shown.length === 1 ? " photo" : " photos") + (sel === "all" ? "" : " from Match Day " + sel);
+    document.getElementById("ph-count").textContent = shown.length + (shown.length === 1 ? " photo" : " photos") + (sel === "all" ? "" : " from Match Day " + sel) + (tagOn ? " \u00b7 " + TAG : "");
   }
-  document.getElementById("ph-filters").addEventListener("click", function (e) {
+  function onChip(e) {
     var b = e.target.closest(".ph-chip"); if (!b) return;
-    var v = b.getAttribute("data-day"); sel = v === "all" ? "all" : +v;
-    history.replaceState(null, "", sel === "all" ? location.pathname + location.search : "#day-" + sel); render();
-  });
+    if (b.hasAttribute("data-tag")) tagOn = !tagOn; else { var v = b.getAttribute("data-day"); sel = v === "all" ? "all" : +v; }
+    toHash(); render();
+  }
+  document.getElementById("ph-filters").addEventListener("click", onChip);
+  document.getElementById("ph-tags").addEventListener("click", onChip);
   document.getElementById("ph-body").addEventListener("click", function (e) { var b = e.target.closest("button[data-i]"); if (b) open(+b.getAttribute("data-i"), b); });
   window.addEventListener("hashchange", function () { fromHash(); render(); });
 
@@ -69,7 +78,7 @@ trackPageView("photos").then(function (count) {
   function show() {
     var p = shown[cur];
     box.querySelector("img").src = p.file; box.querySelector("img").alt = p.alt || p.title;
-    box.querySelector(".phl-cap").innerHTML = "<b>" + esc(p.title) + "</b><br>Match Day " + p.day + (p.credit ? '<span class="ph-credit">Pic courtesy: ' + esc(p.credit) + "</span>" : "") + "<br><span class='muted' style='font-size:.78rem'>" + (cur + 1) + " / " + shown.length + "</span>";
+    box.querySelector(".phl-cap").innerHTML = "<b>" + esc(p.title) + "</b><br>Match Day " + p.day + tagHtml(p) + creditHtml(p) + "<br><span class='muted' style='font-size:.78rem'>" + (cur + 1) + " / " + shown.length + "</span>";
     box.querySelector(".phl-p").hidden = box.querySelector(".phl-n").hidden = shown.length < 2;
   }
   function step(d) { cur = (cur + d + shown.length) % shown.length; show(); }

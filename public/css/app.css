@@ -496,3 +496,7 @@ body.spp-open { overflow:hidden; }
 .phl button:hover{background:var(--coral);border-color:var(--coral)}
 .phl-x{top:12px;right:12px}.phl-p{left:12px;top:50%}.phl-n{right:12px;top:50%}
 @media(max-width:560px){.ph-grid{grid-template-columns:1fr}.phl-p,.phl-n{top:auto;bottom:16px}}
+
+.ph-tags{margin-top:6px}
+.ph-tag{display:inline-block;margin:4px 6px 0 0;font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1C1C1F;background:var(--amber);border-radius:999px;padding:2px 9px}
+.ph-credit a{color:var(--amber);text-decoration:underline;text-underline-offset:2px}
