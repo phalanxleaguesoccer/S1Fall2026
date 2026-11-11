@@ -1,6 +1,55 @@
-# Phalanx League Soccer – Handover (as of 30 Sep 2026)
+# Phalanx League Soccer – Handover (S1 Fall 2026 CLOSED, updated 11 Nov 2026)
 
-Paste this whole file into a new chat and say "continue from this handover".
+**New chat in this project? Start with section 0 below, then read on. No other briefing is needed.**
+The full text of this file is also stored in the Claude Project as `Phalanx_League_Soccer_Handover.md`.
+
+## 0. START HERE (state at the end of Season 1)
+**Season 1 (S1 Fall 2026) is finished: 24 of 24 matches played, 6 match days (6 Oct to 10 Nov 2026).** Everything is live and deployed; nothing is half-done.
+
+Final standings (Win 2, Draw 1, Loss 0; tie-break GD, GF):
+| # | Team | P | W | D | L | GF | GA | GD | Pts |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | Scouts FC (Champions, owner Bhagyesh Rane) | 12 | 7 | 2 | 3 | 19 | 6 | +13 | 16 |
+| 2 | Muggles FC (Runners-up, owner Amritpal Singh) | 12 | 6 | 3 | 3 | 13 | 9 | +4 | 15 |
+| 3 | Renegades (Bronze, owner Varun Varadarajan) | 12 | 2 | 6 | 4 | 6 | 10 | -4 | 10 |
+| 4 | Desi Steelers FC (owner Nasiq Hasan) | 12 | 2 | 3 | 7 | 3 | 16 | -13 | 7 |
+
+Golden Boot: Dhruv (Muggles FC). Bilal is 2nd, Bhagyesh 3rd (goals level, ranked by fewer cards: `tie` in the goals definition in `public/js/records.js`; the reason is intentionally not shown on the site).
+
+**Where things are (all verified working on 11 Nov 2026):**
+- Site: https://phalanxleaguesoccer.github.io/S1Fall2026/ . Repo `phalanxleaguesoccer/S1Fall2026` (GitHub; older text says lowercase, same repo). Push to `main` deploys `public/` in about 40 s (check with `gh run list --limit 1`). Push prints a harmless "repository moved" notice.
+- Database: Supabase project id `nephslqnzknkcjjqcgcw`. Reads through the Supabase connector (`execute_sql`) work. **The owner runs every DB WRITE himself**: always give him copy-paste SQL (he said "I will execute SQL, you let me know updates"). An earlier connector write was rejected by him.
+- **Backup:** `backup/s1fall2026_snapshot_2026-11-11.json` = full JSON snapshot of seasons, teams, players, team_season_rosters, matches, match_events, match_appearances, auction_state (exported 11 Nov 2026 from the live DB). Not included: audit_log (1,604 rows), page_views, admin/auth tables. Code backup = the git history (103+ commits) of the repo. Photos, logos, music, sponsor logos are all in `public/assets/`.
+- Restore idea: schema = `sql/schema.sql` plus the `sql/migration_*.sql` files in the order given in sections above; then insert the snapshot rows table by table (parents first: seasons, teams, players, team_season_rosters, matches, match_appearances, match_events). The repo's day SQL files (`day1_results.sql` ... `day6_scorecards.sql` and the fix files) also rebuild the match data, but the JSON snapshot is the truth because it includes later admin edits.
+
+**What was built after the earlier sections (Nov 2026):**
+- **Day 6 scorecards**: `sql/day6_scorecards.sql` (Matches 21-24). Vivek (Renegades roster) played for Desi Steelers in Day 6 M1 and M3 (one-day loan, see Day 4 loans above). Injury flags for Vija, Rishabh Devgon, Vamshi, Ashu. Time convention: Day 6 M1 times were elapsed; M3/M4 were time remaining and were converted.
+- **Fix scripts**: `sql/fix_d4m1_minti_og_to_kartik.sql` (Day 4 Match 1 own goal by Minti became a Kartik goal for Scouts), `sql/fix_d1m4_vishnu_assist_dhruv.sql`. The owner confirmed running them (assume applied; if the audit query shows a mismatch, re-offer them).
+- **Champions pop-up** (replaced the theme-music pop-up): shown once per browser session once every match of the current season is complete; Scouts (winners) and Muggles (runners-up) with confetti/fireworks. Code `maybeShowChampionsPopup()` in `public/js/common.js`, `public/js/celebrate.js`, `public/css/celebrate.css`. `PHALANX_CONFIG.CHAMPIONS_POPUP = false` in `public/js/config.js` switches it off. It will reappear for the next season only when that season completes, so for a NEW season check it does not show for the old one (it uses `seasons.is_current`).
+- **Branding & Sponsors page** (`public/sponsors.html`, nav "Branding & Sponsors"): sponsors, theme music (English and Hindi, `public/assets/music/`, `public/js/music.js`) and composer Sumit Tandon (https://youtube.com/@tapestudioz?si=_bwFl2KwO3N7BUwX).
+- **Photos page** (`public/photos.html`, data in `public/js/photos-data.js`, images in `public/assets/photos/dayN/`): 158 photos, filter by Match Day and by tag (chips "Owner facilitation", "Golden Boot"; deep links like `photos.html#day-6&owner`). Credit "Pic courtesy: <name>" and, when `creditId` is set, the name links to `player.html?id=<id>`. Credited: Kiran Shetty (not a player, no link) and Pradnyal Gandhi (player id `e22ab11c-109b-47af-853b-1fdc75a5045d`). Photo date rule used: the camera (EXIF) date decides the Match Day (6/13/20/27 Oct and 10 Nov = Days 1/2/3/4/6). Titles name a team/medal; the medal ribbon colours (blue Scouts winners, white Renegades bronze, red Muggles runners-up, green Player of the Match / Golden Boot) were inferred, and few players are named; owner can send names to fix titles. Adding photos: put `dayN-pXX.jpg` (about 1400 px) + `-t.jpg` (800x450) in the day folder, add an entry to `photos-data.js`. NEW entries are inserted at the top of the array in reverse order (within a day, later array entries display first). Images total about 53 MB (offered to shrink the full-size copies for phones).
+- Clean sheets tile on the landing page counts only 0-0 matches ("goalless draws"), as the owner asked.
+- Theme: dark theme stays (the white theme from the old open-items list was never requested again).
+
+**Open / optional items (none block anything):**
+1. `public/trivia-preview.html` + `js/trivia.js` exist but the Trivia tab was never added to `stats.html` (owner never approved the preview).
+2. Photos: names for unnamed players; optionally compress images.
+3. Auction is closed (`AUCTION_CLOSED = true` in `public/auction.html`); reopen for next season.
+4. Fantasy league / share market ideas are only ideas (see the Project doc history); nothing built.
+5. Logos/naming: "Desi Steelers FC" (site) vs "DesiSteelers FC" (certificates) never settled; logo licensing concerns noted for Muggles FC and Desi Steelers.
+6. The older Project summary file claimed Netlify hosting; the real hosting is GitHub Pages (corrected in this handover).
+
+**Starting Season 2 (checklist, in order):**
+1. Ask the owner for the new season name, dates, team owners and format. Decide whether to reuse the repo/site (recommended: new `seasons` row with `is_current = true`, keep old season viewable via the Season filter) or a new repo.
+2. Take a fresh snapshot first (query in the section below), commit to `backup/`.
+3. DB (owner runs SQL): insert the season, set the old one `is_current=false`, build the schedule (copy the pattern of `sql/seed_schedule.sql`, `update_match_times*.sql`), rosters via the auction (`AUCTION_CLOSED=false`, run `migration_auction*.sql` only if not already applied), new players via the profile workflow (section 6).
+4. Re-check: Champions pop-up (should be quiet until the new season completes), Matches/Upcoming weekly rule (Tuesday 8:30 PM ET), Standings, nav labels, season text on pages ("S1 Fall 2026" strings), sponsors.
+5. Run the test suites in `tests/site/` (one at a time) and `sql/audit_data_consistency.sql` after each match day.
+
+**Snapshot query** (run via connector; large output is saved to a file, then write it to `backup/`):
+`select jsonb_build_object('exported_at', now(), 'seasons',(select jsonb_agg(to_jsonb(t)) from seasons t), 'teams',(select jsonb_agg(to_jsonb(t)) from teams t), 'players',(select jsonb_agg(to_jsonb(t)) from players t), 'team_season_rosters',(select jsonb_agg(to_jsonb(t)) from team_season_rosters t), 'matches',(select jsonb_agg(to_jsonb(t) order by match_day, match_number) from matches t), 'match_events',(select jsonb_agg(to_jsonb(t)) from match_events t), 'match_appearances',(select jsonb_agg(to_jsonb(t)) from match_appearances t), 'auction_state',(select jsonb_agg(to_jsonb(t)) from auction_state t)) as snapshot`
+
+**How the owner likes to work** (also saved in his preferences): honest assessment and pushback, say "evidence is mixed" plainly; prototype first for big visual changes; copy-paste SQL for any DB change; test thoroughly (Playwright with a stubbed Supabase, see section 7; `window.supabase` stub + `python3 -m http.server`); short updates when results are pushed ("let me know updates"). Commit trailer lines are in section 1.
 
 ## 1. The project
 Static site (HTML/CSS/JS) + Supabase, hosted on GitHub Pages.
